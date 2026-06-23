@@ -608,7 +608,7 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   if(arb)parts.push(pill("pa","⏳ "+arb+" in Arbeit"));
   if(offen)parts.push(pill("pa","🕐 "+offen+" offen"));
   if(crawl)parts.push(pill("pa","⏸ "+crawl+" wartet auf Crawl"));
-  if(frei)parts.push(pill("pa","📋 "+frei+" zur Freigabe"));
+  if(frei)parts.push('<a href="#" onclick="event.preventDefault();gotoFreigaben()" class="pa" style="font-size:11px;cursor:pointer;text-decoration:none">📋 '+frei+' zur Freigabe →</a>');
   if(feh)parts.push(pill("pr","⚠ "+feh+" Fehler"));
   var html='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+parts.join("")+(inf.length?' <a href="#" onclick="event.preventDefault();ytQueueShow()" style="color:var(--accent-ink);font-weight:500;font-size:12px">Warteschlange →</a>':"")+' <button class="mini2" onclick="ytRefresh()" style="margin-left:auto"><i class="ti ti-refresh"></i> Aktualisieren</button></div>';
   var arbItem=inf.filter(function(x){return x.status==="in_arbeit";})[0];
@@ -617,6 +617,8 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   b.innerHTML=html;ytEtaTick();ytPollStart();
 }
 async function ytRefresh(){await ytLadeDone();ytRenderAll();}
+function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="fehler"?"Fehler":"wartet";}
+function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}route("freigaben");}
 function ytEtaFmt(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),ss=s%60;return m+":"+(ss<10?"0":"")+ss;}
 function ytEtaTick(){clearInterval(window._ytEtaTimer);var run=function(){var el=document.getElementById("ytEta");if(!el){clearInterval(window._ytEtaTimer);return;}var st=el.getAttribute("data-start");if(!st){el.textContent="";return;}var sec=(Date.now()-Date.parse(st))/1000;if(!(sec>=0)){el.textContent="";return;}var SCHAETZ=12*60;var rest=SCHAETZ-sec;var t=" · läuft seit "+ytEtaFmt(sec);t+=(rest>30)?" · ca. noch "+ytEtaFmt(rest):" · gleich fertig (dauert evtl. etwas länger)";el.textContent=t;};run();window._ytEtaTimer=setInterval(run,1000);}
 function ytPollStart(){clearTimeout(window._ytPollTimer);const inf=window._ytQInfo||[];const aktiv=inf.filter(function(x){return x.status==="offen"||x.status==="in_arbeit"||x.status==="wartet_auf_crawl";}).length;if(!aktiv)return;window._ytPollTimer=setTimeout(async function(){if(!document.getElementById("ytStatBox"))return;await ytLadeDone();if(document.getElementById("ytStatBox"))ytRenderStat();},15000);}
@@ -631,13 +633,14 @@ async function ytQueueShow(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d
       +'<div style="flex:1;min-width:0">'
         +'<div style="font-size:13px;line-height:1.35">'+esc(x.video_titel||x.video_id)+'</div>'
         +'<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-          +'<span class="'+stCl(x.status)+'" style="font-size:11px">'+esc(x.status||"offen")+'</span>'
+          +'<span class="'+stCl(x.status)+'" style="font-size:11px">'+ytStatLabel(x.status||"offen")+'</span>'
           +(x.relevanz!=null?'<span style="font-size:11px;color:var(--muted)">Relevanz '+x.relevanz+'/10</span>':"")
-          +'<button class="mini2" onclick="ytCopy(\''+x.video_id+'\')">/watch kopieren</button>'
-          +(x.status!=='offen'?'<button class="mini2" onclick="ytQueueRetry(\''+x.id+'\')"><i class="ti ti-refresh"></i> Erneut</button>':'')
+          +(x.status==='zur_freigabe'?'<button class="mini2" style="background:#16a34a;color:#fff;border-color:#16a34a" onclick="gotoFreigaben()"><i class="ti ti-rosette-discount-check"></i> Erkenntnisse freigeben →</button>':'')
+          +((x.status==='offen'||x.status==='in_arbeit'||x.status==='wartet_auf_crawl')?'<button class="mini2" onclick="ytCopy(\''+x.video_id+'\')">/watch kopieren</button>':'')
+          +((x.status==='fehler'||x.status==='fertig')?'<button class="mini2" onclick="ytQueueRetry(\''+x.id+'\')"><i class="ti ti-refresh"></i> Erneut auswerten</button>':'')
           +'<button class="mini2" onclick="ytQueueDel(\''+x.id+'\')">Entfernen</button>'
         +'</div>'
-      +'</div></div>';}).join("")+'<div style="font-size:11px;color:var(--muted);padding:10px 6px">Die eigentliche /watch-Auswertung übernimmt der Runner, der offene Einträge abholt. „Erneut" stellt fehlerhafte/fertige Videos wieder auf <b>offen</b>.</div></div>';
+      +'</div></div>';}).join("")+'<div style="font-size:11px;color:var(--muted);padding:10px 6px"><b>✓ ausgewertet</b> = Video eingelesen. <b>Freigabe offen</b> = die KI-Erkenntnisse aus dem Video warten im Modul <b>Freigaben</b> (linke Navigation) auf deine Bestätigung – erst dann landen sie in der SSoT. Die Auswertung selbst übernimmt der Runner automatisch.</div></div>';
   }catch(e){const o=document.getElementById("ytQOut");if(o)o.innerHTML="Konnte Warteschlange nicht laden: "+esc(String(e&&e.message?e.message:e));}
 }
 async function ytQueueAdd(sid){const inp=document.getElementById("ytQAddInp");const v=inp?inp.value.trim():"";if(!v){toast("YouTube-URL oder Video-ID eingeben");return;}const vid=videoIdAusUrl(v)||(/^[A-Za-z0-9_-]{6,15}$/.test(v)?v:"");if(!vid){toast("Keine gültige Video-ID erkannt");return;}try{await dbW('create','video_warteschlange',null,{software_id:sid,video_id:vid,video_url:"https://www.youtube.com/watch?v="+vid,video_titel:vid,status:"offen"});toast('Video hinzugefügt (Status: offen)');await ytLadeDone();ytRenderAll();ytQueueShow();}catch(e){alert('Hinzufügen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
