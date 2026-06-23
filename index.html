@@ -31,6 +31,32 @@
   .nav.active{background:var(--sel);border-left-color:var(--accent);font-weight:500}.nav.active i{color:var(--accent)}
   .nav .bdg{margin-left:auto;background:var(--bad);color:#fff;font-size:10px;border-radius:9px;padding:0 5px}.nav .cnt{margin-left:auto;font-size:11px;color:var(--faint)}
   .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel)}
+  .mob-burger{display:none;cursor:pointer;font-size:21px;color:var(--ink);padding:0 2px;flex:none}
+  #sideBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150}
+  @media(max-width:820px){
+    .mob-burger{display:inline-flex;align-items:center}
+    .menubar{gap:12px;overflow-x:auto;white-space:nowrap}
+    .menubar .brand{font-size:13px;flex:none}
+    .menubar .right{display:none}
+    .toolbar{overflow-x:auto;flex-wrap:nowrap}
+    .toolbar .tb,.toolbar .sep{flex:none}
+    .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;z-index:200;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 18px rgba(0,0,0,.28)}
+    .sidebar.open{transform:none}
+    #sideBackdrop.show{display:block}
+    .grid{overflow:auto}
+    #ov.overlay{padding:0}
+    .dlg{width:100%!important;max-width:100%!important;height:100%!important;border-radius:0}
+    .dlg-body{flex-direction:column;min-height:0}
+    .dlg-nav{width:100%!important;flex-direction:row;overflow-x:auto;white-space:nowrap;border-right:none;border-bottom:1px solid var(--line);padding:4px 6px}
+    .dlg-nav .dn{display:inline-flex!important;flex:none}
+    .dlg-foot{overflow-x:auto;white-space:nowrap}
+    .dlg-form{padding:14px}
+    #aov{padding:8px!important}
+    #aov>div{max-width:96vw!important;width:96vw!important}
+    #eov{padding:8px!important}
+    #eov>div{max-width:96vw!important;width:96vw!important}
+  }
+
   .crumb{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--line2);font-size:12.5px;color:var(--muted)}.crumb b{color:var(--ink);font-weight:500}.crumb .sp{color:var(--faint)}
   .crumb .clr{margin-left:auto;color:var(--accent-ink);cursor:pointer;font-size:12px;display:none;align-items:center;gap:5px}.crumb .clr.on{display:inline-flex}
   .intro{display:flex;align-items:flex-start;gap:13px;padding:13px 16px;border-bottom:1px solid var(--line2);background:var(--panel2)}
@@ -225,9 +251,9 @@
     <button id="lgReset" style="width:100%;background:none;border:none;color:#2f6fed;font-size:13px;margin-top:10px;cursor:pointer">Passwort vergessen?</button>
   </div>
 </div>
-<div class="app">
+<div class="app"><div id="sideBackdrop" onclick="toggleSidebar(false)"></div>
   <div class="menubar">
-    <span class="brand"><i class="ti ti-database-cog"></i> Softwarefinder24 · Cockpit</span>
+    <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand"><i class="ti ti-database-cog"></i> Softwarefinder24 · Cockpit</span>
     <span class="m" onclick="openMenu('Datei',this)">Datei</span><span class="m" onclick="openMenu('Pipeline',this)">Pipeline</span><span class="m" onclick="openMenu('Portal',this)">Portal</span><span class="m" onclick="openMenu('Ansicht',this)">Ansicht</span><span class="m" onclick="openMenu('Extras',this)">Extras</span><span class="m" onclick="openMenu('Hilfe',this)">Hilfe</span>
     <span class="right"><span class="tg" onclick="document.body.classList.toggle('dark')"><i class="ti ti-contrast-2"></i> Hell/Dunkel</span><span>Markt: DE</span><span>Admin</span></span>
   </div>
@@ -460,6 +486,7 @@ async function saveEditDB(dv){const v=VIEWS[CUR];const obj=eIdx>=0?v.rows[eIdx]:
   try{if(eIdx>=0){await dbW('update',dv.coll,obj._id,patch,dv.pk);}else{await dbW('create',dv.coll,null,patch);}closeEdit();if(LOADERS[CUR])await LOADERS[CUR]();render();toast('Gespeichert ✓');}catch(e){alert('Speichern fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 async function delEditDB(dv,rows){try{for(const r of rows){if(r&&r._id!=null)await dbW('delete',dv.coll,r._id,null,dv.pk);}if(LOADERS[CUR])await LOADERS[CUR]();render();toast('Gelöscht');}catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 const LOADERS={kategorien:ladeKategorien,woerterbuch:ladeWoerterbuch,youtube:ladeYoutubeView,freigaben:ladeFreigabenView,crawl:ladeCrawlView,bewertungen:ladeBewertungenView,vergleiche:ladeVergleicheView,maerkte:ladeMaerkteView,infoseiten:ladeInfoseitenView,redirects:ladeRedirectsView,einstellungen:ladeEinstellungenView,portalbuild:ladePortalbuildView};
+function toggleSidebar(open){const sb=document.getElementById("side");const bd=document.getElementById("sideBackdrop");if(!sb)return;const willOpen=(open===undefined)?!sb.classList.contains("open"):open;sb.classList.toggle("open",willOpen);if(bd)bd.classList.toggle("show",willOpen);}
 function route(key){CUR=key;document.querySelectorAll("#side .nav").forEach(n=>n.classList.toggle("active",n.dataset.v===key));
   if(key==="wbinbox"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-inbox"></i> <b>Feature-Inbox</b> <span class="sp">›</span> offene Zuordnungen aus Crawls & Videos';wbView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
@@ -1048,7 +1075,7 @@ async function startApp(){ await ladeSW(); gsInit(); route("software"); wbLoad()
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
-document.querySelectorAll("#side .nav").forEach(n=>n.onclick=()=>route(n.dataset.v));
+document.querySelectorAll("#side .nav").forEach(n=>n.onclick=()=>{route(n.dataset.v);toggleSidebar(false);});
 bootAuth();
 </script>
 </body>
