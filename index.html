@@ -43,7 +43,18 @@
     .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;z-index:200;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 18px rgba(0,0,0,.28)}
     .sidebar.open{transform:none}
     #sideBackdrop.show{display:block}
-    .grid{overflow:auto}
+    .grid{overflow:visible}
+    .grid table{width:100%}
+    .grid thead{display:none}
+    .grid tbody tr{display:block;border:1px solid var(--line);border-radius:10px;margin:8px;padding:6px 12px 8px;background:var(--panel)}
+    .grid tbody td{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0;border:none!important;text-align:right;width:auto;max-width:none}
+    .grid tbody td::before{content:attr(data-label);color:var(--muted);font-size:11px;font-weight:500;text-align:left;white-space:nowrap;flex:none}
+    .grid tbody td:first-child{justify-content:flex-start}
+    .grid tbody td:first-child::before{display:none}
+    .grid tbody td:nth-child(2){font-weight:600;font-size:14px;justify-content:flex-start;padding-top:0}
+    .grid tbody td:nth-child(2)::before{display:none}
+    .grid tbody td.empty{display:block;text-align:center;color:var(--muted)}
+    .grid tbody td.empty::before{display:none}
     #ov.overlay{padding:0}
     .dlg{width:100%!important;max-width:100%!important;height:100%!important;border-radius:0}
     .dlg-body{flex-direction:column;min-height:0}
@@ -620,7 +631,7 @@ function render(){
   const sk=v.cols.find(c=>c.k===v._sort.k);
   rows.sort((a,b)=>{if(sk&&sk.ty==="age"){return ((ageOf(a).t==null?-1:ageOf(a).t)-(ageOf(b).t==null?-1:ageOf(b).t))*v._sort.d;}if(sk&&sk.ty==="nw"){return ((nwOf(a).v==null?-1:nwOf(a).v)-(nwOf(b).v==null?-1:nwOf(b).v))*v._sort.d;}if(sk&&(sk.ty==="num"||sk.ty==="pct")){return ((a[sk.k]===""?-1:a[sk.k])-(b[sk.k]===""?-1:b[sk.k]))*v._sort.d;}return disp(v,a,sk).localeCompare(disp(v,b,sk),"de",{numeric:true})*v._sort.d;});
   v._view=rows;
-  $("#tbody").innerHTML=rows.length?rows.map((r,ri)=>`<tr data-i="${v.rows.indexOf(r)}" onclick="onRow(${v.rows.indexOf(r)})"><td><input type="checkbox" onclick="event.stopPropagation();this.closest('tr').classList.toggle('sel');sync()"></td>${cols.map(c=>`<td class="${c.ty==='num'?'num':''}">${cellHtml(disp(v,r,c),r,c)}</td>`).join("")}</tr>`).join(""):`<tr><td class="empty" colspan="${cols.length+1}">Keine Einträge${Object.keys(v._filt).length?" – Filter aktiv":""}.</td></tr>`;
+  $("#tbody").innerHTML=rows.length?rows.map((r,ri)=>`<tr data-i="${v.rows.indexOf(r)}" onclick="onRow(${v.rows.indexOf(r)})"><td><input type="checkbox" onclick="event.stopPropagation();this.closest('tr').classList.toggle('sel');sync()"></td>${cols.map(c=>`<td data-label="${esc(c.t)}" class="${c.ty==='num'?'num':''}">${cellHtml(disp(v,r,c),r,c)}</td>`).join("")}</tr>`).join(""):`<tr><td class="empty" colspan="${cols.length+1}">Keine Einträge${Object.keys(v._filt).length?" – Filter aktiv":""}.</td></tr>`;
   const nf=Object.keys(v._filt).length;
   $("#statusbar").innerHTML=`<span><span class="k">Anzeige:</span> <b>${rows.length}</b> von ${v.rows.length} ${CUR==="software"?"Programmen":"Einträgen"}</span>`+(CUR==="software"?`<span><span class="k">Ø Fortschritt:</span> <b>${rows.length?Math.round(rows.reduce((a,r)=>a+r.pct,0)/rows.length):0}%</b></span><span><span class="k">Live:</span> <b>${rows.filter(r=>r.status==="live").length}</b></span>`:"")+(nf?`<span class="k">Filter aktiv: ${Object.keys(v._filt).map(k=>v.cols.find(c=>c.k===k).t).join(", ")}</span>`:"")+`<span class="right">Sortiert: <b>${(sk?sk.t:"")+(v._sort.d>0?" ↑":" ↓")}</b></span>`;
   $("#navCount").textContent=VIEWS.software.rows.length;sync();
