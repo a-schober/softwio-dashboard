@@ -144,9 +144,9 @@
   .chsel:hover{border-color:var(--accent)}.chsel.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
   .fld input[readonly],.fld select[disabled]{background:var(--panel2);color:var(--muted);cursor:not-allowed}
   .dlg-foot{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--line);background:var(--panel2)}.dlg-foot .right{margin-left:auto;display:flex;gap:8px}
-  .dtbl{width:100%;border-collapse:collapse;font-size:12px}
+  .dtbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
   .dtbl th{text-align:left;font-weight:500;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0}
-  .dtbl td{padding:6px 8px;border-bottom:1px solid var(--line2)}.dtbl tr:hover{background:var(--accent-soft)}
+  .dtbl td{padding:6px 8px;border-bottom:1px solid var(--line2);word-break:break-word;overflow-wrap:anywhere;vertical-align:top}.dtbl tr:hover{background:var(--accent-soft)}
   .dact{display:flex;gap:8px;color:var(--faint)}.dact i{cursor:pointer;font-size:15px}.dact i:hover{color:var(--accent)}
   .mini2{height:21px;padding:0 7px;border:1px solid var(--line);border-radius:5px;font-size:11px;color:var(--accent-ink);cursor:pointer;display:inline-block;line-height:19px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}.chip{font-size:11.5px;padding:3px 10px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
@@ -591,14 +591,14 @@ function clearAll(){VIEWS[CUR]._filt={};render();}
 function closePop(){$("#fpop").classList.remove("show");}
 document.addEventListener("mousedown",e=>{if(!e.target.closest("#fpop")&&!e.target.closest(".th-in")&&!e.target.closest('.m')&&!e.target.closest('[onclick*=openCols]'))closePop();});
 const MENUS={
- Datei:[{l:"Neue Software",i:"ti-plus",a:()=>{route('software');onNew();}},{l:"Import (CSV / JSON)",i:"ti-file-import"},{l:"Export",i:"ti-file-export"},{sep:1},{l:"Sicherung",i:"ti-database-export"},{l:"Abmelden",i:"ti-logout"}],
+ Datei:[{l:"Neue Software",i:"ti-plus",a:()=>{route('software');onNew();}},{l:"Import (CSV / JSON)",i:"ti-file-import"},{l:"Export",i:"ti-file-export"},{sep:1},{l:"Sicherung",i:"ti-database-export"},{l:"Abmelden",i:"ti-logout",a:()=>cockpitLogout()}],
  Pipeline:[{l:"Fällige Crawls starten",i:"ti-spider",a:()=>runCrawl()},{l:"Auto-Watcher-Status",i:"ti-robot"},{l:"Aktualisierungs-Ampel",i:"ti-traffic-lights"},{l:"Validierungslauf (alle)",i:"ti-checkup-list",a:()=>runValidate()}],
- Portal:[{l:"Alle Märkte bauen",i:"ti-hammer",a:()=>runBuild()},{l:"Build-Protokoll",i:"ti-history",a:()=>route('portalbuild')},{l:"Staging öffnen",i:"ti-external-link"},{l:"Live öffnen",i:"ti-external-link"}],
- Ansicht:[{l:"Hell / Dunkel",i:"ti-contrast-2",a:()=>document.body.classList.toggle('dark')},{l:"Dichte: kompakt / komfortabel",i:"ti-baseline-density-medium"},{l:"Spalten zurücksetzen",i:"ti-columns"}],
- Extras:[{l:"n8n öffnen",i:"ti-external-link"},{l:"Firecrawl öffnen",i:"ti-external-link"},{l:"Supabase öffnen",i:"ti-external-link"},{l:"claude.ai öffnen",i:"ti-external-link"},{sep:1},{l:"Logs",i:"ti-file-text"}],
- Hilfe:[{l:"Dokumentation",i:"ti-book"},{l:"Tastenkürzel",i:"ti-keyboard"},{l:"Über",i:"ti-info-circle"}]
+ Portal:[{l:"Alle Märkte bauen",i:"ti-hammer",a:()=>runBuild()},{l:"Build-Protokoll",i:"ti-history",a:()=>route('portalbuild')},{l:"Staging öffnen",i:"ti-external-link"},{l:"Live öffnen",i:"ti-external-link",a:()=>window.open('https://softwarefinder24.de','_blank','noopener')}],
+ Ansicht:[{l:"Hell / Dunkel",i:"ti-contrast-2",a:()=>document.body.classList.toggle('dark')},{l:"Dichte: kompakt / komfortabel",i:"ti-baseline-density-medium"},{l:"Spalten zurücksetzen",i:"ti-columns",a:()=>{VIEWS[CUR].cols.forEach(c=>c.vis=true);render();toast('Spalten zurückgesetzt');}}],
+ Extras:[{l:"n8n öffnen",i:"ti-external-link",a:()=>window.open('https://n8n.schober.media','_blank','noopener')},{l:"Firecrawl öffnen",i:"ti-external-link",a:()=>window.open('https://www.firecrawl.dev','_blank','noopener')},{l:"Supabase öffnen",i:"ti-external-link",a:()=>window.open('https://supabase.com/dashboard/project/xoyjsjenitjppxpcheza','_blank','noopener')},{l:"claude.ai öffnen",i:"ti-external-link",a:()=>window.open('https://claude.ai','_blank','noopener')},{sep:1},{l:"Logs",i:"ti-file-text"}],
+ Hilfe:[{l:"Dokumentation",i:"ti-book"},{l:"Tastenkürzel",i:"ti-keyboard"},{l:"Über",i:"ti-info-circle",a:()=>toast('SF24 Cockpit · live unter sf24.schober.media · Daten zentral in Supabase')}]
 };
-function openMenu(name,anchor){const items=MENUS[name];const pop=$("#fpop");pop.innerHTML=items.map(it=>it.sep?'<div class="fp-sep"></div>':`<div class="fp-s" data-mi="${encodeURIComponent(it.l)}"><i class="ti ${it.i}"></i> ${it.l}</div>`).join("");const r=anchor.getBoundingClientRect();pop.style.left=r.left+"px";pop.style.top=(r.bottom+5)+"px";pop.classList.add("show");pop.querySelectorAll(".fp-s").forEach(el=>{el.onclick=()=>{const it=items.find(x=>encodeURIComponent(x.l)===el.dataset.mi);closePop();if(it&&it.a)it.a();};});}
+function openMenu(name,anchor){const items=MENUS[name];const pop=$("#fpop");pop.innerHTML=items.map(it=>it.sep?'<div class="fp-sep"></div>':`<div class="fp-s" data-mi="${encodeURIComponent(it.l)}"><i class="ti ${it.i}"></i> ${it.l}</div>`).join("");const r=anchor.getBoundingClientRect();pop.style.left=r.left+"px";pop.style.top=(r.bottom+5)+"px";pop.classList.add("show");pop.querySelectorAll(".fp-s").forEach(el=>{el.onclick=()=>{const it=items.find(x=>encodeURIComponent(x.l)===el.dataset.mi);closePop();if(it&&it.a)it.a();else if(it)toast("„"+it.l+"“ – noch nicht verfügbar");};});}
 function openCols(anchor){const v=VIEWS[CUR];const pop=$("#fpop");pop.innerHTML=`<div class="fp-s" style="cursor:default;color:var(--muted);font-weight:500"><i class="ti ti-columns"></i> Spalten anzeigen</div><div class="fp-sep"></div><div class="fp-list">${v.cols.map((c,i)=>`<label class="fp-row"><input type="checkbox" ${c.vis?"checked":""} ${i===0?"disabled":""} onchange="VIEWS['${CUR}'].cols[${i}].vis=this.checked;render()"> ${c.t}</label>`).join("")}</div>`;const r=anchor.getBoundingClientRect();pop.style.left=Math.min(r.left,window.innerWidth-250)+"px";pop.style.top=(r.bottom+4)+"px";pop.classList.add("show");}
 
 // CRUD
