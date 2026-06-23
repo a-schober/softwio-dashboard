@@ -43,11 +43,12 @@
     .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;z-index:200;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 18px rgba(0,0,0,.28)}
     .sidebar.open{transform:none}
     #sideBackdrop.show{display:block}
-    .grid{overflow:visible}
-    .grid table{width:100%}
+    .grid{overflow-x:hidden}
+    .grid table{display:block;width:100%;min-width:0}
+    .grid tbody{display:block;width:100%}
     .grid thead{display:none}
     .grid tbody tr{display:block;border:1px solid var(--line);border-radius:10px;margin:8px;padding:6px 12px 8px;background:var(--panel)}
-    .grid tbody td{display:block;padding:3px 0;border:none!important;text-align:left;width:auto;max-width:none}
+    .grid tbody td{display:block;padding:3px 0;border:none!important;text-align:left;width:auto;max-width:none;white-space:normal;overflow-wrap:anywhere}
     .grid tbody td::before{content:attr(data-label) ": ";color:var(--muted);font-size:11px;font-weight:500;margin-right:5px}
     .grid tbody td:first-child{padding:0 0 4px}
     .grid tbody td:first-child::before{display:none}
