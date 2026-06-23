@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SF24 Cockpit – ERP-Mockup</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#e9ecf2;--panel:#fff;--panel2:#f6f7fa;--line:#d7dce4;--line2:#e7eaf0;--ink:#1f2733;--muted:#6b7280;--faint:#9aa3b0;--accent:#4f46e5;--accent-soft:#eef2ff;--accent-ink:#3730a3;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--head:#eef1f6;--zebra:#fafbfc;--sel:#eef2ff;}
+  body.dark{--bg:#0f141b;--panel:#161c25;--panel2:#1b222d;--line:#2a323e;--line2:#222a35;--ink:#e6eaf0;--muted:#9aa6b6;--faint:#6b7785;--accent:#8b86f5;--accent-soft:#232046;--accent-ink:#c7c4fb;--head:#1b222d;--zebra:#141a22;--sel:#232046;}
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--ink);background:var(--bg)}
+  .app{display:flex;flex-direction:column;height:100vh}
+  .menubar{display:flex;align-items:center;gap:18px;padding:6px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px}
+  .menubar .brand{font-weight:600;display:flex;align-items:center;gap:7px}.menubar .brand i{color:var(--accent);font-size:17px}
+  .menubar .m{color:var(--muted);cursor:pointer}.menubar .m:hover{color:var(--ink)}.menubar .right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--faint)}.menubar .tg{cursor:pointer;display:flex;align-items:center;gap:5px;color:var(--muted)}
+  .toolbar{display:flex;align-items:center;gap:3px;padding:6px 10px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid var(--line);background:var(--panel);border-radius:6px;color:var(--ink);font-size:12.5px;cursor:pointer}
+  .tb:hover{background:var(--accent-soft);border-color:var(--accent)}.tb i{font-size:16px;color:var(--muted)}
+  .tb.primary{border-color:var(--accent);color:var(--accent-ink)}.tb.primary i{color:var(--accent)}.tb.ok{border-color:var(--ok);color:var(--ok)}.tb.ok i{color:var(--ok)}
+  .tb[disabled]{opacity:.45;pointer-events:none}.sep{width:1px;height:22px;background:var(--line);margin:0 6px}
+  body.gen .ctx{display:none}
+  .body{flex:1;display:flex;min-height:0}
+  .sidebar{width:212px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:auto}
+  .grp{padding:11px 13px 5px;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .nav{display:flex;align-items:center;gap:10px;padding:7px 13px;font-size:13px;color:var(--ink);cursor:pointer;border-left:2px solid transparent}
+  .nav i{font-size:17px;color:var(--muted);width:18px;text-align:center}.nav:hover{background:var(--panel2)}
+  .nav.active{background:var(--sel);border-left-color:var(--accent);font-weight:500}.nav.active i{color:var(--accent)}
+  .nav .bdg{margin-left:auto;background:var(--bad);color:#fff;font-size:10px;border-radius:9px;padding:0 5px}.nav .cnt{margin-left:auto;font-size:11px;color:var(--faint)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel)}
+  .crumb{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--line2);font-size:12.5px;color:var(--muted)}.crumb b{color:var(--ink);font-weight:500}.crumb .sp{color:var(--faint)}
+  .crumb .clr{margin-left:auto;color:var(--accent-ink);cursor:pointer;font-size:12px;display:none;align-items:center;gap:5px}.crumb .clr.on{display:inline-flex}
+  .intro{display:flex;align-items:flex-start;gap:13px;padding:13px 16px;border-bottom:1px solid var(--line2);background:var(--panel2)}
+  .intro .ic{width:38px;height:38px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  .intro h2{margin:0 0 3px;font-size:14.5px;font-weight:600}.intro p{margin:0;font-size:12.5px;color:var(--muted);max-width:720px;line-height:1.5}
+  .grid{flex:1;min-width:0;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{position:sticky;top:0;background:var(--head);text-align:left;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th .th-in{display:flex;align-items:center;gap:5px;padding:7px 9px;cursor:pointer;user-select:none}
+  thead th.nosort .th-in{cursor:default}
+  thead th .so{font-size:11px;color:var(--accent)}
+  thead th .fi{font-size:13px;color:var(--faint);margin-left:auto}
+  thead th .clrf{font-size:14px;color:var(--accent);margin-left:2px;display:none}
+  thead th.filtered{background:var(--accent-soft)}
+  thead th.filtered .th-in{color:var(--accent-ink);font-weight:600}
+  thead th.filtered .fi{color:var(--accent)}
+  thead th[draggable]{cursor:grab}thead th.dragover{box-shadow:inset 3px 0 0 var(--accent)}
+  thead th.filtered .clrf{display:inline}
+  tbody td{padding:6px 9px;border-bottom:1px solid var(--line2);white-space:nowrap}
+  tbody tr{cursor:pointer}tbody tr:nth-child(even){background:var(--zebra)}
+  tbody tr:hover{background:var(--accent-soft)}tbody tr.sel{background:var(--sel)}
+  tbody tr.sel td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+  tbody .empty{text-align:center;color:var(--faint);padding:34px}
+  .nm{display:flex;align-items:center;gap:8px;font-weight:500}
+  .logo{width:22px;height:22px;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:600}
+  .b-cat{display:inline-block;font-size:11px;padding:2px 8px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .bar{display:flex;align-items:center;gap:7px;min-width:96px}.bar .track{flex:1;height:6px;border-radius:4px;background:var(--line2);overflow:hidden}.bar .fill{height:100%;border-radius:4px}.bar .pct{font-variant-numeric:tabular-nums;font-size:11px;color:var(--muted);width:30px;text-align:right}
+  .st{display:inline-flex;align-items:center;gap:6px;font-size:11.5px}.st .dot{font-size:9px}
+  .dot.g{color:var(--ok)}.dot.a{color:var(--warn)}.dot.r{color:var(--bad)}.dot.n{color:var(--faint)}
+  .pg{color:var(--ok)}.pa{color:var(--warn)}.pr{color:var(--bad)}.pn{color:var(--faint)}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .ltd-b{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:#fef3c7;color:#92400e;border:1px solid #fac775}
+  .age-b{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+  .age-b.g{color:var(--ok)}.age-b.a{color:var(--warn)}.age-b.r{color:var(--bad)}.age-b.n{color:var(--faint)}
+  .nmode{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .nmtab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+  .nmtab i{font-size:16px}.nmtab.on{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:500}.nmtab:hover{color:var(--ink)}
+  .disc-h{font-size:12px;font-weight:600;color:var(--ink);margin:10px 0 8px}.disc-h.warn{color:#92400e;margin-top:16px;display:flex;align-items:center;gap:6px}body.dark .disc-h.warn{color:#fac775}
+  .disc-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;background:var(--panel)}
+  .dc-main{flex:1;min-width:0}.dc-n{font-size:13px;font-weight:500}.dc-n .dc-h{font-weight:400;color:var(--muted);font-size:12px}
+  .dc-d{font-size:12px;color:var(--muted);margin:2px 0 5px}
+  .dc-aff{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ok);font-weight:500}.dc-aff i{font-size:14px}
+  .dc-pot{font-size:12px;color:var(--warn);letter-spacing:1px;margin-left:8px}
+  .dc-nm{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--bad)}.dc-nm i{font-size:14px}
+  .dc-act{display:flex;gap:7px;flex:none}
+  .vgl-list{display:flex;flex-direction:column;gap:7px;margin:4px 0 12px}
+  .vgl-item{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--panel);cursor:pointer}
+  .vgl-item:hover{border-color:var(--accent)}.vgl-item.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .vgl-item.off{opacity:.6;cursor:not-allowed;background:var(--panel2)}
+  .vgl-chk{font-size:19px;color:var(--accent);display:flex}.vgl-item.off .vgl-chk{color:var(--faint)}
+  .vgl-n{font-size:13px;font-weight:500}.vgl-meta{font-size:12px;color:var(--muted)}
+  .vgl-st{margin-left:auto;font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+  .vgl-ok{font-size:11.5px;color:var(--ok);display:inline-flex;align-items:center;gap:5px;width:78px;justify-content:flex-end}
+  .vgl-no{font-size:11.5px;color:var(--bad);display:inline-flex;align-items:center;gap:5px}
+  .vgl-bar{display:flex;align-items:center;gap:12px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}.vgl-bar .tb{margin-left:auto}
+  .vgl-res{font-size:13px}.vr-h{font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px}.vr-words{margin-left:auto;font-size:11.5px;font-weight:400;color:var(--muted)}
+  .vr-b{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12.5px;align-items:baseline}
+  .vr-l{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);flex:none;width:90px}
+  .vr-chips,.vr-seo{display:flex;flex-wrap:wrap;gap:7px}
+  .vr-chip{font-size:11.5px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:3px 10px;color:var(--ink)}.vr-chip i{color:var(--ok);font-size:13px}
+  .vr-s{font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;width:calc(50% - 4px)}.vr-s i{color:var(--ok);font-size:14px}
+  .wbg{margin-bottom:18px}
+  .wbg-h{font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:7px 11px;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+  body.dark .wbg-h{background:#3a2e0a;color:#fcd34d;border-color:#92711a}
+  .wb-card{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;background:var(--panel)}
+  .wb-top{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .wb-roh{font-size:13.5px;font-weight:600}.wb-src{margin-left:auto;font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+  .wb-cands{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .wb-lab{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+  .wb-cand{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent-ink);border-radius:16px;padding:4px 11px;font-size:12.5px;cursor:pointer}
+  .wb-cand:hover{background:var(--accent);color:#fff}.wb-cand:hover .wb-sc{color:#fff;border-color:#fff}
+  .wb-cand.weak{border-color:var(--line);background:var(--panel2);color:var(--muted)}
+  .wb-sc{font-size:11px;font-weight:700;border:1px solid currentColor;border-radius:8px;padding:0 5px}.wb-sc.lo{opacity:.7}
+  .wb-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .wb-msel{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px;padding:0 8px;max-width:230px}
+  .yt-card.done{opacity:.6;cursor:default}
+  .yt-card.done .yt-thumb{filter:grayscale(.4)}
+  .yt-done{position:absolute;top:6px;left:6px;background:var(--ok);color:#fff;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:11px;display:inline-flex;align-items:center;gap:4px;z-index:2}
+  .bw-dedup{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+  .bw-new{font-size:12.5px;color:var(--ok);font-weight:600;display:inline-flex;align-items:center;gap:5px}
+  .bw-dup{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:2px 9px}
+  .ract{display:flex;gap:9px;color:var(--faint)}.ract i{font-size:16px;cursor:pointer}.ract i:hover{color:var(--accent)}
+  .statusbar{display:flex;align-items:center;gap:18px;padding:5px 14px;background:var(--panel2);border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}.statusbar .k{color:var(--faint)}.statusbar .right{margin-left:auto;color:var(--faint)}
+  .fpop{position:fixed;z-index:50;width:240px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:12.5px;overflow:hidden;display:none}.fpop.show{display:block}
+  .fp-s{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;color:var(--ink)}.fp-s:hover{background:var(--accent-soft)}.fp-s i{font-size:16px;color:var(--muted)}.fp-s.clr{color:var(--bad)}.fp-s.clr i{color:var(--bad)}
+  .fp-sep{height:1px;background:var(--line2);margin:2px 0}
+  .fp-search{margin:8px 11px;position:relative}.fp-search input{width:100%;height:28px;padding:0 8px 0 28px;border:1px solid var(--line);border-radius:5px;background:var(--panel2);color:var(--ink);font:inherit;font-size:12px}.fp-search i{position:absolute;left:8px;top:6px;color:var(--faint);font-size:15px}
+  .fp-list{max-height:184px;overflow:auto;padding:2px 6px}
+  .fp-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;cursor:pointer}.fp-row:hover{background:var(--panel2)}.fp-row.all{font-weight:500;border-bottom:1px solid var(--line2);border-radius:0;margin-bottom:2px}
+  .fp-foot{display:flex;gap:7px;padding:8px 11px;border-top:1px solid var(--line2)}.fp-foot button{flex:1;height:29px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}.fp-foot button.ok{background:var(--accent);border-color:var(--accent);color:#fff}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60;display:none;align-items:center;justify-content:center;padding:28px}.overlay.show{display:flex}
+  .dlg{width:980px;max-width:100%;height:88vh;background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+  .edlg{width:560px;max-width:100%;height:auto;max-height:88vh}
+  .dlg-h{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}.dlg-h .logo{width:34px;height:34px;font-size:13px}
+  .dlg-h .meta{display:flex;flex-direction:column}.dlg-h .meta b{font-size:15px;font-weight:600}.dlg-h .meta span{font-size:12px;color:var(--muted)}.dlg-h .x{margin-left:auto;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+  .badge-st{font-size:11px;padding:2px 9px;border-radius:11px;background:#fef3c7;color:#92400e}
+  .dlg-body{flex:1;display:flex;min-height:0}
+  .dlg-nav{width:188px;flex:none;border-right:1px solid var(--line);background:var(--panel2);overflow:auto;padding:8px 0}
+  .dn{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:12.5px;color:var(--ink);cursor:pointer;border-left:2px solid transparent}.dn i{font-size:16px;color:var(--muted);width:17px;text-align:center}.dn:hover{background:var(--panel)}.dn.active{background:var(--panel);border-left-color:var(--accent);font-weight:500}.dn.active i{color:var(--accent)}.dn .c{margin-left:auto;font-size:11px;color:var(--faint)}
+  .dlg-form{flex:1;overflow:auto;padding:16px 20px}
+  .fgrp{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line2)}.fgrp:not(:first-child){margin-top:22px}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 22px}.fgrid.one{grid-template-columns:1fr}
+  .fld{display:flex;align-items:center;gap:10px}.fld label{width:124px;flex:none;color:var(--muted);font-size:12px}.fld .v{flex:1;min-width:0}
+  .fld input,.fld select{width:100%;height:30px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px}
+  .fld input.miss{border-color:var(--bad);background:#fff5f5}body.dark .fld input.miss{background:#2a1416}.fld .miss-t{font-size:11px;color:var(--bad)}
+  .neu-b{font-size:9px;background:var(--accent-soft);color:var(--accent-ink);padding:1px 5px;border-radius:8px;font-weight:500;vertical-align:1px}
+  .chipsel{display:flex;flex-wrap:wrap;gap:6px}
+  .chsel{font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:14px;cursor:pointer;color:var(--muted);user-select:none}
+  .chsel:hover{border-color:var(--accent)}.chsel.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+  .fld input[readonly],.fld select[disabled]{background:var(--panel2);color:var(--muted);cursor:not-allowed}
+  .dlg-foot{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--line);background:var(--panel2)}.dlg-foot .right{margin-left:auto;display:flex;gap:8px}
+  .dtbl{width:100%;border-collapse:collapse;font-size:12px}
+  .dtbl th{text-align:left;font-weight:500;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0}
+  .dtbl td{padding:6px 8px;border-bottom:1px solid var(--line2)}.dtbl tr:hover{background:var(--accent-soft)}
+  .dact{display:flex;gap:8px;color:var(--faint)}.dact i{cursor:pointer;font-size:15px}.dact i:hover{color:var(--accent)}
+  .mini2{height:21px;padding:0 7px;border:1px solid var(--line);border-radius:5px;font-size:11px;color:var(--accent-ink);cursor:pointer;display:inline-block;line-height:19px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}.chip{font-size:11.5px;padding:3px 10px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+  .chgrp{font-size:11px;font-weight:600;color:var(--faint);margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+  .tabhint{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent-ink);margin:0 0 12px;padding:8px 11px;background:var(--accent-soft);border-radius:8px}.tabhint i{font-size:16px}
+  .empty-tab{text-align:center;color:var(--faint);padding:44px 20px}.empty-tab i{font-size:34px;display:block;margin-bottom:10px;color:var(--line)}.empty-tab b{display:block;color:var(--muted);font-weight:500;margin-bottom:5px;font-size:14px}.empty-tab .d{max-width:430px;margin:0 auto;font-size:12.5px;line-height:1.5}
+  .kpi{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}.kpi .b{flex:1;min-width:110px;background:var(--panel2);border-radius:8px;padding:10px 12px}.kpi .b .n{font-size:18px;font-weight:600}.kpi .b .l{font-size:11px;color:var(--muted)}
+  .proc{padding:4px 2px}.pstep{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:8px;margin-bottom:6px;background:var(--panel2)}
+  .pstep .pi{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;background:var(--line2);color:var(--faint)}
+  .pstep.run .pi{background:var(--accent-soft);color:var(--accent)}.pstep.done .pi{background:var(--accent-soft);color:var(--ok)}
+  .pstep .pl{font-size:13px}.pstep .ps{margin-left:auto;font-size:11.5px;color:var(--faint)}.pstep.run .ps{color:var(--accent)}.pstep.done .ps{color:var(--ok)}
+  .spin{animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+  .chk{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line2);font-size:13px}.chk i{font-size:17px}.chk .r{margin-left:auto;font-size:12px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.25s;z-index:90;pointer-events:none}#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #customview{display:none;flex:1;min-height:0;overflow:auto;padding:14px 16px}
+  body.custom .toolbar,body.custom .grid,body.custom #statusbar,body.custom #introSlot{display:none}
+  body.custom #customview{display:block}
+  .yt-top{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .yt-top input.s,.yt-top select.s{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:0 11px}.yt-top input.s{flex:1;min-width:220px}
+  .yt-top .st{margin-left:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}.yt-top .st i{color:var(--ok)}
+  .yt-sub{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .yt-chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.yt-chiplabel{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+  .yt-chip2{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 11px;border:1px solid var(--line);border-radius:14px;cursor:pointer;color:var(--ink)}.yt-chip2:hover{border-color:var(--accent);background:var(--panel2)}.yt-chip2 .d{width:9px;height:9px;border-radius:50%}
+  .yt-sort{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.yt-sort select{height:30px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px;padding:0 8px}
+  .yt-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:14px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;flex-wrap:wrap}
+  .yt-bar[hidden]{display:none}.yt-bar .n{font-size:13px;color:var(--accent-ink)}.yt-bar select{height:30px;border:1px solid var(--accent);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;padding:0 8px}
+  .yt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:15px}
+  .yt-card{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--panel);cursor:pointer;transition:border-color .15s,box-shadow .15s}.yt-card:hover{border-color:var(--accent)}.yt-card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .yt-thumb{position:relative;aspect-ratio:16/9;background:var(--panel2)}.yt-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .yt-thumb .du{position:absolute;right:7px;bottom:7px;background:rgba(0,0,0,.8);color:#fff;font-size:10.5px;padding:1px 6px;border-radius:4px}
+  .yt-thumb .chk{position:absolute;top:8px;left:8px;width:23px;height:23px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;color:transparent;font-size:14px}
+  .yt-card.sel .yt-thumb .chk{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .yt-thumb .cp{position:absolute;top:8px;right:8px;opacity:0;background:rgba(0,0,0,.72);color:#fff;border:0;border-radius:6px;font-size:11px;padding:4px 9px;cursor:pointer;transition:opacity .15s}.yt-card:hover .yt-thumb .cp{opacity:1}
+  .yt-card .ct{padding:9px 11px 3px;font-size:12.5px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .yt-card .cmeta{padding:0 11px 11px;font-size:11px;color:var(--muted)}
+  .bw-box{max-width:800px}.bw-grund{font-size:12.5px;color:var(--accent-ink);background:var(--accent-soft);padding:10px 12px;border-radius:8px;margin-bottom:14px}
+  .bw-row{display:flex;align-items:center;gap:9px;margin-bottom:10px;flex-wrap:wrap}.bw-row select,.bw-row input{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;padding:0 9px}.bw-row input{flex:1;min-width:160px}
+  .bw-ta{width:100%;min-height:120px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:10px;resize:vertical}
+  .bw-drop{margin-top:10px;border:1.5px dashed var(--line);border-radius:8px;padding:24px;text-align:center;color:var(--faint);font-size:12.5px;cursor:pointer}.bw-drop:hover{border-color:var(--accent);color:var(--muted)}
+  .bw-syn{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.bw-syn .c{border:1px solid var(--line);border-radius:8px;padding:12px}.bw-syn .h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}.bw-syn .it{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .catr{margin-top:14px;border-radius:9px;padding:12px 14px;font-size:13px}
+  .catr.ok{background:var(--accent-soft);border:1px solid var(--accent)}.catr.warn{background:#fef3c7;border:1px solid var(--warn)}
+  body.dark .catr.warn{background:#3a2c0a}
+  .catr .h{font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px}.catr.warn .h{color:#92400e}body.dark .catr.warn .h{color:#fac775}
+  .catbar{height:7px;border-radius:4px;background:rgba(0,0,0,.1);overflow:hidden;margin:7px 0}.catbar span{display:block;height:100%}
+  .img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:14px}
+  .img-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .img-th{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);font-size:26px}
+  .img-cap{padding:8px 10px 2px;font-size:12.5px;font-weight:500}.img-meta{padding:0 10px 10px;font-size:11px;color:var(--muted)}
+  .gsearch{position:relative;margin:10px 13px 2px;max-width:580px}
+  .gsearch .inp{display:flex;align-items:center;gap:10px;height:38px;padding:0 13px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .gsearch .inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .gsearch .inp i{color:var(--faint);font-size:18px}.gsearch input{flex:1;border:0;background:none;outline:none;font:inherit;font-size:13.5px;color:var(--ink)}
+  .gsearch .ac{position:absolute;left:0;right:0;top:calc(100% + 5px);z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 40px rgba(15,23,42,.16);max-height:420px;overflow:auto;padding:6px;display:none}
+  .gsearch .ac.show{display:block}
+  .ac-grp{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:10px 9px 4px;display:flex;align-items:center;gap:7px;border-top:1px solid var(--line2)}
+  .ac-grp:first-child{border-top:0}.ac-grp .gc{margin-left:auto;font-weight:400}
+  .ac-opt{display:flex;align-items:center;gap:10px;padding:7px 9px 7px 22px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--ink)}
+  .ac-opt:hover,.ac-opt.active{background:var(--accent-soft)}.ac-opt>i{font-size:16px;color:var(--muted)}.ac-opt .sub{margin-left:auto;font-size:11px;color:var(--faint);white-space:nowrap;padding-left:10px}
+  .ac-opt mark{background:transparent;color:var(--accent);font-weight:600}.ac-empty{padding:18px;text-align:center;color:var(--faint);font-size:13px}
+</style>
+</head>
+<body>
+<div id="loginGate" style="position:fixed;inset:0;background:#f3f5f8;display:none;place-items:center;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif">
+  <div style="width:340px;background:#fff;border:1px solid #e1e6ec;border-radius:10px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.08)">
+    <div style="font-weight:700;font-size:16px;color:#1e2733">Softwarefinder24 · Cockpit</div>
+    <div style="color:#8693a2;font-size:13px;margin:4px 0 18px">Interner Maschinenraum</div>
+    <div id="lgErr" style="display:none;background:#fdecea;border:1px solid #f5c6c2;color:#b3261e;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:12px"></div>
+    <div id="lgInfo" style="display:none;background:#e7f6ec;border:1px solid #b6e0c4;color:#1f7a3d;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:12px"></div>
+    <input id="lgMail" type="email" placeholder="E-Mail" autocomplete="username" style="width:100%;border:1px solid #e1e6ec;border-radius:6px;padding:9px 11px;margin-bottom:9px;font:inherit;color:#1e2733">
+    <input id="lgPw" type="password" placeholder="Passwort" autocomplete="current-password" style="width:100%;border:1px solid #e1e6ec;border-radius:6px;padding:9px 11px;margin-bottom:9px;font:inherit;color:#1e2733">
+    <input id="lgCode" inputmode="numeric" maxlength="6" placeholder="2FA-Code" style="display:none;width:100%;border:1px solid #e1e6ec;border-radius:6px;padding:9px 11px;margin-bottom:9px;font:inherit;color:#1e2733">
+    <button id="lgBtn" style="width:100%;background:#2f6fed;color:#fff;border:none;border-radius:6px;padding:10px;font-weight:600;cursor:pointer;font:inherit">Anmelden</button>
+    <button id="lgReset" style="width:100%;background:none;border:none;color:#2f6fed;font-size:13px;margin-top:10px;cursor:pointer">Passwort vergessen?</button>
+  </div>
+</div>
+<div class="app">
+  <div class="menubar">
+    <span class="brand"><i class="ti ti-database-cog"></i> Softwarefinder24 · Cockpit</span>
+    <span class="m" onclick="openMenu('Datei',this)">Datei</span><span class="m" onclick="openMenu('Pipeline',this)">Pipeline</span><span class="m" onclick="openMenu('Portal',this)">Portal</span><span class="m" onclick="openMenu('Ansicht',this)">Ansicht</span><span class="m" onclick="openMenu('Extras',this)">Extras</span><span class="m" onclick="openMenu('Hilfe',this)">Hilfe</span>
+    <span class="right"><span class="tg" onclick="document.body.classList.toggle('dark')"><i class="ti ti-contrast-2"></i> Hell/Dunkel</span><span>Markt: DE</span><span>Admin</span></span>
+  </div>
+  <div class="toolbar">
+    <span class="tb primary" id="tbNew" onclick="onNew()"><i class="ti ti-plus"></i> <span id="tbNewL">Neu anlegen</span></span>
+    <span class="tb" id="tbEdit" disabled onclick="onEdit()"><i class="ti ti-edit"></i> Bearbeiten</span>
+    <span class="tb" id="tbDel" disabled onclick="onDel()"><i class="ti ti-trash"></i> Löschen</span>
+    <span class="sep ctx"></span>
+    <span class="tb ctx" onclick="runCrawl()"><i class="ti ti-spider"></i> Crawl &amp; Anreichern</span>
+    <span class="tb ctx" onclick="runValidate()"><i class="ti ti-checkup-list"></i> Validieren</span>
+    <span class="tb ok ctx" onclick="runFreigabe()"><i class="ti ti-rosette-discount-check"></i> Freigeben</span>
+    <span class="sep"></span>
+    <span class="tb" onclick="openCols(this)"><i class="ti ti-columns"></i> Spalten</span>
+    <span class="tb" onclick="toast('Export wird vorbereitet … (Demo)')"><i class="ti ti-file-export"></i> Export</span>
+    <span class="tb" onclick="render()"><i class="ti ti-refresh"></i> Aktualisieren</span>
+  </div>
+  <div class="body">
+    <aside class="sidebar" id="side">
+      <div class="grp">Stammdaten</div>
+      <div class="nav active" data-v="software"><i class="ti ti-apps"></i> Software <span class="cnt" id="navCount">16</span></div>
+      <div class="nav" data-v="kategorien"><i class="ti ti-category"></i> Kategorien</div>
+      <div class="nav" data-v="maerkte"><i class="ti ti-world-pin"></i> Märkte &amp; Länder</div>
+      <div class="grp">Anreicherung</div>
+      <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
+      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg">3</span></div>
+      <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge">6</span></div>
+      <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch</div>
+      <div class="grp">Content</div>
+      <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
+      <div class="grp">Portal</div>
+      <div class="nav" data-v="portalbuild"><i class="ti ti-hammer"></i> Portal bauen</div>
+      <div class="nav" data-v="infoseiten"><i class="ti ti-file-text"></i> Infoseiten</div>
+      <div class="nav" data-v="redirects"><i class="ti ti-arrow-guide"></i> Redirects</div>
+      <div class="grp">System</div>
+      <div class="nav" data-v="einstellungen"><i class="ti ti-settings"></i> Einstellungen</div>
+    </aside>
+    <main class="main">
+      <div class="gsearch"><div class="inp"><i class="ti ti-search"></i><input id="gq" placeholder="Alles durchsuchen – Software, Kategorien, Features, Anwendungsfälle, Integrationen …" autocomplete="off"></div><div class="ac" id="gac"></div></div>
+      <div class="crumb" id="crumb"></div>
+      <div id="introSlot"></div>
+      <div class="grid"><table><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+      <div class="statusbar" id="statusbar"></div>
+      <div id="customview"></div>
+    </main>
+  </div>
+</div>
+
+<div class="fpop" id="fpop"></div>
+
+<div class="overlay" id="ov" onclick="if(event.target===this)closeDlg()"><div class="dlg">
+  <div class="dlg-h"><span class="logo" id="dLogo"></span><span class="meta"><b id="dName"></b><span id="dSub"></span></span><span class="badge-st" id="dBadge"></span><span class="x" onclick="closeDlg()">&times;</span></div>
+  <div class="dlg-body">
+    <div class="dlg-nav">
+      <div class="dn active" data-tab="stammdaten" onclick="setTab('stammdaten')"><i class="ti ti-id-badge"></i> Stammdaten</div>
+      <div class="dn" data-tab="bilder" onclick="setTab('bilder')"><i class="ti ti-photo"></i> Bilder <span class="c" id="dnBild"></span></div>
+      <div class="dn" data-tab="funktionen" onclick="setTab('funktionen')"><i class="ti ti-list-check"></i> Funktionen <span class="c" id="dnFunk"></span></div>
+      <div class="dn" data-tab="preise" onclick="setTab('preise')"><i class="ti ti-coin-euro"></i> Preise &amp; Tarife</div>
+      <div class="dn" data-tab="integrationen" onclick="setTab('integrationen')"><i class="ti ti-plug"></i> Integrationen</div>
+      <div class="dn" data-tab="faelle" onclick="setTab('faelle')"><i class="ti ti-user-search"></i> Anwendungsfälle</div>
+      <div class="dn" data-tab="videos" onclick="setTab('videos')"><i class="ti ti-brand-youtube"></i> Videos</div>
+      <div class="dn" data-tab="bewertungen" onclick="setTab('bewertungen')"><i class="ti ti-star"></i> Bewertungen</div>
+      <div class="dn" data-tab="content" onclick="setTab('content')"><i class="ti ti-article"></i> Content / Artikel</div>
+    </div>
+    <div class="dlg-form" id="dForm"></div>
+  </div>
+  <div class="dlg-foot"><span class="tb" onclick="runCrawl()"><i class="ti ti-spider"></i> Crawl &amp; Anreichern</span><span class="tb" onclick="runValidate()"><i class="ti ti-checkup-list"></i> Validieren</span><span class="tb ok" onclick="runFreigabe()"><i class="ti ti-rosette-discount-check"></i> Freigeben</span><span class="right"><span class="tb" onclick="closeDlg()">Abbrechen</span><span class="tb primary" onclick="saveStamm()"><i class="ti ti-device-floppy"></i> Speichern</span></span></div>
+</div></div>
+
+<div class="overlay" id="eov" onclick="if(event.target===this)closeEdit()"><div class="dlg edlg">
+  <div class="dlg-h"><span class="meta"><b id="eTitle"></b><span id="eSub"></span></span><span class="x" onclick="closeEdit()">&times;</span></div>
+  <div class="dlg-form" id="eForm"></div>
+  <div class="dlg-foot"><span class="right"><span class="tb" onclick="closeEdit()">Abbrechen</span><span class="tb primary" onclick="saveEdit()"><i class="ti ti-device-floppy"></i> Speichern</span></span></div>
+</div></div>
+
+<div class="overlay" id="aov" onclick="if(event.target===this)closeAov()"><div class="dlg edlg" style="height:auto">
+  <div class="dlg-h"><span class="meta"><b id="aTitle"></b><span id="aSub"></span></span><span class="x" onclick="closeAov()">&times;</span></div>
+  <div class="dlg-form" id="aBody"></div>
+  <div class="dlg-foot"><span class="right" id="aFoot"></span></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+const SB_URL="https://xoyjsjenitjppxpcheza.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhveWpzamVuaXRqcHB4cGNoZXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjE3NTQsImV4cCI6MjA5NDkzNzc1NH0.SSsfDBxyDRKZQVYxJAt9FEu2g-84clka4_b82N5DfVw";
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+let _appGestartet=false;
+const _$=(id)=>document.getElementById(id);
+function lgErr(m){const e=_$("lgErr");if(e){e.textContent=m||"";e.style.display=m?"block":"none";}if(m){const i=_$("lgInfo");if(i)i.style.display="none";}}
+function lgInfo(m){const i=_$("lgInfo");if(i){i.textContent=m||"";i.style.display=m?"block":"none";}if(m){const e=_$("lgErr");if(e)e.style.display="none";}}
+async function bootAuth(){
+  try{const {data:{session}}=await sb.auth.getSession();
+    if(session){await nachLogin();}else{_$("loginGate").style.display="grid";}
+    sb.auth.onAuthStateChange((ev)=>{if(ev==="PASSWORD_RECOVERY"){_$("loginGate").style.display="grid";lgInfo("Passwort-Reset erkannt – bitte über Supabase ein neues Passwort setzen.");}});
+  }catch(e){_$("loginGate").style.display="grid";lgErr("Verbindung fehlgeschlagen: "+(e.message||e));}
+}
+async function nachLogin(){
+  const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aal&&aal.currentLevel==="aal1"&&aal.nextLevel==="aal2"){_$("loginGate").style.display="grid";_$("lgCode").style.display="block";lgInfo("2FA aktiv – bitte den Code aus deiner Authenticator-App eingeben.");return;}
+  _$("loginGate").style.display="none";
+  if(!_appGestartet){_appGestartet=true;startApp();}
+}
+async function lgLogin(){
+  lgErr("");const mail=_$("lgMail").value.trim(),pw=_$("lgPw").value,code=_$("lgCode").value.trim();
+  if(_$("lgCode").style.display==="block"&&code){
+    const {data:f}=await sb.auth.mfa.listFactors();const fac=f&&f.totp&&(f.totp.find(x=>x.status==="verified")||f.totp[0]);
+    if(!fac){lgErr("Kein 2FA-Faktor gefunden.");return;}
+    const {data:ch,error:e1}=await sb.auth.mfa.challenge({factorId:fac.id});
+    if(e1){lgErr("2FA-Anforderung fehlgeschlagen.");return;}
+    const {error:e2}=await sb.auth.mfa.verify({factorId:fac.id,challengeId:ch.id,code});
+    if(e2){lgErr("Code ungültig oder abgelaufen.");return;}
+    await nachLogin();return;
+  }
+  if(!mail||!pw){lgErr("Bitte E-Mail und Passwort eingeben.");return;}
+  const {error}=await sb.auth.signInWithPassword({email:mail,password:pw});
+  if(error){lgErr("Anmeldung fehlgeschlagen – E-Mail oder Passwort prüfen.");return;}
+  await nachLogin();
+}
+async function lgReset(){
+  const mail=_$("lgMail").value.trim();if(!mail){lgErr("Bitte zuerst die E-Mail-Adresse eingeben.");return;}
+  const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:window.location.origin});
+  if(error)lgErr("Reset-Mail konnte nicht gesendet werden.");else lgInfo("Falls ein Konto zu dieser E-Mail existiert, wurde eine Reset-Mail gesendet.");
+}
+async function cockpitLogout(){await sb.auth.signOut();location.reload();}
+const ST={neu:{l:"Neu",c:"n"},crawl:{l:"Crawl fertig",c:"a"},extrahiert:{l:"Claude-extrahiert",c:"a"},angereichert:{l:"Angereichert",c:"a"},bewertet:{l:"Bewertet",c:"g"},live:{l:"Live",c:"g"}};
+const STRANK={neu:0,crawl:1,extrahiert:2,angereichert:3,bewertet:4,live:5};
+const HUE=["#4f46e5","#0d9488","#e11d48","#d97706","#2563eb","#7c3aed","#0891b2","#65a30d","#db2777","#ea580c"];
+let SW=[];
+// Reifegrad (SSoT) -> Mockup-Stufe + grober Fortschritt (abgeleitet, keine erfundenen Einzelwerte)
+const REIFE={erfasst:"neu",crawl_fertig:"crawl",claude_extrahiert:"extrahiert",claude_validiert:"angereichert",bereit_fuer_publikation:"bewertet",veroeffentlicht:"live"};
+const REIFE_PCT={neu:10,crawl:25,extrahiert:50,angereichert:70,bewertet:90,live:100};
+function mapRow(r,i){
+  const st = r.veroeffentlichungs_status==="veroeffentlicht" ? "live" : (REIFE[r.daten_reifegrad]||"neu");
+  return { id:r.id, name:r.name, kat:r.kategorie||"", hersteller:r.hersteller||"", markt:"",
+    angelegt:(r.erstellt_am||"").slice(0,10), funk:r.anz_funktionen||0, pct:REIFE_PCT[st]||0,
+    status:st, geprueft:(r.letzte_pruefung_am||"").slice(0,10), nw:r.neuronwriter_score, ltd:!!r.hat_ltd,
+    _hue:HUE[i%HUE.length] };
+}
+async function ladeSW(){
+  const {data,error}=await sb.from("cockpit_startseite").select("*").order("name");
+  if(error){ if(typeof toast==="function")toast("Laden fehlgeschlagen: "+error.message); return; }
+  SW=(data||[]).map(mapRow); VIEWS.software.rows=SW;
+}
+function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
+const HEUTE=new Date();
+function ageOf(r){if(!r.geprueft)return{t:null,lab:"Neu",c:"n"};const t=Math.round((HEUTE-new Date(r.geprueft))/86400000);return{t:t,lab:t<90?"Aktuell (0-89 T)":t<180?"Bald fällig (90-179 T)":"Überfällig (180+ T)",c:t<90?"g":t<180?"a":"r"};}
+
+const VIEWS={
+ software:{ic:"ti-apps",t:"Software",d:"",newL:"Neue Software",detail:"rich",ctx:true,
+   cols:[{k:"name",t:"Software",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"hersteller",t:"Hersteller",ty:"text"},{k:"markt",t:"Markt",ty:"text",w:64},{k:"ltd",t:"AppSumo",ty:"ltd",w:92},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"funk",t:"Fkt.",ty:"num",w:64},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Aktualität",ty:"age",w:140},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
+   rows:SW},
+ kategorien:{ic:"ti-category",t:"Kategorien",d:"Kategorien steuern Portal-Navigation, Hub-Seiten und URL-Slugs. Umbenennen wirkt auf alle zugeordneten Programme.",newL:"Neue Kategorie",
+   cols:[{k:"name",t:"Kategorie",ty:"text"},{k:"slug",t:"Slug",ty:"text"},{k:"anzahl",t:"Software",ty:"num",w:80},{k:"reihenfolge",t:"Reihenfolge",ty:"num",w:96},{k:"sichtbar",t:"Sichtbar",ty:"bool",w:90}],
+   rows:[{name:"Buchhaltung",slug:"buchhaltung",anzahl:9,reihenfolge:1,sichtbar:true},{name:"Rechnung",slug:"rechnung",anzahl:3,reihenfolge:2,sichtbar:true},{name:"Belegmanagement",slug:"belegmanagement",anzahl:2,reihenfolge:3,sichtbar:true},{name:"Banking",slug:"banking",anzahl:1,reihenfolge:4,sichtbar:true},{name:"SEO-Tools",slug:"seo-tools",anzahl:2,reihenfolge:5,sichtbar:true}]},
+ maerkte:{ic:"ti-world-pin",t:"Märkte & Länder",d:"Länder/Märkte des Portals – je Markt eigene Sprache, Währung und Veröffentlichungs-Status.",newL:"Neuer Markt",
+   cols:[{k:"land",t:"Land",ty:"text"},{k:"code",t:"Code",ty:"text",w:70},{k:"sprache",t:"Sprache",ty:"text"},{k:"waehrung",t:"Währung",ty:"text",w:90},{k:"status",t:"Status",ty:"pill"}],
+   rows:[{land:"Deutschland",code:"DE",sprache:"de-DE",waehrung:"EUR",status:"aktiv"},{land:"Österreich",code:"AT",sprache:"de-AT",waehrung:"EUR",status:"vorbereitet"},{land:"Schweiz",code:"CH",sprache:"de-CH",waehrung:"CHF",status:"geplant"},{land:"Italien",code:"IT",sprache:"it-IT",waehrung:"EUR",status:"geplant"},{land:"Spanien",code:"ES",sprache:"es-ES",waehrung:"EUR",status:"geplant"}]},
+ crawl:{ic:"ti-spider",t:"Crawl-Monitor",d:"Status der Website-Crawls (Firecrawl + n8n). Der Crawl ist die Faktenbasis (Halluzinationsschutz) vor der Anreicherung.",newL:"Crawl starten",
+   cols:[{k:"software",t:"Software",ty:"text"},{k:"status",t:"Status",ty:"pill"},{k:"seiten",t:"Seiten",ty:"num",w:74},{k:"quelle",t:"Quelle",ty:"text"},{k:"zuletzt",t:"Zuletzt",ty:"text",w:120}],
+   rows:[{software:"WISO MeinBüro",status:"läuft",seiten:"",quelle:"n8n Modul 2",zuletzt:"gerade eben"},{software:"sevDesk",status:"fertig",seiten:19,quelle:"firecrawl",zuletzt:"19.06.2026"},{software:"Accountable",status:"fertig",seiten:11,quelle:"firecrawl",zuletzt:"10.06.2026"},{software:"FastBill",status:"wartet",seiten:"",quelle:"",zuletzt:""},{software:"easybill",status:"kein crawl",seiten:"",quelle:"",zuletzt:""}]},
+ youtube:{ic:"ti-brand-youtube",t:"YouTube-Quellen",d:"Per KI nach SSoT-Relevanz priorisierte Videos je Software. Ausgewählte werden an die /watch-Warteschlange übergeben.",newL:"Video hinzufügen",
+   cols:[{k:"software",t:"Software",ty:"text"},{k:"video",t:"Video",ty:"text"},{k:"relevanz",t:"Relevanz",ty:"text",w:90},{k:"status",t:"Status",ty:"pill"}],
+   rows:[{software:"sevDesk",video:"sevDesk Tutorial 2026",relevanz:"9 / 10",status:"ausgewertet"},{software:"sevDesk",video:"Buchhaltung leicht gemacht",relevanz:"7 / 10",status:"offen"},{software:"Lexware Office",video:"Lexware Office Rundgang",relevanz:"8 / 10",status:"offen"},{software:"Kontist",video:"Kontist im Test",relevanz:"6 / 10",status:"offen"}]},
+ bewertungen:{ic:"ti-star",t:"Bewertungen",d:"Erfasste Nutzer-Bewertungen (Copy-Paste-Rohdaten → KI-Analyse → Synthese). Speist die externe Bewertungs-Aggregation.",newL:"Bewertung erfassen",
+   cols:[{k:"software",t:"Software",ty:"text"},{k:"stimmung",t:"Stimmung",ty:"text"},{k:"anzahl",t:"Bewertungen",ty:"num",w:120},{k:"stand",t:"Stand",ty:"text",w:110}],
+   rows:[{software:"Lexware Office",quelle:"Capterra",note:"4,5 / 5",anzahl:210,stand:"18.06.2026"},{software:"Lexware Office",quelle:"OMR Reviews",note:"4,4 / 5",anzahl:98,stand:"17.06.2026"},{software:"Papierkram",quelle:"Trustpilot",note:"4,3 / 5",anzahl:64,stand:"15.06.2026"}]},
+ freigaben:{ic:"ti-checkbox",t:"Freigaben",d:"Vom Auto-Watcher zurückgehaltene Grenzfälle. Du entscheidest – sichere Fälle laufen automatisch in die SSoT.",newL:"",
+   cols:[{k:"software",t:"Software",ty:"text"},{k:"art",t:"Art",ty:"badge"},{k:"beschreibung",t:"Beschreibung",ty:"text"},{k:"quelle",t:"Quelle",ty:"text",w:90},{k:"status",t:"Status",ty:"pill",w:90}],
+   rows:[{software:"sevDesk",art:"Funktion",beschreibung:"„Festschreibung (GoBD)\" – Kategorie unklar",quelle:"Video",status:"offen"},{software:"Kontist",art:"Integration",beschreibung:"„Stripe\" vs. bestehender Eintrag – Konflikt",quelle:"Crawl",status:"offen"},{software:"Surfer SEO",art:"Use-Case",beschreibung:"Neuer Anwendungsfall „Content-Audit\"",quelle:"Video",status:"offen"}]},
+ woerterbuch:{ic:"ti-book",t:"Feature-Wörterbuch",d:"Canonical-Feature-Namen für tool-übergreifende Vergleichbarkeit. Synonyme bündeln die Rohnamen der Programme.",newL:"Neuer Begriff",
+   cols:[{k:"canonical",t:"Canonical",ty:"text"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"synonyme",t:"Synonyme",ty:"text"},{k:"tools",t:"Tools",ty:"num",w:64}],
+   rows:[{canonical:"API-Zugriff",kat:"Schnittstellen",synonyme:"REST-API Schnittstelle · Public API (REST)",tools:2},{canonical:"DATEV-Schnittstelle",kat:"Steuern",synonyme:"DATEV-Schnittstelle · Export DATEV-konform",tools:2},{canonical:"Mahnwesen",kat:"Rechnungen",synonyme:"Mahnstufen · Zahlungserinnerungen",tools:2},{canonical:"Online-Banking",kat:"Banking",synonyme:"Multibanking · Zahlungsabgleich",tools:2},{canonical:"KI-Belegerkennung",kat:"Belege",synonyme:"OCR-Texterkennung · KI-Belegerfassung",tools:2}]},
+ vergleiche:{ic:"ti-git-compare",t:"Vergleichs-Artikel",d:"Erstellte Vergleichsseiten – aufgebaut wie die Software-Übersicht: Filter, Sortierung, Spalten verschieben, Alter- & NeuronWriter-Ampel.",newL:"Neuen Vergleich erstellen",
+   cols:[{k:"name",t:"Vergleich",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"tools",t:"Tools",ty:"num",w:64},{k:"markt",t:"Markt",ty:"text",w:64},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Aktualität",ty:"age",w:140},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
+   rows:[{name:"Lexware Office vs. sevDesk",kat:"Buchhaltung",tools:2,markt:"DE",angelegt:"2026-05-12",pct:100,status:"live",geprueft:"2026-06-05",nw:83,_hue:"#4f46e5"},{name:"sevDesk vs. Lexware vs. DATEV",kat:"Buchhaltung",tools:3,markt:"DE",angelegt:"2026-04-20",pct:100,status:"live",geprueft:"2026-03-01",nw:78,_hue:"#0d9488"},{name:"Sage 50 vs. Lexware Office",kat:"Buchhaltung",tools:2,markt:"DE",angelegt:"2026-06-10",pct:60,status:"angereichert",geprueft:"2026-06-14",nw:66,_hue:"#e11d48"},{name:"Surfer SEO vs. XOVI",kat:"SEO-Tools",tools:2,markt:"DE",angelegt:"2026-05-28",pct:100,status:"bewertet",geprueft:"2026-01-20",nw:71,_hue:"#d97706"}]},
+ portalbuild:{ic:"ti-hammer",t:"Portal bauen",d:"Statisches Astro-Portal je Markt neu bauen & deployen. „Live\" setzt zusätzlich den Status der freigegebenen Artikel.",newL:"",
+   cols:[{k:"markt",t:"Markt",ty:"text",w:80},{k:"build",t:"Letzter Build",ty:"text"},{k:"status",t:"Status",ty:"pill"},{k:"artikel",t:"Live-Artikel",ty:"num",w:100}],
+   rows:[{markt:"DE",build:"19.06.2026 21:34",status:"erfolgreich",artikel:2},{markt:"AT",build:"",status:"noch nie gebaut",artikel:0},{markt:"CH",build:"",status:"noch nie gebaut",artikel:0}]},
+ infoseiten:{ic:"ti-file-text",t:"Infoseiten",d:"Redaktionelle/rechtliche Seiten des Portals (je Markt lokalisiert).",newL:"Neue Infoseite",
+   cols:[{k:"seite",t:"Seite",ty:"text"},{k:"slug",t:"Slug",ty:"text"},{k:"footer",t:"Im Footer",ty:"bool",w:90},{k:"status",t:"Status",ty:"pill",w:90}],
+   rows:[{seite:"Über uns",slug:"ueber-uns",footer:true,status:"live"},{seite:"So arbeiten wir",slug:"so-arbeiten-wir",footer:true,status:"live"},{seite:"Impressum",slug:"impressum",footer:true,status:"live"},{seite:"Datenschutz",slug:"datenschutz",footer:true,status:"live"}]},
+ redirects:{ic:"ti-arrow-guide",t:"Redirects",d:"301-Weiterleitungen (alte URLs → Portal). Werden beim Build in die nginx-Konfiguration übernommen.",newL:"Neuer Redirect",
+   cols:[{k:"von",t:"Von",ty:"text"},{k:"nach",t:"Nach",ty:"text"},{k:"typ",t:"Typ",ty:"text",w:64},{k:"aktiv",t:"Aktiv",ty:"bool",w:80}],
+   rows:[{von:"/wp/sevdesk-test",nach:"/buchhaltung/sevdesk",typ:"301",aktiv:true},{von:"/lexware",nach:"/buchhaltung/lexware-office",typ:"301",aktiv:true}]},
+ einstellungen:{ic:"ti-settings",t:"Einstellungen",d:"Globale Cockpit-Einstellungen.",newL:"",
+   cols:[{k:"label",t:"Einstellung",ty:"text"},{k:"wert",t:"Wert",ty:"text"}],
+   rows:[{name:"Standard-Markt",wert:"DE"},{name:"Theme",wert:"Hell (umschaltbar)"},{name:"Auto-Crawl-Intervall",wert:"180 Tage"},{name:"Auto-Freigabe ab Konfidenz",wert:"90 %"},{name:"Anthropic-Modell",wert:"Opus 4.8"}]}
+};
+Object.values(VIEWS).forEach(v=>{v.cols.forEach(c=>c.vis=true);v._sort={k:v.cols[0].k,d:1};v._filt={};});
+VIEWS.software._sort={k:"pct",d:-1};
+
+let CUR="software";const $=s=>document.querySelector(s);const dec=decodeURIComponent;
+const fmtD=s=>s?(s.split("-")[2]+"."+s.split("-")[1]+"."+s.split("-")[0]):"—";
+function disp(v,r,c){const x=r[c.k];if(c.ty==="age")return ageOf(r).lab;if(c.ty==="nw")return nwOf(r).lab;if(c.ty==="date")return fmtD(x);if(c.ty==="num")return (x===""||x==null)?"—":String(x);if(c.ty==="pct")return x+"%";if(c.ty==="status")return ST[x].l;if(c.ty==="ltd"||c.ty==="bool")return x?"Ja":"Nein";return x==null?"":String(x);}
+function pillCls(t){t=(t||"").toLowerCase();if(["aktiv","live","erfolgreich","ja","ausgewertet","fertig","erledigt"].includes(t))return"pg";if(["läuft","offen","wartet","vorbereitet","in arbeit","gerade eben"].includes(t))return"pa";if(["fehler","konflikt"].includes(t))return"pr";return"pn";}
+function cellHtml(v,r,c){const x=r[c.k];
+  if(c.ty==="age"){const a=ageOf(r);return a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';}
+  if(c.ty==="nw"){const a=nwOf(r);return a.v==null?'<span class="pn">—</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>';}
+  if(c.ty==="name"){const h=r._hue||"#64748b";return `<div class="nm"><span class="logo" style="background:${h}">${String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()}</span>${x}</div>`;}
+  if(c.ty==="badge")return `<span class="b-cat">${x}</span>`;
+  if(c.ty==="date")return fmtD(x);
+  if(c.ty==="num")return (x===""||x==null)?'<span class="pn">—</span>':x;
+  if(c.ty==="pct"){const bc=x>=70?"var(--ok)":x>=34?"var(--warn)":x>0?"var(--bad)":"var(--faint)";return `<div class="bar"><div class="track"><div class="fill" style="width:${x}%;background:${bc}"></div></div><span class="pct">${x}%</span></div>`;}
+  if(c.ty==="status"){const s=ST[x];return `<span class="st"><i class="ti ti-circle-filled dot ${s.c}"></i> ${s.l}</span>`;}
+  if(c.ty==="pill")return `<span class="${pillCls(x)}">${pillCls(x)==="pg"?'<i class="ti ti-circle-filled" style="font-size:8px"></i> ':""}${x||"—"}</span>`;
+  if(c.ty==="ltd")return x?'<span class="ltd-b"><i class="ti ti-discount-2"></i> LTD</span>':'<span class="pn">–</span>';
+  if(c.ty==="bool")return x?'<span class="pg"><i class="ti ti-check"></i></span>':'<span class="pn">—</span>';
+  return x==null?"":x;}
+
+let dragCol=null;
+function colDragStart(e,k){dragCol=k;e.dataTransfer.effectAllowed="move";}
+function colDragOver(e){e.preventDefault();e.currentTarget.classList.add("dragover");}
+function colDragLeave(e){e.currentTarget.classList.remove("dragover");}
+function colDrop(e,k){e.preventDefault();e.currentTarget.classList.remove("dragover");if(!dragCol||dragCol===k)return;const cols=VIEWS[CUR].cols,from=cols.findIndex(c=>c.k===dragCol),to=cols.findIndex(c=>c.k===k);if(from<0||to<0)return;const m=cols.splice(from,1)[0];cols.splice(to,0,m);dragCol=null;render();}
+function swNameMap(){const m={};SW.forEach(function(s){m[s.id]=s.name;});return m;}
+async function ladeKategorien(){try{const r=await Promise.all([sb.from('kategorien').select('*').order('reihenfolge'),sb.from('software').select('kategorie')]);const k=r[0].data||[],sw=r[1].data||[];const cnt={};sw.forEach(function(s){if(s.kategorie)cnt[s.kategorie]=(cnt[s.kategorie]||0)+1;});VIEWS.kategorien.rows=k.map(function(x){return {id:x.id,name:x.name,slug:x.slug_basis||"",anzahl:cnt[x.name]||0,reihenfolge:x.reihenfolge||0,sichtbar:true};});}catch(e){}}
+async function ladeWoerterbuch(){try{const r=await Promise.all([sb.from('funktions_woerterbuch').select('*').order('canonical_name'),sb.from('funktionen').select('canonical_name')]);const w=r[0].data||[],f=r[1].data||[];const cnt={};f.forEach(function(x){if(x.canonical_name)cnt[x.canonical_name]=(cnt[x.canonical_name]||0)+1;});VIEWS.woerterbuch.rows=w.map(function(x){return {id:x.id,canonical:x.canonical_name,kat:x.kategorie||"",synonyme:(x.synonyme||[]).join(" · "),tools:cnt[x.canonical_name]||0};});}catch(e){}}
+async function ladeYoutubeView(){try{const res=await sb.from('video_warteschlange').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();VIEWS.youtube.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",video:x.video_titel||x.video_id,relevanz:x.relevanz!=null?x.relevanz+" / 10":"—",status:x.status||"offen"};});}catch(e){}}
+async function ladeFreigabenView(){try{const res=await sb.from('freigaben').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();VIEWS.freigaben.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",art:x.art||"—",beschreibung:x.beschreibung||x.grund||"",quelle:x.ref||x.ziel_collection||"—",status:x.status||"offen"};});}catch(e){}}
+async function ladeCrawlView(){try{const res=await sb.from('software').select('name,daten_reifegrad,crawl_metadaten,crawl_freigabe_status,crawl_url_liste,crawl_bericht_am').order('name');VIEWS.crawl.rows=(res.data||[]).map(function(x){const hat=!!x.crawl_metadaten;const status=x.crawl_freigabe_status==='warte_freigabe'?'wartet auf Freigabe':(hat?'fertig':(x.daten_reifegrad&&x.daten_reifegrad!=='erfasst'?'läuft':'kein crawl'));const seiten=Array.isArray(x.crawl_url_liste)?x.crawl_url_liste.length:'';return {software:x.name,status:status,seiten:seiten,quelle:hat?'firecrawl':'—',zuletzt:x.crawl_bericht_am?String(x.crawl_bericht_am).slice(0,10):''};});}catch(e){}}
+async function ladeBewertungenView(){try{const res=await sb.from('bewertungs_synthesen').select('software_id,stimmungstrend,anzahl_bewertungen,erstellt_am').order('erstellt_am',{ascending:false});const m=swNameMap();VIEWS.bewertungen.rows=(res.data||[]).map(function(x){return {software:m[x.software_id]||'—',stimmung:x.stimmungstrend||'—',anzahl:x.anzahl_bewertungen||0,stand:x.erstellt_am?String(x.erstellt_am).slice(0,10):''};});}catch(e){}}
+async function ladeVergleicheView(){try{const res=await sb.from('inhalts_artikel').select('id,typ,meta_title,ziel_schluesselwort,beteiligte_software,inhalts_status,markt_id,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,erstellt_am,letztes_update_am,geaendert_am').or('typ.eq.vergleich,beteiligte_software.not.is.null');const MAP={live:'live',veroeffentlicht:'live',wartet_auf_native_review:'bewertet',fertig:'angereichert',generiert:'angereichert',entwurf:'neu'};VIEWS.vergleiche.rows=(res.data||[]).map(function(x,i){const bs=Array.isArray(x.beteiligte_software)?x.beteiligte_software:[];const st=MAP[x.inhalts_status]||'neu';const nw=x.nw_punktzahl_v3!=null?x.nw_punktzahl_v3:(x.nw_punktzahl_v2!=null?x.nw_punktzahl_v2:x.nw_punktzahl_v1);return {id:x.id,name:x.meta_title||x.ziel_schluesselwort||'(Vergleich)',kat:'',tools:bs.length||2,markt:(x.markt_id||'').toUpperCase(),angelegt:(x.erstellt_am||'').slice(0,10),pct:REIFE_PCT[st]||0,status:st,geprueft:((x.letztes_update_am||x.geaendert_am)||'').slice(0,10),nw:nw,_hue:HUE[i%HUE.length]};});}catch(e){}}
+const LANDNAME={de:"Deutschland",at:"Österreich",ch:"Schweiz",it:"Italien",es:"Spanien",fr:"Frankreich",com:"International (EN)",en:"International (EN)"};
+async function ladeMaerkteView(){try{const res=await sb.from('maerkte').select('*').order('roll_out_phase',{ascending:true});VIEWS.maerkte.rows=(res.data||[]).map(function(x){const c=(x.markt_id||'').toLowerCase();return {code:(x.markt_id||'').toUpperCase(),land:LANDNAME[c]||x.domain||x.markt_id,sprache:x.sprache||'',waehrung:x.waehrung||'',status:x.status||''};});}catch(e){}}
+async function ladeInfoseitenView(){try{const res=await sb.from('seiten').select('*').order('reihenfolge',{ascending:true});VIEWS.infoseiten.rows=(res.data||[]).map(function(x){const lbl=(x.schluessel||'').replace(/[-_]/g,' ').replace(/w/g,function(m){return m.toUpperCase();});return {seite:lbl,slug:x.schluessel||'',footer:!!x.im_footer,status:'aktiv'};});}catch(e){}}
+async function ladeRedirectsView(){try{const res=await sb.from('cockpit_redirects').select('*').order('erstellt_am',{ascending:false});VIEWS.redirects.rows=(res.data||[]).map(function(x){return {_id:x.id,von:x.von,nach:x.nach,typ:x.typ,aktiv:!!x.aktiv};});}catch(e){}}
+async function ladeEinstellungenView(){try{const res=await sb.from('cockpit_einstellungen').select('*').order('label');VIEWS.einstellungen.rows=(res.data||[]).map(function(x){return {_id:x.schluessel,label:x.label,wert:x.wert};});}catch(e){}}
+async function ladePortalbuildView(){try{const res=await sb.from('cockpit_portal_builds').select('*').order('gebaut_am',{ascending:false});VIEWS.portalbuild.rows=(res.data||[]).map(function(x){return {markt:x.markt_id,build:x.gebaut_am?String(x.gebaut_am).replace('T',' ').slice(0,16):'',status:x.status,artikel:x.artikel_anzahl};});}catch(e){}}
+const DBVIEW={redirects:{coll:'cockpit_redirects',pk:'id',felder:['von','nach','typ','aktiv']},einstellungen:{coll:'cockpit_einstellungen',pk:'schluessel',felder:['label','wert']}};
+async function saveEditDB(dv){const v=VIEWS[CUR];const obj=eIdx>=0?v.rows[eIdx]:{};const patch={};dv.felder.forEach(function(k){const el=document.querySelector('#eForm [data-k="'+k+'"]');if(!el)return;const c=v.cols.find(function(x){return x.k===k;});let val=el.value;if(c&&c.ty==="bool")val=(val==="Ja");else if(c&&(c.ty==="num"||c.ty==="pct"))val=(val===""?null:+val);patch[k]=val;});
+  try{if(eIdx>=0){await dbW('update',dv.coll,obj._id,patch,dv.pk);}else{await dbW('create',dv.coll,null,patch);}closeEdit();if(LOADERS[CUR])await LOADERS[CUR]();render();toast('Gespeichert ✓');}catch(e){alert('Speichern fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+async function delEditDB(dv,rows){try{for(const r of rows){if(r&&r._id!=null)await dbW('delete',dv.coll,r._id,null,dv.pk);}if(LOADERS[CUR])await LOADERS[CUR]();render();toast('Gelöscht');}catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+const LOADERS={kategorien:ladeKategorien,woerterbuch:ladeWoerterbuch,youtube:ladeYoutubeView,freigaben:ladeFreigabenView,crawl:ladeCrawlView,bewertungen:ladeBewertungenView,vergleiche:ladeVergleicheView,maerkte:ladeMaerkteView,infoseiten:ladeInfoseitenView,redirects:ladeRedirectsView,einstellungen:ladeEinstellungenView,portalbuild:ladePortalbuildView};
+function route(key){CUR=key;document.querySelectorAll("#side .nav").forEach(n=>n.classList.toggle("active",n.dataset.v===key));
+  if(key==="wbinbox"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-inbox"></i> <b>Feature-Inbox</b> <span class="sp">›</span> offene Zuordnungen aus Crawls & Videos';wbView();return;}
+  document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
+
+// ---- YouTube-Tool ----
+const YT_CLIENT_ID="975430281587-ajpnm6k3elmh6b6ipo1620iq0bt7es5j.apps.googleusercontent.com";
+const YT_SCOPE="https://www.googleapis.com/auth/youtube.readonly";
+const YT_TOKEN_KEY="yt_token_v1";
+let ytToken=null,ytAbos=[],ytListe=[],ytSel=new Set(),ytDone=new Set(),ytClient=null,ytBereit=false,ytBusy=false,ytTitel="",ytSort="relevance",ytTyp="video,channel";
+function ytBild(t){return (t&&((t.medium&&t.medium.url)||(t.high&&t.high.url)||(t.default&&t.default.url)))||null;}
+function ytIsoDauer(iso){if(!iso)return"";const m=iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);if(!m)return"";const h=+(m[1]||0),mi=+(m[2]||0),s=+(m[3]||0),p2=n=>String(n).padStart(2,"0");return h?h+":"+p2(mi)+":"+p2(s):mi+":"+p2(s);}
+function ytZahl(n){if(!n)return"";if(n>=1e6)return (n/1e6).toFixed(1).replace(".",",").replace(",0","")+" Mio.";if(n>=1e3)return Math.round(n/1e3)+" Tsd.";return String(n);}
+function ytAlter(d){if(!d)return"";const tage=Math.floor((Date.now()-new Date(d).getTime())/86400000);if(tage<1)return"heute";if(tage<31)return"vor "+tage+" Tg.";const mon=Math.floor(tage/30);if(mon<12)return"vor "+mon+" Mon.";return"vor "+Math.floor(tage/365)+" J.";}
+function videoIdAusUrl(u){const m=String(u||"").match(/[?&]v=([^&]+)/);return m?m[1]:null;}
+function ytLoadGsi(){if(window.google&&window.google.accounts&&window.google.accounts.oauth2){ytBereit=true;ytRestore();return;}const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.defer=true;s.onload=function(){ytBereit=true;ytRestore();};s.onerror=function(){toast("Google-Login-Script konnte nicht geladen werden");};document.body.appendChild(s);}
+function ytEnsure(){if(!ytClient&&window.google&&window.google.accounts&&window.google.accounts.oauth2){ytClient=window.google.accounts.oauth2.initTokenClient({client_id:YT_CLIENT_ID,scope:YT_SCOPE,callback:function(r){if(r.access_token){ytSave(r.access_token,r.expires_in);ytLadeAbosUndFeed();}},error_callback:function(){}});}return ytClient;}
+function ytSave(tk,exp){ytToken=tk;try{localStorage.setItem(YT_TOKEN_KEY,JSON.stringify({tk:tk,exp:Date.now()+(exp||3000)*1000}));}catch(e){}}
+function ytClearTok(){ytToken=null;try{localStorage.removeItem(YT_TOKEN_KEY);}catch(e){}}
+function ytRestore(){try{const raw=localStorage.getItem(YT_TOKEN_KEY);if(raw){const o=JSON.parse(raw);if(o.tk&&o.exp&&o.exp>Date.now()+60000){ytToken=o.tk;ytLadeAbosUndFeed();return;}}}catch(e){}const c=ytEnsure();if(c)c.requestAccessToken({prompt:"none"});ytRenderAll();}
+function ytLogin(){const c=ytEnsure();if(!c){toast("Google-Login lädt noch – kurz warten");return;}c.requestAccessToken();}
+function ytLogout(){ytClearTok();ytAbos=[];ytListe=[];ytSel=new Set();ytTitel="";ytRenderAll();}
+async function ytApi(pfad,params){const url=new URL("https://www.googleapis.com/youtube/v3/"+pfad);Object.keys(params).forEach(k=>url.searchParams.set(k,params[k]));const r=await fetch(url.toString(),{headers:{Authorization:"Bearer "+ytToken}});const j=await r.json().catch(()=>({}));if(r.status===401){ytClearTok();throw new Error("Sitzung abgelaufen – bitte neu anmelden.");}if(!r.ok)throw new Error((j.error&&j.error.message)||"YouTube-Fehler");return j;}
+async function ytReichere(items){const ids=items.filter(e=>e.art==="video"&&(!e.d||e.v==null)).map(e=>e.id);if(!ids.length)return items;const map={};for(let i=0;i<ids.length;i+=50){try{const j=await ytApi("videos",{part:"contentDetails,snippet,statistics",id:ids.slice(i,i+50).join(",")});(j.items||[]).forEach(v=>{map[v.id]={d:ytIsoDauer(v.contentDetails&&v.contentDetails.duration),datum:v.snippet&&v.snippet.publishedAt,v:ytZahl(+((v.statistics&&v.statistics.viewCount)||0))};});}catch(e){}}return items.map(e=>map[e.id]?Object.assign({},e,map[e.id]):e);}
+async function ytLadeDone(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!sid){ytDone=new Set();return;}try{const res=await Promise.all([sb.from("quellen").select("url").eq("software_id",sid).eq("quellentyp","youtube"),sb.from("video_warteschlange").select("video_id").eq("software_id",sid)]);const s=new Set();((res[0]&&res[0].data)||[]).forEach(r=>{const id=videoIdAusUrl(r.url);if(id)s.add(id);});((res[1]&&res[1].data)||[]).forEach(r=>{if(r.video_id)s.add(r.video_id);});ytDone=s;}catch(e){ytDone=new Set();}}
+async function ytLadeAbosUndFeed(){ytBusy=true;ytRenderAll();try{await ytLadeDone();const j=await ytApi("subscriptions",{part:"snippet",mine:"true",maxResults:"50",order:"alphabetical"});ytAbos=(j.items||[]).map(i=>({id:i.snippet.resourceId.channelId,titel:i.snippet.title,bild:ytBild(i.snippet.thumbnails)}));await ytLadeFeed();}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
+async function ytLadeFeed(){ytTitel="Neueste aus deinen Abos";const ids=ytAbos.slice(0,40).map(a=>a.id);if(!ids.length){ytListe=[];return;}try{const uploads=[];for(let i=0;i<ids.length;i+=50){const ch=await ytApi("channels",{part:"contentDetails",id:ids.slice(i,i+50).join(",")});(ch.items||[]).forEach(c=>{const pl=c.contentDetails&&c.contentDetails.relatedPlaylists&&c.contentDetails.relatedPlaylists.uploads;if(pl)uploads.push({pl:pl,titel:(ytAbos.find(a=>a.id===c.id)||{}).titel});});}const alle=[];await Promise.all(uploads.map(async u=>{try{const pl=await ytApi("playlistItems",{part:"snippet",playlistId:u.pl,maxResults:"3"});(pl.items||[]).forEach(it=>alle.push({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||u.titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt}));}catch(e){}}));alle.sort((a,b)=>(a.datum<b.datum?1:-1));ytListe=await ytReichere(alle.slice(0,48));}catch(e){toast(String(e.message||e));}}
+async function ytSucheStart(){const q=($("#ytQ")?$("#ytQ").value:"").trim();if(!q){toast("Suchbegriff eingeben");return;}if(!ytToken){ytLogin();return;}ytBusy=true;ytRenderAll();try{const j=await ytApi("search",{part:"snippet",q:q,type:ytTyp,maxResults:"40",order:ytSort});ytTitel="Treffer zu „"+q+"“";const tr=(j.items||[]).map(i=>({art:(i.id.kind||"").includes("channel")?"kanal":"video",id:i.id.videoId||i.id.channelId,t:i.snippet.title,k:i.snippet.channelTitle,bild:ytBild(i.snippet.thumbnails),datum:i.snippet.publishedAt}));ytListe=await ytReichere(tr);}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
+async function ytKanal(id){if(!ytToken){ytLogin();return;}const titel=((ytAbos.find(a=>a.id===id)||{}).titel)||"Kanal";ytBusy=true;ytRenderAll();try{const ch=await ytApi("channels",{part:"contentDetails",id:id});const up=ch.items&&ch.items[0]&&ch.items[0].contentDetails&&ch.items[0].contentDetails.relatedPlaylists&&ch.items[0].contentDetails.relatedPlaylists.uploads;if(!up)throw new Error("Kanal hat keine abrufbaren Uploads.");const pl=await ytApi("playlistItems",{part:"snippet",playlistId:up,maxResults:"50"});ytTitel="Kanal: "+titel;ytListe=await ytReichere((pl.items||[]).map(it=>({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt})));}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
+function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){ytRenderAll();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
+  <div class="tabhint"><i class="ti ti-brand-youtube"></i> Videos für <b>${esc(r.name||"")}</b> finden, markieren und priorisieren – Kontext ist diese Software. Bereits zugeordnete Videos sind <b>grün markiert</b> (Dedup per Video-ID).</div>
+  <div class="yt-top">
+    <select class="s" style="max-width:120px" onchange="ytTyp=this.value"><option value="video,channel">Alles</option><option value="video">Videos</option><option value="channel">Kanäle</option></select>
+    <input class="s" id="ytQ" placeholder="YouTube durchsuchen …" value="${esc(r.name||"")}" onkeydown="if(event.key==='Enter')ytSucheStart()">
+    <button class="tb primary" onclick="ytSucheStart()"><i class="ti ti-search"></i> Suchen</button>
+    <span class="st" id="ytStatus"></span>
+  </div>
+  <div class="yt-sub">
+    <div class="yt-chips" id="ytChips"><span class="yt-chiplabel">Abos</span></div>
+    <div class="yt-sort">Sortieren <select onchange="ytSort=this.value;ytSucheStart()"><option value="relevance">Relevanz</option><option value="date">Neueste</option><option value="viewCount">Meistgesehen</option><option value="rating">Top bewertet</option></select></div>
+  </div>
+  <div class="yt-bar" id="ytBar" hidden>
+    <span class="n"><b id="ytSelN">0</b> Videos ausgewählt</span>
+    <button class="tb primary" onclick="ytPrio()"><i class="ti ti-sparkles"></i> Für ${esc(r.name||"")} priorisieren</button>
+    <button class="tb" onclick="ytCopyAll()"><i class="ti ti-copy"></i> /watch kopieren</button>
+    <button class="tb" onclick="ytClear()" style="margin-left:auto">Auswahl aufheben</button>
+  </div>
+  <div class="yt-grid" id="ytGrid"></div>`;}
+function ytRenderAll(){ytRenderStatus();ytRenderChips();ytGrid();}
+function ytRenderStatus(){const s=$("#ytStatus");if(!s)return;s.innerHTML=ytToken?'<i class="ti ti-circle-check"></i> angemeldet · nur Lesen · <a href="#" onclick="event.preventDefault();ytLogout()" style="color:var(--accent-ink)">Abmelden</a>':'<button class="tb" onclick="ytLogin()"><i class="ti ti-brand-google"></i> Mit Google anmelden</button>';}
+function ytRenderChips(){const c=$("#ytChips");if(!c)return;c.innerHTML='<span class="yt-chiplabel">Abos</span>'+(ytAbos.length?ytAbos.slice(0,12).map(a=>`<span class="yt-chip2" onclick="ytKanal('${a.id}')">${a.bild?`<img src="${a.bild}" referrerpolicy="no-referrer" style="width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-right:3px">`:'<span class="d" style="background:#64748b"></span>'}${esc(a.titel||"")}</span>`).join(""):`<span style="color:var(--faint);font-size:12px">${ytToken?"keine Abos gefunden":"nach Login"}</span>`);}
+function ytCards(){
+  if(ytBusy)return '<div style="grid-column:1/-1;padding:24px;color:var(--muted)">Lade …</div>';
+  if(!ytToken)return '<div class="empty-tab" style="grid-column:1/-1"><i class="ti ti-brand-youtube"></i><b>Mit Google anmelden</b><div class="d">Für Feed, Abos und Suche meldest du dich mit Google an (nur Lesezugriff).</div><div style="margin-top:10px"><button class="tb primary" onclick="ytLogin()"><i class="ti ti-brand-google"></i> Mit Google anmelden</button></div></div>';
+  if(!ytListe.length)return '<div style="grid-column:1/-1;padding:24px;color:var(--muted)">Keine Videos – oben suchen oder links ein Abo wählen.</div>';
+  return (ytTitel?`<div style="grid-column:1/-1;font-weight:600;font-size:13px">${esc(ytTitel)}</div>`:"")+ytListe.map(function(v){
+    if(v.art==="kanal")return `<div class="yt-card" onclick="ytKanal('${v.id}')"><div class="yt-thumb">${v.bild?`<img src="${v.bild}" referrerpolicy="no-referrer" loading="lazy" alt="">`:""}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">📺 Kanal öffnen</div></div>`;
+    var done=ytDone.has(v.id);
+    return `<div class="yt-card ${ytSel.has(v.id)?"sel":""} ${done?"done":""}" ${done?"":`onclick="ytToggle('${v.id}')"`}><div class="yt-thumb"><img src="${v.bild||("https://i.ytimg.com/vi/"+v.id+"/mqdefault.jpg")}" referrerpolicy="no-referrer" loading="lazy" alt="">${done?'<span class="yt-done"><i class="ti ti-circle-check"></i> bereits zugeordnet</span>':'<span class="chk"><i class="ti ti-check"></i></span>'}${v.d?`<span class="du">${v.d}</span>`:""}${done?"":`<button class="cp" onclick="event.stopPropagation();ytCopy('${v.id}')">/watch kopieren</button>`}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">${esc(v.k||"")}${v.v?" · "+v.v+" Aufrufe":""}${v.datum?" · "+ytAlter(v.datum):""}</div></div>`;
+  }).join("");
+}
+function ytGrid(){const g=$("#ytGrid");if(g)g.innerHTML=ytCards();ytBar();}
+function ytToggle(id){if(ytDone.has(id)){toast("Dieses Video ist bereits zugeordnet – übersprungen");return;}ytSel.has(id)?ytSel.delete(id):ytSel.add(id);ytGrid();}
+function ytClear(){ytSel=new Set();ytGrid();}
+function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}}
+function ytCopy(id){navigator.clipboard&&navigator.clipboard.writeText("/watch https://www.youtube.com/watch?v="+id);toast("/watch-Link kopiert");}
+function ytCopyAll(){const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");navigator.clipboard&&navigator.clipboard.writeText(t);toast(ytSel.size+" /watch-Links kopiert");}
+async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!ytSel.size){toast("Bitte Videos markieren");return;}if(!sid){toast("Keine Software-ID");return;}
+  try{const{data:swc}=await sb.from("software").select("crawl_metadaten").eq("id",sid).single();if(!swc||!swc.crawl_metadaten){aov("Noch kein Crawl",sw,`<div style="padding:16px;font-size:13px;line-height:1.6">Für <b>${esc(sw)}</b> wurde die Website noch nicht gecrawlt. Ohne gecrawlte SSoT-Fakten darf nicht priorisiert werden (Halluzinationsschutz). Bitte zuerst „Crawl &amp; Anreichern".</div>`,'<span class="tb" onclick="closeAov()">Verstanden</span>');return;}}catch(e){}
+  const videos=ytListe.filter(v=>v.art==="video"&&ytSel.has(v.id)).map(v=>({id:v.id,titel:v.t,kanal:v.k,schon_ausgewertet:ytDone.has(v.id)}));
+  aov("Priorisierung – "+sw,ytSel.size+" Videos · KI-Bewertung (Opus)",'<div id="prioOut" style="padding:18px;color:var(--muted)">Analysiere …</div>');
+  try{const r=await sb.functions.invoke("ranking-proxy",{body:{software:{name:sw,kategorie:(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.kategorie)||""},videos:videos}});if(r&&r.error)throw new Error(r.error.message||"Fehler");const ranking=(r.data&&r.data.ranking)||[];const ranked=ranking.map(x=>{const v=videos.find(y=>y.id===x.video_id);return v?Object.assign({},x,{titel:v.titel,schon:ytDone.has(x.video_id)}):null;}).filter(Boolean).sort((a,b)=>a.rang-b.rang);const offen=ranked.filter(x=>!x.schon).length;window._ytRanked=ranked;
+    const out=$("#prioOut");if(out)out.outerHTML='<table class="dtbl"><thead><tr><th style="width:44px">Platz</th><th>Video</th><th style="width:120px">/watch</th></tr></thead><tbody>'+ranked.map(x=>`<tr><td><b>${x.rang}</b></td><td>${esc(x.titel||x.video_id)}<div style="font-size:11px;color:var(--muted)">Relevanz ${x.relevanz}/10${x.schon?' · <span class="pa">schon ausgewertet</span>':""}${x.begruendung?" · "+esc(x.begruendung):""}</div></td><td style="font-size:11px"><span style="color:var(--accent-ink)">…?v=${x.video_id}</span> <button class="mini2" onclick="ytCopy('${x.video_id}')">kop.</button></td></tr>`).join("")+'</tbody></table>';
+    const f=$("#aFoot");if(f)f.innerHTML=`<button class="tb" onclick="ytCopyAll()"><i class="ti ti-copy"></i> Alle kopieren</button> <button class="tb primary" onclick="ytUebergabe('${sid}')"><i class="ti ti-player-play"></i> An Claude Code übergeben (${offen})</button>`;
+  }catch(e){const out=$("#prioOut");if(out)out.innerHTML="Priorisierung fehlgeschlagen: "+esc(String(e.message||e));}
+}
+async function ytUebergabe(sid){const ranked=window._ytRanked||[];const offen=ranked.filter(x=>!x.schon);if(!sid||!offen.length){toast("Nichts zu übergeben");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) an Warteschlange übergeben ✓");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
+// ---- Bewertungen-Tool (Kontext = offene Software) ----
+let bwBilder=[];
+function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.full.id);bwBilder=[];setTimeout(function(){ladeBwSyn(sid);},0);return `<div class="bw-box">
+  <div class="bw-grund">⚖ Bewertungen für <b>${esc(name)}</b> – ausgewertet wird ausschließlich der <b>Inhalt</b> (keine Zitate/Namen/Datum). Rohtext &amp; Screenshots werden <b>nicht</b> gespeichert. Doppelte Bewertungen (gleicher Inhalt) werden automatisch erkannt und übersprungen.</div>
+  <div id="bwSynBox" style="margin-bottom:14px"><div style="color:var(--muted);font-size:12.5px">Lade gespeicherte Synthese …</div></div>
+  <div class="bw-row"><input id="bwQ" placeholder="Suchbegriff (optional) …">${["Google","Trustpilot","G2","Capterra","OMR"].map(z=>`<button class="tb" style="height:32px" onclick="bwOpen('${z}')"><i class="ti ti-search"></i> ${z}</button>`).join("")}</div>
+  <div style="font-size:12px;color:var(--faint);margin-bottom:14px">Öffnet die Suche für „${esc(name)}" im neuen Tab. Dort kopieren oder Screenshot machen, unten einfügen.</div>
+  <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px">Gesammelte Bewertungen einfügen – Text und/oder Screenshots</div>
+  <textarea class="bw-ta" id="bwTa" placeholder="Bewertungen hier per Copy &amp; Paste einfügen …" onpaste="bwPaste(event)"></textarea>
+  <div class="bw-drop" id="bwDrop" onclick="document.getElementById('bwFile').click()" ondragover="event.preventDefault()" ondrop="bwDropFiles(event)">🖼 Screenshots hier einfügen (Strg+V), hineinziehen oder klicken<input type="file" id="bwFile" accept="image/*" multiple style="display:none" onchange="bwFiles(this.files)"></div>
+  <div id="bwThumbs" class="bw-thumbs"></div>
+  <div class="bw-row" style="margin-top:12px"><button class="tb primary" id="bwGo" onclick="bwAuslesen('${sid}')"><i class="ti ti-brain"></i> Bewertungen auslesen</button></div>
+  <div id="bwOut"></div>
+</div>`;}
+function bwOpen(z){const sw=dlgRow?dlgRow.name:"";const q=(sw+" "+($("#bwQ")?$("#bwQ").value:"")+" Bewertungen Erfahrungen "+(z==="Google"?"":"site:"+z.toLowerCase()+".com")).trim();window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener");}
+async function ladeBwSyn(sid){const box=$("#bwSynBox");if(!box)return;if(!sid){box.innerHTML="";return;}try{const{data}=await sb.from('bewertungs_synthesen').select('*').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1);const s=data&&data[0];box.innerHTML=s?bwSynHtml(s):'<div style="color:var(--faint);font-size:12.5px">Noch keine Synthese – unten Bewertungen einfügen und auslesen.</div>';}catch(e){box.innerHTML='<div style="color:var(--faint);font-size:12.5px">Synthese konnte nicht geladen werden.</div>';}}
+function bwSynHtml(s){const st=arr=>(arr||[]).map(x=>`<div class="it"><b>${x.rang}.</b> ${esc(x.punkt||"")}${x.haeufigkeit?` <span style="color:var(--faint)">(${esc(String(x.haeufigkeit))})</span>`:""}</div>`).join("");return `<div style="font-size:13px;margin-bottom:6px">Gesamtstimmung: <b>${esc(s.stimmungstrend||"–")}</b>${s.anzahl_bewertungen?` · aus ${s.anzahl_bewertungen} Bewertungen`:""}</div><div class="bw-syn"><div class="c"><div class="h pg">Stärken</div>${st(s.staerken_top5)||'<div class="it" style="color:var(--faint)">–</div>'}</div><div class="c"><div class="h pr">Schwächen</div>${st(s.schwaechen_top5)||'<div class="it" style="color:var(--faint)">–</div>'}</div></div>`;}
+async function bwAuslesen(sid){const ta=$("#bwTa");const txt=ta?ta.value.trim():"";if(!sid){toast("Keine Software-ID");return;}if(!txt&&!bwBilder.length){toast("Bitte Bewertungstext einfügen oder Screenshot anhängen");return;}const go=$("#bwGo");if(go){go.disabled=true;go.innerHTML='<i class="ti ti-loader"></i> Claude wertet aus …';}const out=$("#bwOut");try{const r=await sb.functions.invoke('bewertungen-auslesen',{body:{software_id:sid,text:txt,bilder:bwBilder.map(b=>({media_type:b.media_type,data:b.data}))}});if(r&&r.error)throw new Error(r.error.message||'Fehler');const d=r.data||{};if(d.error)throw new Error(d.detail?d.error+' – '+d.detail:d.error);try{const sr=await sb.functions.invoke('bewertungen-synthese',{body:{software_id:sid}});}catch(_){}if(ta)ta.value="";bwBilder=[];bwRenderThumbs();if(out)out.innerHTML=`<div class="bw-dedup"><span class="bw-new"><i class="ti ti-circle-check"></i> ${d.anzahl||0} neu ausgewertet</span>${d.dubletten?`<span class="bw-dup"><i class="ti ti-copy"></i> ${d.dubletten} Dublette(n) übersprungen (gleicher Inhalt)</span>`:""}</div>`;await ladeBwSyn(sid);toast('Bewertungen ausgewertet ✓');}catch(e){if(out)out.innerHTML=`<div style="color:#e11d48;font-size:13px;margin-top:8px">Auswertung fehlgeschlagen: ${esc(e&&e.message?e.message:String(e))}</div>`;}finally{if(go){go.disabled=false;go.innerHTML='<i class="ti ti-brain"></i> Bewertungen auslesen';}}}
+function bwPaste(e){const items=(e.clipboardData&&e.clipboardData.items)||[];const imgs=[];for(const it of items){if(it.type&&it.type.indexOf('image/')===0){const f=it.getAsFile();if(f)imgs.push(f);}}if(imgs.length){e.preventDefault();bwFiles(imgs);}}
+function bwDropFiles(e){e.preventDefault();bwFiles((e.dataTransfer&&e.dataTransfer.files)||[]);}
+function bwFiles(files){[...files].forEach(function(f){if(!f.type||f.type.indexOf('image/')!==0)return;const rd=new FileReader();rd.onload=function(){const url=String(rd.result||"");const m=url.match(/^data:([^;]+);base64,(.*)$/);if(m){bwBilder.push({media_type:m[1],data:m[2],preview:url});bwRenderThumbs();}};rd.readAsDataURL(f);});}
+function bwRenderThumbs(){const t=$("#bwThumbs");if(!t)return;t.innerHTML=bwBilder.map((b,i)=>`<div class="bw-thumb"><img src="${b.preview}" alt=""><button class="bw-thumb-x" onclick="bwBilder.splice(${i},1);bwRenderThumbs()">✕</button></div>`).join("");}
+function render(){
+  const v=VIEWS[CUR];const cols=v.cols.filter(c=>c.vis);
+  $("#crumb").innerHTML=`<i class="ti ${v.ic}"></i> <b>${v.t}</b> <span class="sp">›</span> Übersicht`+(CUR==="software"?' <span class="sp">·</span> <span style="color:var(--faint)">Spaltenkopf = sortieren &amp; filtern · Zeile = Details</span>':"")+`<span class="clr ${Object.keys(v._filt).length?"on":""}" onclick="clearAll()"><i class="ti ti-filter-off"></i> Alle Filter löschen</span>`;
+  $("#introSlot").innerHTML=v.d?`<div class="intro"><div class="ic"><i class="ti ${v.ic}"></i></div><div><h2>${v.t}</h2><p>${v.d}</p></div></div>`:"";
+  $("#thead").innerHTML='<th class="nosort" style="width:28px"><span class="th-in"><input type="checkbox" onclick="event.stopPropagation();toggleAllRows(this.checked)"></span></th>'+
+    cols.map(c=>`<th data-k="${c.k}" draggable="true" ondragstart="colDragStart(event,'${c.k}')" ondragover="colDragOver(event)" ondragleave="colDragLeave(event)" ondrop="colDrop(event,'${c.k}')" class="${v._filt[c.k]?"filtered":""} ${v._sort.k===c.k?"sorted":""}" ${c.w?`style="width:${c.w}px"`:""}><span class="th-in" onclick="openFilter('${c.k}',this)">${c.t} ${v._sort.k===c.k?`<span class="so">${v._sort.d>0?"▲":"▼"}</span>`:""}<i class="ti ti-circle-x clrf" onclick="clearFilter(event,'${c.k}')"></i><i class="ti ${v._filt[c.k]?"ti-filter":"ti-chevron-down"} fi"></i></span></th>`).join("");
+  let rows=v.rows.filter(r=>cols.every(c=>!v._filt[c.k]||v._filt[c.k].has(disp(v,r,c))));
+  const sk=v.cols.find(c=>c.k===v._sort.k);
+  rows.sort((a,b)=>{if(sk&&sk.ty==="age"){return ((ageOf(a).t==null?-1:ageOf(a).t)-(ageOf(b).t==null?-1:ageOf(b).t))*v._sort.d;}if(sk&&sk.ty==="nw"){return ((nwOf(a).v==null?-1:nwOf(a).v)-(nwOf(b).v==null?-1:nwOf(b).v))*v._sort.d;}if(sk&&(sk.ty==="num"||sk.ty==="pct")){return ((a[sk.k]===""?-1:a[sk.k])-(b[sk.k]===""?-1:b[sk.k]))*v._sort.d;}return disp(v,a,sk).localeCompare(disp(v,b,sk),"de",{numeric:true})*v._sort.d;});
+  v._view=rows;
+  $("#tbody").innerHTML=rows.length?rows.map((r,ri)=>`<tr data-i="${v.rows.indexOf(r)}" onclick="onRow(${v.rows.indexOf(r)})"><td><input type="checkbox" onclick="event.stopPropagation();this.closest('tr').classList.toggle('sel');sync()"></td>${cols.map(c=>`<td class="${c.ty==='num'?'num':''}">${cellHtml(disp(v,r,c),r,c)}</td>`).join("")}</tr>`).join(""):`<tr><td class="empty" colspan="${cols.length+1}">Keine Einträge${Object.keys(v._filt).length?" – Filter aktiv":""}.</td></tr>`;
+  const nf=Object.keys(v._filt).length;
+  $("#statusbar").innerHTML=`<span><span class="k">Anzeige:</span> <b>${rows.length}</b> von ${v.rows.length} ${CUR==="software"?"Programmen":"Einträgen"}</span>`+(CUR==="software"?`<span><span class="k">Ø Fortschritt:</span> <b>${rows.length?Math.round(rows.reduce((a,r)=>a+r.pct,0)/rows.length):0}%</b></span><span><span class="k">Live:</span> <b>${rows.filter(r=>r.status==="live").length}</b></span>`:"")+(nf?`<span class="k">Filter aktiv: ${Object.keys(v._filt).map(k=>v.cols.find(c=>c.k===k).t).join(", ")}</span>`:"")+`<span class="right">Sortiert: <b>${(sk?sk.t:"")+(v._sort.d>0?" ↑":" ↓")}</b></span>`;
+  $("#navCount").textContent=VIEWS.software.rows.length;sync();
+}
+function toggleAllRows(on){document.querySelectorAll("#tbody tr").forEach(tr=>{const cb=tr.querySelector("input");if(cb){cb.checked=on;tr.classList.toggle("sel",on);}});sync();}
+function sync(){const n=document.querySelectorAll("#tbody tr.sel").length;$("#tbEdit").toggleAttribute("disabled",n!==1);$("#tbDel").toggleAttribute("disabled",n===0);}
+
+// AutoFilter
+let fpCol=null;
+function openFilter(k,anchor){const v=VIEWS[CUR];fpCol=k;const cur=v._filt[k];const vals=[...new Set(v.rows.map(r=>disp(v,r,v.cols.find(c=>c.k===k))))].sort((a,b)=>a.localeCompare(b,"de",{numeric:true}));
+  const pop=$("#fpop");pop.innerHTML=(cur?`<div class="fp-s clr" onclick="clearFilter(event,'${k}')"><i class="ti ti-filter-off"></i> Filter dieser Spalte löschen</div><div class="fp-sep"></div>`:"")+
+   `<div class="fp-s" onclick="doSort('${k}',1)"><i class="ti ti-sort-ascending"></i> Aufsteigend sortieren</div><div class="fp-s" onclick="doSort('${k}',-1)"><i class="ti ti-sort-descending"></i> Absteigend sortieren</div><div class="fp-sep"></div><div class="fp-search"><i class="ti ti-search"></i><input id="fpq" placeholder="Werte suchen …" oninput="fpFilter()"></div><div class="fp-list" id="fpList"><label class="fp-row all"><input type="checkbox" id="fpAll" onclick="fpToggleAll()"> (Alle auswählen)</label>${vals.map(x=>`<label class="fp-row"><input type="checkbox" class="fpv" value="${encodeURIComponent(x)}" ${(!cur||cur.has(x))?"checked":""}> ${x||"(leer)"}</label>`).join("")}</div><div class="fp-foot"><button onclick="closePop()">Abbrechen</button><button class="ok" onclick="applyFilter()">OK</button></div>`;
+  const r=anchor.getBoundingClientRect();pop.style.left=Math.min(r.left,window.innerWidth-250)+"px";pop.style.top=(r.bottom+4)+"px";pop.classList.add("show");syncAll();}
+function fpFilter(){const q=$("#fpq").value.toLowerCase();document.querySelectorAll("#fpList .fp-row:not(.all)").forEach(l=>{const m=l.textContent.toLowerCase().includes(q);l.style.display=m?"":"none";if(q)l.querySelector(".fpv").checked=m;});syncAll();}
+function fpToggleAll(){const on=$("#fpAll").checked;document.querySelectorAll(".fpv").forEach(c=>{if(c.closest(".fp-row").style.display!=="none")c.checked=on;});}
+function syncAll(){const vis=[...document.querySelectorAll(".fpv")].filter(c=>c.closest(".fp-row").style.display!=="none");const a=$("#fpAll");if(a)a.checked=vis.length>0&&vis.every(c=>c.checked);}
+document.addEventListener("change",e=>{if(e.target.classList&&e.target.classList.contains("fpv"))syncAll();});
+function doSort(k,d){VIEWS[CUR]._sort={k,d};closePop();render();}
+function applyFilter(){const v=VIEWS[CUR];const checked=[...document.querySelectorAll(".fpv")].filter(c=>c.checked).map(c=>dec(c.value));const total=document.querySelectorAll(".fpv").length;if(checked.length===0||checked.length===total){delete v._filt[fpCol];}else{v._filt[fpCol]=new Set(checked);}closePop();render();}
+function clearFilter(e,k){e.stopPropagation();delete VIEWS[CUR]._filt[k];closePop();render();}
+function clearAll(){VIEWS[CUR]._filt={};render();}
+function closePop(){$("#fpop").classList.remove("show");}
+document.addEventListener("mousedown",e=>{if(!e.target.closest("#fpop")&&!e.target.closest(".th-in")&&!e.target.closest('.m')&&!e.target.closest('[onclick*=openCols]'))closePop();});
+const MENUS={
+ Datei:[{l:"Neue Software",i:"ti-plus",a:()=>{route('software');onNew();}},{l:"Import (CSV / JSON)",i:"ti-file-import"},{l:"Export",i:"ti-file-export"},{sep:1},{l:"Sicherung",i:"ti-database-export"},{l:"Abmelden",i:"ti-logout"}],
+ Pipeline:[{l:"Fällige Crawls starten",i:"ti-spider",a:()=>runCrawl()},{l:"Auto-Watcher-Status",i:"ti-robot"},{l:"Aktualisierungs-Ampel",i:"ti-traffic-lights"},{l:"Validierungslauf (alle)",i:"ti-checkup-list",a:()=>runValidate()}],
+ Portal:[{l:"Alle Märkte bauen",i:"ti-hammer",a:()=>runBuild()},{l:"Build-Protokoll",i:"ti-history",a:()=>route('portalbuild')},{l:"Staging öffnen",i:"ti-external-link"},{l:"Live öffnen",i:"ti-external-link"}],
+ Ansicht:[{l:"Hell / Dunkel",i:"ti-contrast-2",a:()=>document.body.classList.toggle('dark')},{l:"Dichte: kompakt / komfortabel",i:"ti-baseline-density-medium"},{l:"Spalten zurücksetzen",i:"ti-columns"}],
+ Extras:[{l:"n8n öffnen",i:"ti-external-link"},{l:"Firecrawl öffnen",i:"ti-external-link"},{l:"Supabase öffnen",i:"ti-external-link"},{l:"claude.ai öffnen",i:"ti-external-link"},{sep:1},{l:"Logs",i:"ti-file-text"}],
+ Hilfe:[{l:"Dokumentation",i:"ti-book"},{l:"Tastenkürzel",i:"ti-keyboard"},{l:"Über",i:"ti-info-circle"}]
+};
+function openMenu(name,anchor){const items=MENUS[name];const pop=$("#fpop");pop.innerHTML=items.map(it=>it.sep?'<div class="fp-sep"></div>':`<div class="fp-s" data-mi="${encodeURIComponent(it.l)}"><i class="ti ${it.i}"></i> ${it.l}</div>`).join("");const r=anchor.getBoundingClientRect();pop.style.left=r.left+"px";pop.style.top=(r.bottom+5)+"px";pop.classList.add("show");pop.querySelectorAll(".fp-s").forEach(el=>{el.onclick=()=>{const it=items.find(x=>encodeURIComponent(x.l)===el.dataset.mi);closePop();if(it&&it.a)it.a();};});}
+function openCols(anchor){const v=VIEWS[CUR];const pop=$("#fpop");pop.innerHTML=`<div class="fp-s" style="cursor:default;color:var(--muted);font-weight:500"><i class="ti ti-columns"></i> Spalten anzeigen</div><div class="fp-sep"></div><div class="fp-list">${v.cols.map((c,i)=>`<label class="fp-row"><input type="checkbox" ${c.vis?"checked":""} ${i===0?"disabled":""} onchange="VIEWS['${CUR}'].cols[${i}].vis=this.checked;render()"> ${c.t}</label>`).join("")}</div>`;const r=anchor.getBoundingClientRect();pop.style.left=Math.min(r.left,window.innerWidth-250)+"px";pop.style.top=(r.bottom+4)+"px";pop.classList.add("show");}
+
+// CRUD
+function selectedIdx(){const tr=document.querySelector("#tbody tr.sel");return tr?+tr.dataset.i:-1;}
+async function dbW(action,collection,id,data,pk){
+  const {data:res,error}=await sb.functions.invoke("db-write",{body:{action,collection,id,data,pk}});
+  if(error){let m=error.message;try{const b=await error.context.json();if(b&&b.error)m=b.detail?b.error+" – "+b.detail:b.error;}catch(_){}throw new Error(m);}
+  if(res&&res.error)throw new Error(res.error);
+  return res&&res.result;
+}
+function nsInput(id,label,val,list){
+  const dl=list&&list.length?'list="'+id+'_dl"':'';
+  const datalist=list&&list.length?'<datalist id="'+id+'_dl">'+list.map(o=>'<option value="'+String(o).replace(/"/g,"")+'">').join("")+'</datalist>':'';
+  return '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">'+label+'</label><input id="'+id+'" value="'+String(val||"").replace(/"/g,"&quot;")+'" '+dl+' style="width:100%;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:0 9px">'+datalist+'</div>';
+}
+function neueSoftwareDlg(){
+  const kats=[...new Set(SW.map(s=>s.kat).filter(Boolean))].sort();
+  aov("Neue Software anlegen","wird in der SSoT angelegt (Reifegrad: erfasst)",
+    nsInput("nsName","Name *","")+nsInput("nsHersteller","Hersteller *","")+nsInput("nsUrl","Hersteller-URL *","https://")+nsInput("nsKat","Kategorie *","",kats)+nsInput("nsKw","Ziel-Keyword (optional, sonst aus Name)",""),
+    '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="neueSoftwareSave()"><i class="ti ti-check"></i> Anlegen</span>');
+}
+async function neueSoftwareSave(){
+  const g=(id)=>{const el=document.getElementById(id);return el?el.value.trim():"";};
+  const name=g("nsName"),her=g("nsHersteller"),url=g("nsUrl"),kat=g("nsKat");
+  let kw=g("nsKw")||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+  if(!name||!her||!url||!kat){toast("Bitte Name, Hersteller, URL und Kategorie ausfüllen.");return;}
+  try{ await dbW("create","software",null,{name,hersteller:her,hersteller_url:url,kategorie:kat,ziel_schluesselwort:kw}); toast("„"+name+"\" angelegt"); closeAov(); await ladeSW(); render(); }
+  catch(e){ alert("Anlegen fehlgeschlagen: "+(e&&e.message?e.message:e)); }
+}
+function onRow(i){if(CUR==="software")openDlg(i);else openEdit(i);}
+function onNew(){if(CUR==="software"){openNewSoftware();}else if(CUR==="vergleiche"){openVglGen();}else openEdit(-1);}
+function onEdit(){const i=selectedIdx();if(i<0)return;onRow(i);}
+async function onDel(){const sel=[...document.querySelectorAll("#tbody tr.sel")].map(tr=>+tr.dataset.i);if(!sel.length)return;
+  if(CUR!=="software"){const _dv=DBVIEW[CUR];if(_dv){if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const rows=sel.map(i=>VIEWS[CUR].rows[i]);delEditDB(_dv,rows);return;}if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const v=VIEWS[CUR];v.rows=v.rows.filter((r,i)=>!sel.includes(i));render();return;}
+  const v=VIEWS.software;const ids=sel.map(i=>v.rows[i]&&v.rows[i].id).filter(Boolean);
+  if(!ids.length)return;if(!confirm(ids.length+" Software endgültig löschen? (inkl. zugehöriger Daten per Cascade)"))return;
+  try{for(const id of ids){await dbW("delete","software",id);}toast(ids.length+" gelöscht");await ladeSW();render();}catch(e){toast("Löschen fehlgeschlagen: "+e.message);}}
+
+// generischer Edit-Dialog
+let eIdx=-1;
+function openEdit(i){const v=VIEWS[CUR];eIdx=i;const r=i>=0?v.rows[i]:{};
+  $("#eTitle").textContent=(i>=0?"Bearbeiten":(v.newL||"Neu anlegen"))+" · "+v.t;$("#eSub").textContent=i>=0?"":"Neuer Eintrag";
+  $("#eForm").innerHTML=`<div class="fgrid one">`+v.cols.map(c=>{const val=r[c.k];let inp;if(c.ty==="bool")inp=`<select data-k="${c.k}"><option ${val?"selected":""}>Ja</option><option ${!val?"selected":""}>Nein</option></select>`;else if(c.ty==="status")inp=`<select data-k="${c.k}">${Object.keys(ST).map(s=>`<option ${val===s?"selected":""}>${s}</option>`).join("")}</select>`;else inp=`<input data-k="${c.k}" value="${val==null?"":val}">`;return `<div class="fld"><label>${c.t}</label><div class="v">${inp}</div></div>`;}).join("")+`</div>`;
+  $("#eov").classList.add("show");}
+function saveEdit(){const _dv=DBVIEW[CUR];if(_dv){saveEditDB(_dv);return;}const v=VIEWS[CUR];const obj=eIdx>=0?v.rows[eIdx]:{};$("#eForm").querySelectorAll("[data-k]").forEach(el=>{const c=v.cols.find(x=>x.k===el.dataset.k);let val=el.value;if(c.ty==="bool")val=val==="Ja";else if(c.ty==="num"||c.ty==="pct")val=val===""?"":+val;obj[el.dataset.k]=val;});if(eIdx<0){if(!obj._hue)obj._hue=HUE[v.rows.length%HUE.length];v.rows.push(obj);}closeEdit();render();}
+function closeEdit(){$("#eov").classList.remove("show");}
+
+// reicher Software-Dialog
+function fld(label,val,o){o=o||{};const lab=label+(o.req?' <span style="color:var(--bad)">*</span>':'')+(o.neu?' <span class="neu-b">neu</span>':'');
+  const dk=o.k?(' data-k="'+o.k+'" data-ty="'+(o.ty||"text")+'"'):"";
+  let inp;
+  if(o.multi){const sel=String(val||"").split(/[,;]\s*/).filter(Boolean).map(x=>x.toUpperCase());inp='<div class="chipsel"'+dk+'>'+o.multi.map(x=>`<span class="chsel ${sel.indexOf(x)>=0?"on":""}" onclick="this.classList.toggle('on')">${x}</span>`).join("")+'</div>';}
+  else if(o.opts){const sv=val==null?"":String(val);const has=o.opts.map(String).indexOf(sv)>=0;inp=`<select ${o.ro?"disabled":""}${dk}>${(sv&&!has)?`<option selected>${esc(val)}</option>`:`<option value="" ${sv?"":"selected"}>— bitte wählen —</option>`}${o.opts.map(x=>`<option ${String(x)===sv?"selected":""}>${esc(x)}</option>`).join("")}</select>`;}
+  else if(o.ta){inp=`<textarea ${o.ro?"readonly":""}${dk} rows="2">${esc(val==null?"":val)}</textarea>`;}
+  else if(o.sel){inp=`<select ${o.ro?"disabled":""}><option>${esc(val||"— bitte wählen —")}</option></select>`;}
+  else{inp=`<input value="${esc(val==null?"":val)}" ${o.ro?"readonly":""}${dk} ${o.miss?'class="miss" placeholder="'+(o.ph||"fehlt")+'"':""}>`;}
+  return `<div class="fld"><label>${lab}</label><div class="v">${inp}${o.miss?'<div class="miss-t">'+(o.missT||"Pflichtfeld leer")+'</div>':""}</div></div>`;}
+let dlgRow=null,dlgTab="stammdaten";
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+async function openDlg(i){const neu=i<0;dlgRow=neu?{name:"",hersteller:"",kat:"Buchhaltung",markt:"DE",angelegt:"",funk:0,pct:0,status:"neu",geprueft:"",_hue:"#64748b"}:VIEWS.software.rows[i];const r=dlgRow,s=ST[r.status];
+  $("#dLogo").textContent=(r.name||"NN").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()||"NN";$("#dLogo").style.background=r._hue||"#64748b";
+  $("#dName").textContent=neu?"Neue Software anlegen":r.name;$("#dSub").textContent=neu?"Stammdaten erfassen":(r.hersteller+" · "+r.kat);$("#dBadge").textContent=s.l;$("#dnFunk").textContent=r.funk||0;setBildCount(r.id||(r._d&&r._d.full&&r._d.full.id));
+  r._d=neu?{full:{},funk:[],preise:[],integ:[],faelle:[],lade:false}:{lade:true,funk:[],preise:[],integ:[],faelle:[],full:{}};
+  setTab("stammdaten");$("#ov").classList.add("show");
+  if(!neu&&r.id){const id=r.id;
+    const res=await Promise.all([
+      sb.from("software").select("*").eq("id",id).single(),
+      sb.from("funktionen").select("funktions_name,canonical_name,kategorie,verfuegbar_ab_tarif,konfidenz_score").eq("software_id",id).order("konfidenz_score",{ascending:false,nullsFirst:false}),
+      sb.from("preise").select("*").eq("software_id",id),
+      sb.from("integrationen").select("integrations_name,kategorie").eq("software_id",id),
+      sb.from("anwendungsfaelle").select("titel,zielgruppe,beschreibung").eq("software_id",id)
+    ]);
+    if(dlgRow!==r)return;
+    r._d={full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],lade:false};
+    renderTab();
+  }
+}
+function setTab(t){dlgTab=t;document.querySelectorAll("#ov .dn").forEach(d=>d.classList.toggle("active",d.dataset.tab===t));renderTab();}
+function renderTab(){const r=dlgRow;if(!r)return;const s=ST[r.status],isSev=r.name==="sevDesk",land=r.markt==="DE"?"Deutschland":r.markt==="AT"?"Österreich":r.markt==="CH"?"Schweiz":"";const M={stammdaten:tabStamm,bilder:tabBilder,funktionen:tabFunk,preise:tabPreise,integrationen:tabInteg,faelle:tabFaelle,videos:tabVideos,bewertungen:tabBew,content:tabContent};$("#dForm").innerHTML=(M[dlgTab]||tabStamm)(r,s,isSev,land);}
+function emptyTab(ic,t,d){return `<div class="empty-tab"><i class="ti ${ic}"></i><b>${t}</b><div class="d">${d||""}</div></div>`;}
+async function saveStamm(){
+  const sid=(dlgRow&&dlgRow.id)||(dlgRow&&dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id);
+  if(!sid){toast("Keine Software-ID – Dialog bitte neu öffnen.");return;}
+  const patch={};
+  document.querySelectorAll('#dForm [data-k]').forEach(function(el){const k=el.dataset.k,ty=el.dataset.ty;
+    if(el.classList.contains('chipsel')){patch[k]=[...el.querySelectorAll('.chsel.on')].map(c=>c.textContent.trim().toLowerCase());return;}
+    let v=el.value;
+    if(ty==='num'){v=v===''?null:Number(String(v).replace(',','.'));}
+    else if(ty==='int'){v=v===''?null:parseInt(v,10);}
+    else if(ty==='bool'){v=v==='Ja'?true:(v==='Nein'?false:null);}
+    else{v=String(v).trim()===''?null:String(v).trim();}
+    patch[k]=v;});
+  patch.geaendert_am=new Date().toISOString();
+  try{
+    await dbW('update','software',sid,patch);
+    if(dlgRow._d)dlgRow._d.full=Object.assign({},dlgRow._d.full,patch);
+    await ladeSW();render();closeDlg();
+    toast('Stammdaten gespeichert ✓');
+  }catch(e){alert("Speichern fehlgeschlagen:\n"+(e&&e.message?e.message:e));}
+}
+function tabStamm(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");const f=d.full||{};const mk=(f.relevante_maerkte||[]).join(", ");const dat=f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):"—";
+  return `<div class="fgrp">Identität &amp; Einordnung</div><div class="fgrid">${fld("Name",f.name,{k:"name",req:1})}${fld("Hersteller",f.hersteller,{k:"hersteller",req:1})}${fld("Hersteller-URL",f.hersteller_url,{k:"hersteller_url",req:1})}${fld("Kategorie",f.kategorie,{k:"kategorie",req:1})}${fld("Unterkategorie",f.unterkategorie,{k:"unterkategorie"})}${fld("Ziel-Keyword",f.ziel_schluesselwort,{k:"ziel_schluesselwort"})}${fld("Relevante Märkte",mk,{k:"relevante_maerkte",ty:"array",multi:["DE","AT","CH","IT","ES"]})}</div>
+  <div class="fgrp">Beschreibung &amp; Positionierung</div><div class="fgrid one">${fld("Kurzbeschreibung",f.kurzbeschreibung,{k:"kurzbeschreibung",ta:1})}${fld("Lange Beschreibung",f.lange_beschreibung,{k:"lange_beschreibung",ta:1})}</div><div class="fgrid">${fld("Zielgruppe",f.zielgruppe,{k:"zielgruppe"})}${fld("Hauptnutzen",f.hauptnutzen,{k:"hauptnutzen"})}${fld("Kern-Aussage",f.kern_aussage,{k:"kern_aussage",miss:!f.kern_aussage,missT:"empfohlen"})}${fld("Charakt. Anwendungsfall",f.charakteristischer_anwendungsfall,{k:"charakteristischer_anwendungsfall",miss:!f.charakteristischer_anwendungsfall,missT:"empfohlen"})}${fld("Vergleichs-Pointe",f.vergleichs_pointe,{k:"vergleichs_pointe",miss:!f.vergleichs_pointe,missT:"empfohlen"})}</div>
+  <div class="fgrp">Unternehmen</div><div class="fgrid">${fld("Land",f.land_hauptsitz,{k:"land_hauptsitz",opts:["Deutschland","Österreich","Schweiz","Italien","Spanien"]})}${fld("Gegründet",f.gegruendet,{k:"gegruendet",ty:"int"})}${fld("Mitarbeiterzahl",f.mitarbeiterzahl_bereich,{k:"mitarbeiterzahl_bereich",opts:["1-10","11-50","51-250","251-1000","mehr als 1000"]})}${fld("Sitz / Stadt","",{neu:1,miss:1,missT:"noch nicht im Schema"})}</div>
+  <div class="fgrp">Technik &amp; Compliance</div><div class="fgrid">${fld("Bereitstellung",f.bereitstellungs_art,{k:"bereitstellungs_art",opts:["cloud","on_premise","hybrid"]})}${fld("Serverstandort",f.server_standort,{k:"server_standort"})}${fld("DSGVO-konform",f.dsgvo_konform==null?"":(f.dsgvo_konform?"Ja":"Nein"),{k:"dsgvo_konform",ty:"bool",opts:["Ja","Nein"]})}${fld("Sprachen",f.sprachen,{k:"sprachen"})}</div>
+  <div class="fgrp">Preise &amp; Konditionen</div><div class="fgrid">${fld("Einstiegspreis",f.einstiegspreis,{k:"einstiegspreis",ty:"num"})}${fld("Währung",f.waehrung,{k:"waehrung",opts:["EUR","CHF","USD"]})}${fld("Gratis-Tarif",f.free_plan==null?"":(f.free_plan?"Ja":"Nein"),{k:"free_plan",ty:"bool",opts:["Ja","Nein"]})}${fld("Testphase",f.free_trial==null?"":(f.free_trial?"Ja":"Nein"),{k:"free_trial",ty:"bool",opts:["Ja","Nein"]})}${fld("Testphase (Tage)",f.free_trial_tage,{k:"free_trial_tage",ty:"int"})}</div>
+  <div class="fgrp">Externe Bewertungen</div><div class="fgrid">${fld("G2",f.rating_g2,{k:"rating_g2",ty:"num"})}${fld("Capterra",f.rating_capterra,{k:"rating_capterra",ty:"num"})}${fld("Trustpilot",f.rating_trustpilot,{k:"rating_trustpilot",ty:"num"})}${fld("Anzahl extern",f.anzahl_bewertungen_extern,{k:"anzahl_bewertungen_extern",ty:"int"})}</div>
+  <div class="fgrp">Monetarisierung</div><div class="fgrid">${fld("Affiliate-URL",f.affiliate_url,{k:"affiliate_url"})}</div>
+  <div class="fgrp">Pipeline <span style="text-transform:none;font-weight:400;color:var(--faint)">· automatisch befüllt</span></div><div class="fgrid">${fld("Reifegrad",f.daten_reifegrad,{ro:1})}${fld("Veröffentlichungs-Status",f.veroeffentlichungs_status,{ro:1})}${fld("Fortschritt",(r.pct||0)+" %",{ro:1})}${fld("Zuletzt geprüft",dat,{ro:1})}</div>`;}
+function tabFunk(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");
+  const rows=d.funk||[];if(!rows.length)return emptyTab("ti-list-check","Noch keine Funktionen","Erst Website crawlen &amp; anreichern – dann erscheinen hier die extrahierten Funktionen.");
+  const gem=rows.filter(x=>x.canonical_name&&String(x.canonical_name).trim()).length;
+  const konfCl=(v)=>v==null?"":v>=85?"pg":v>=60?"pa":"pr";
+  return `<div class="tabhint"><i class="ti ti-info-circle"></i> Roh-Funktion → Canonical-Begriff (Feature-Wörterbuch). ${rows.length} erfasst · ${gem} gemappt · <span class="pr">${rows.length-gem} offen</span>.</div><table class="dtbl"><thead><tr><th>Funktion (roh)</th><th>→ Canonical</th><th>Kategorie</th><th>ab Tarif</th><th style="text-align:right">Konf.</th><th>Status</th></tr></thead><tbody>${rows.map(function(x){const ok=x.canonical_name&&String(x.canonical_name).trim();return `<tr><td>${esc(x.funktions_name)}</td><td>${ok?esc(x.canonical_name):'<span class="pr">— nicht zugeordnet —</span>'}</td><td><span class="b-cat">${esc(x.kategorie||"")}</span></td><td>${esc(x.verfuegbar_ab_tarif||"—")}</td><td style="text-align:right" class="${konfCl(x.konfidenz_score)}">${x.konfidenz_score!=null?x.konfidenz_score+"%":"—"}</td><td><span class="${ok?"pg":"pr"}">${ok?"gemappt":"offen"}</span></td></tr>`;}).join("")}</tbody></table>`;}
+function tabPreise(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");
+  const rows=d.preise||[];if(!rows.length)return emptyTab("ti-coin-euro","Keine Tarife hinterlegt","Erst Website crawlen &amp; anreichern.");
+  const isAdd=(x)=>/add|zusatz|modul/i.test(x.typ||"");
+  const tar=rows.filter(x=>!isAdd(x)),add=rows.filter(isAdd);
+  const wert=(x)=>{const v=x.preis_netto!=null?x.preis_netto:x.preis_brutto;return v==null?"—":Number(v).toLocaleString("de-DE",{minimumFractionDigits:2})+" "+(x.waehrung||"€");};
+  const posit=rows.map(x=>x.preis_netto!=null?+x.preis_netto:(x.preis_brutto!=null?+x.preis_brutto:null)).filter(v=>v!=null&&v>0);
+  const einstieg=posit.length?Math.min.apply(null,posit).toLocaleString("de-DE",{minimumFractionDigits:2})+" €":"—";
+  const gratis=rows.some(x=>x.preis_netto===0||x.preis_brutto===0||/gratis|kostenlos|free/i.test(x.name||""))?"Ja":"Nein";
+  return `<div class="kpi"><div class="b"><div class="n">${einstieg}</div><div class="l">Einstieg (netto)</div></div><div class="b"><div class="n">${tar.length}</div><div class="l">Tarife</div></div><div class="b"><div class="n">${add.length}</div><div class="l">Add-ons</div></div><div class="b"><div class="n">${gratis}</div><div class="l">Gratis-Tarif</div></div></div><table class="dtbl"><thead><tr><th>Bezeichnung</th><th>Typ</th><th style="text-align:right">Preis netto</th><th>Abrechnung</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.name||"")}</td><td><span class="b-cat">${esc(x.typ||"")}</span></td><td style="text-align:right">${wert(x)}</td><td>${esc(x.abrechnung||"")}</td></tr>`).join("")}</tbody></table>`;}
+function tabInteg(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");
+  const rows=d.integ||[];if(!rows.length)return emptyTab("ti-plug","Keine Integrationen hinterlegt","Erst Website crawlen &amp; anreichern.");
+  const g={};rows.forEach(function(x){const k=x.kategorie||"Sonstige";(g[k]=g[k]||[]).push(x.integrations_name);});
+  return `<div class="tabhint"><i class="ti ti-info-circle"></i> ${rows.length} Integrationen aus ${Object.keys(g).length} Bereichen.</div>`+Object.entries(g).map(([k,v])=>`<div class="chgrp">${esc(k)}</div><div class="chips">${v.map(n=>`<span class="chip">${esc(n)}</span>`).join("")}</div>`).join("");}
+function tabFaelle(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");
+  const rows=d.faelle||[];if(!rows.length)return emptyTab("ti-user-search","Keine Anwendungsfälle","Erst Website crawlen &amp; anreichern.");
+  return `<table class="dtbl"><thead><tr><th>Anwendungsfall / Zielgruppe</th><th>Beschreibung</th></tr></thead><tbody>${rows.map(x=>`<tr><td style="font-weight:500">${esc(x.titel||x.zielgruppe||"—")}${(x.titel&&x.zielgruppe)?'<div style="font-size:11px;color:var(--muted)">'+esc(x.zielgruppe)+'</div>':''}</td><td style="color:var(--muted)">${esc(x.beschreibung||"")}</td></tr>`).join("")}</tbody></table>`;}
+function tabBew(r){return bwTool(r);}
+function tabContent(r,s,isSev){const sid=r.id||(r._d&&r._d.full&&r._d.full.id);setTimeout(function(){ladeContent(sid);},0);return '<div id="contentBox"><div style="padding:32px;color:var(--muted)">Lade Content-Stand …</div></div>';}
+async function ladeContent(sid){const box=$("#contentBox");if(!box)return;if(!sid){box.innerHTML="";return;}
+  try{const res=await sb.from('inhalts_artikel').select('inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,sektionen,erstveroeffentlicht_am,meta_title,slug,ziel_url,geaendert_am').eq('software_id',sid).order('geaendert_am',{ascending:false}).limit(1);
+    const a=res.data&&res.data[0];
+    if(!a){box.innerHTML=emptyTab("ti-article","Noch kein Content","Für diese Software wurde noch kein Portal-Artikel erzeugt (Phase „Content“).");return;}
+    const art=(a.sektionen&&a.sektionen.artikel)||{};
+    const BAUS=[["titel","Titel"],["steckbrief","Steckbrief"],["toc","Inhaltsverzeichnis"],["abschnitte","Fließtext-Abschnitte"],["vorteile","Vorteile"],["nachteile","Nachteile"],["preise_tabelle","Preis-Tabelle"],["vergleich","Vergleich"],["bewertung","Bewertung"],["faq","FAQ"]];
+    const has=function(v){if(v==null)return false;if(Array.isArray(v))return v.length>0;if(typeof v==='object')return Object.keys(v).length>0;return String(v).trim()!=='';};
+    const vorh=BAUS.filter(function(b){return has(art[b[0]]);}).length;
+    const nw=a.nw_punktzahl_v3!=null?a.nw_punktzahl_v3:(a.nw_punktzahl_v2!=null?a.nw_punktzahl_v2:a.nw_punktzahl_v1);
+    const live=a.inhalts_status==='live'||!!a.erstveroeffentlicht_am;
+    box.innerHTML='<div class="kpi"><div class="b"><div class="n">'+vorh+' / '+BAUS.length+'</div><div class="l">Abschnitte</div></div><div class="b"><div class="n">'+esc(a.inhalts_status||"—")+'</div><div class="l">Portal-Artikel</div></div><div class="b"><div class="n">'+(nw!=null?nw:"—")+'</div><div class="l">NeuronWriter</div></div><div class="b"><div class="n">'+(live?"ja":"nein")+'</div><div class="l">veröffentlicht</div></div></div>'+
+      (a.meta_title?'<div style="font-size:12.5px;font-weight:600;margin:0 0 4px">'+esc(a.meta_title)+'</div>':"")+
+      (a.ziel_url?'<div style="font-size:12px;color:var(--muted);margin:0 0 12px">URL: <a href="'+esc(a.ziel_url)+'" target="_blank" rel="noopener" style="color:var(--accent-ink)">'+esc(a.ziel_url)+'</a></div>':"")+
+      '<table class="dtbl"><thead><tr><th>Abschnitt</th><th>Status</th></tr></thead><tbody>'+BAUS.map(function(b){const ok=has(art[b[0]]);return '<tr><td>'+b[1]+'</td><td><span class="'+(ok?"pg":"pr")+'">'+(ok?"vorhanden":"fehlt")+'</span></td></tr>';}).join("")+'</tbody></table>';
+  }catch(e){box.innerHTML=emptyTab("ti-alert-triangle","Fehler","Content konnte nicht geladen werden: "+esc(e&&e.message?e.message:String(e)));}
+}
+function tabVideos(r){return ytTool(r);}
+function tabBilder(r,s,isSev){const sid=r.id||(r._d&&r._d.full&&r._d.full.id);setTimeout(function(){ladeBilder(sid);},0);return `<div class="tabhint"><i class="ti ti-photo"></i> Screenshots &amp; Produktbilder für <b>${esc(r.name||"")}</b>. Werden in Supabase Storage (Bucket „software-bilder“) abgelegt und im Astro-Portal eingebunden.</div>
+  <div class="bw-row" style="margin-bottom:12px"><button class="tb primary" onclick="document.getElementById('biFile').click()"><i class="ti ti-upload"></i> Bilder hochladen</button><input type="file" id="biFile" accept="image/*" multiple style="display:none" onchange="bilderUpload('${sid}',this.files)"></div>
+  <div class="bw-drop" id="biDrop" onclick="document.getElementById('biFile').click()" ondragover="event.preventDefault()" ondrop="bilderDrop(event,'${sid}')">🖼 Screenshots hier hochladen (hineinziehen oder klicken)</div>
+  <div id="bilderBox"><div style="padding:24px;color:var(--muted)">Lade Bilder …</div></div>`;}
+function setBildCount(sid){if(!sid){const e=$("#dnBild");if(e)e.textContent="";return;}sb.from("software_bilder").select("id",{count:"exact",head:true}).eq("software_id",sid).then(function(res){const e=$("#dnBild");if(e)e.textContent=res.count||0;});}
+async function ladeBilder(sid){const box=$("#bilderBox");if(!box)return;if(!sid){box.innerHTML="";return;}
+  try{const res=await sb.from('software_bilder').select('*').eq('software_id',sid).order('reihenfolge',{ascending:true});const imgs=res.data||[];const _dc=$("#dnBild");if(_dc)_dc.textContent=imgs.length;
+    if(!imgs.length){box.innerHTML='<div class="empty-tab" style="padding:30px"><i class="ti ti-photo-off"></i><b>Noch keine Bilder</b><div class="d">Lade oben Screenshots/Produktbilder hoch.</div></div>';return;}
+    box.innerHTML='<div class="img-grid">'+imgs.map(function(b){const dim=(b.breite&&b.hoehe)?b.breite+'×'+b.hoehe:'';const cap=b.dateiname||b.rolle||'Bild';const meta=[(b.rolle||'Screenshot'),dim].filter(Boolean).join(' · ');const th=b.original_url?'<img src="'+esc(b.original_url)+'" referrerpolicy="no-referrer" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover">':'<i class="ti ti-photo"></i>';return '<div class="img-card" style="position:relative"><div class="img-th">'+th+'</div><button title="Löschen" onclick="bilderDelete(\''+b.id+'\',\''+sid+'\')" style="position:absolute;top:5px;right:5px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1">&times;</button><div class="img-cap">'+esc(cap)+'</div><div class="img-meta">'+esc(meta)+'</div></div>';}).join("")+'</div>';
+  }catch(e){box.innerHTML=emptyTab("ti-alert-triangle","Fehler","Bilder konnten nicht geladen werden: "+esc(e&&e.message?e.message:String(e)));}
+}
+function bilderDrop(e,sid){e.preventDefault();bilderUpload(sid,(e.dataTransfer&&e.dataTransfer.files)||[]);}
+function bildDim(f){return new Promise(function(res){const img=new Image();img.onload=function(){res({w:img.naturalWidth,h:img.naturalHeight});};img.onerror=function(){res({w:null,h:null});};img.src=URL.createObjectURL(f);});}
+async function bilderUpload(sid,files){if(!sid){toast("Keine Software-ID");return;}const list=[...files].filter(function(f){return f.type&&f.type.indexOf('image/')===0;});if(!list.length){toast("Keine Bilddateien gewählt");return;}toast("Lade "+list.length+" Bild(er) hoch …");
+  try{for(const f of list){const ext=(f.name.split('.').pop()||'png').toLowerCase();const path=sid+'/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'.'+ext;const up=await sb.storage.from('software-bilder').upload(path,f,{contentType:f.type,upsert:false});if(up.error)throw new Error(up.error.message);const url=sb.storage.from('software-bilder').getPublicUrl(path).data.publicUrl;const dim=await bildDim(f);await dbW('create','software_bilder',null,{software_id:sid,rolle:'galerie',dateiname:f.name,original_url:url,mime:f.type,breite:dim.w,hoehe:dim.h,herkunft:'eigener_screenshot'});}
+    toast("Bild(er) hochgeladen ✓");await ladeBilder(sid);
+  }catch(e){alert("Upload fehlgeschlagen: "+(e&&e.message?e.message:e));}
+}
+async function bilderDelete(id,sid){if(!confirm("Bild wirklich löschen?"))return;try{const res=await sb.from('software_bilder').select('original_url').eq('id',id).limit(1);const url=res.data&&res.data[0]&&res.data[0].original_url;await dbW('delete','software_bilder',id);if(url){const i=url.indexOf('/software-bilder/');if(i>=0){await sb.storage.from('software-bilder').remove([decodeURIComponent(url.slice(i+'/software-bilder/'.length))]);}}toast("Bild gelöscht");await ladeBilder(sid);}catch(e){alert("Löschen fehlgeschlagen: "+(e&&e.message?e.message:e));}}
+function closeDlg(){$("#ov").classList.remove("show");}
+const DISCOVER={
+ "Buchhaltung":[{n:"FreeFinance",hh:"FreeFinance GmbH",aff:"Awin · ~25% wiederkehrend",pot:3,desc:"Cloud-Buchhaltung & Rechnung (AT/DE)"},{n:"Tide",hh:"Tide",aff:"Impact · 50 € / Konto",pot:3,desc:"Business-Konto mit Buchhaltungsfunktionen"},{n:"Holvi",hh:"Holvi",aff:"PartnerStack · 40 € / Lead",pot:2,desc:"Geschäftskonto + integrierte Buchhaltung"},{n:"Billbee",hh:"Billbee GmbH",aff:"Eigenes Programm · 20%",pot:2,desc:"Auftrags- & Rechnungstool für Onlinehandel"}],
+ "Rechnung":[{n:"Zervant",hh:"Zervant",aff:"Eigenes Programm · 15%",pot:2,desc:"Rechnungssoftware für Kleinunternehmer"},{n:"SuperFaktura",hh:"SuperFaktura",aff:"Awin · 20%",pot:2,desc:"Online-Rechnungen & Angebote"},{n:"invoiz",hh:"invoiz",aff:"Eigenes Programm · 25%",pot:1,desc:"Rechnungs- & Finanztool"}],
+ "SEO-Tools":[{n:"XOVI",hh:"XOVI GmbH",aff:"Eigenes Programm · 30%",pot:3,desc:"All-in-one SEO-Suite (DE)"},{n:"Seobility",hh:"Seobility GmbH",aff:"Eigenes Programm · 25% wiederkehrend",pot:3,desc:"SEO-Audit & Monitoring"},{n:"SISTRIX",hh:"SISTRIX GmbH",aff:"Eigenes Programm · 20%",pot:2,desc:"Sichtbarkeitsindex & SEO-Toolbox"}]
+};
+const DISCOVER_NM={
+ "Buchhaltung":[{n:"ELSTER",hh:"Finanzverwaltung",grund:"staatlich – kein Partnerprogramm"},{n:"GnuCash",hh:"GnuCash (Open Source)",grund:"kostenlos/OSS – kein Affiliate"}],
+ "SEO-Tools":[{n:"Google Search Console",hh:"Google",grund:"kostenlos – kein Affiliate"}]
+};
+function openNewSoftware(){aov("Neue Software anlegen","",newBody("entdecken"),"");}
+function newBody(mode){return '<div class="nmode"><button class="nmtab '+(mode==="einzeln"?"on":"")+'" onclick="aov(\'Neue Software anlegen\',\'\',newBody(\'einzeln\'),\'\')"><i class="ti ti-forms"></i> Einzeln anlegen</button><button class="nmtab '+(mode==="entdecken"?"on":"")+'" onclick="aov(\'Neue Software anlegen\',\'\',newBody(\'entdecken\'),\'\')"><i class="ti ti-sparkles"></i> Aus Kategorie entdecken</button></div>'+(mode==="einzeln"?newEinzeln():newEntdecken());}
+function newEinzeln(){const kats=[...new Set(SW.map(s=>s.kat).filter(Boolean))].sort();return '<div style="padding:8px 2px">'+nsInput("nsName","Name *","")+nsInput("nsHersteller","Hersteller *","")+nsInput("nsUrl","Hersteller-URL *","https://")+nsInput("nsKat","Kategorie *","",kats)+nsInput("nsKw","Ziel-Keyword (optional, sonst aus Name)","")+'<button class="tb primary" onclick="neueSoftwareSave()" style="margin-top:4px"><i class="ti ti-plus"></i> Anlegen</button></div>';}
+function newEntdecken(){return '<div style="padding:6px 2px"><div class="bw-row"><label style="font-size:12px;color:var(--muted);width:80px">Kategorie</label><select id="discCat">'+VIEWS.kategorien.rows.map(k=>"<option>"+k.name+"</option>").join("")+'</select><button class="tb primary" onclick="discLoad()"><i class="ti ti-sparkles"></i> Vorschläge laden</button></div><div style="font-size:11.5px;color:var(--faint);margin:2px 0 4px">Die KI sucht bekannte Tools der Kategorie, prüft Website + Affiliate-Programm und blendet bereits vorhandene/ignorierte aus. Sortiert nach Monetarisierungs-Potenzial.</div><div id="discOut"></div></div>';}
+function discLoad(){const cat=$("#discCat").value;const mon=(DISCOVER[cat]||[]).slice().sort((a,b)=>b.pot-a.pot);const nm=DISCOVER_NM[cat]||[];const out=$("#discOut");
+ if(!mon.length&&!nm.length){out.innerHTML='<div class="empty-tab" style="padding:26px"><i class="ti ti-mood-empty"></i><b>Keine neuen Vorschläge</b><div class="d">Für „'+cat+'" wurden keine neuen monetarisierbaren Tools gefunden.</div></div>';return;}
+ let html='<div class="disc-h">✅ Monetarisierbar · '+mon.length+' <span style="font-weight:400;color:var(--faint)">— nach Potenzial sortiert</span></div>'+mon.map(d=>discCard(d,false)).join("");
+ if(nm.length){html+='<div class="disc-h warn"><i class="ti ti-alert-triangle"></i> Relevant, aber NICHT monetarisierbar · '+nm.length+'</div><div style="font-size:11.5px;color:var(--faint);margin-bottom:4px">Kein Partnerprogramm gefunden – nur anlegen, wenn für die Kategorie-Vollständigkeit nötig.</div>'+nm.map(d=>discCard(d,true)).join("");}
+ out.innerHTML=html;}
+function discId(n){return "dc-"+n.replace(/\W/g,"");}
+function discCard(d,nm){const pot=nm?"":"★".repeat(d.pot)+"☆".repeat(3-d.pot);
+ return '<div class="disc-card" id="'+discId(d.n)+'"><div class="dc-main"><div class="dc-n">'+d.n+' <span class="dc-h">· '+d.hh+'</span></div><div class="dc-d">'+(d.desc||"")+'</div>'+(nm?'<span class="dc-nm"><i class="ti ti-ban"></i> '+d.grund+'</span>':'<span class="dc-aff"><i class="ti ti-coin"></i> '+d.aff+'</span> <span class="dc-pot" title="Monetarisierungs-Potenzial">'+pot+'</span>')+'</div><div class="dc-act"><button class="tb" onclick="discIgn(\''+d.n+'\')">Ignorieren</button><button class="tb '+(nm?"":"primary")+'" onclick="discAdd(\''+d.n+'\','+nm+')"><i class="ti ti-plus"></i> '+(nm?"Trotzdem anlegen":"Anlegen")+'</button></div></div>';}
+async function discAdd(n,nm){const cat=$("#discCat")?$("#discCat").value:"";const d=(DISCOVER[cat]||[]).concat(DISCOVER_NM[cat]||[]).find(x=>x.n===n)||{n:n,hh:""};const slug=n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");try{await dbW("create","software",null,{name:n,hersteller:d.hh||n,hersteller_url:"https://www."+slug.replace(/-/g,"")+".com",kategorie:cat,ziel_schluesselwort:slug});const c=document.getElementById(discId(n));if(c)c.style.display="none";toast("„"+n+"\" angelegt – Hersteller-URL bitte im Detail prüfen");await ladeSW();render();}catch(e){toast("Anlegen fehlgeschlagen: "+e.message);}}
+function discIgn(n){const c=document.getElementById(discId(n));if(c)c.style.display="none";toast(n+" ignoriert – kommt bei künftigen Scans nicht wieder");}
+function aov(title,sub,body,foot){$("#aTitle").textContent=title;$("#aSub").textContent=sub||"";$("#aBody").innerHTML=body;$("#aFoot").innerHTML=foot||'<span class="tb" onclick="closeAov()">Schließen</span>';$("#aov").classList.add("show");}
+function closeAov(){$("#aov").classList.remove("show");}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function procStep(i,steps,done){if(i>=steps.length){if(typeof done==="function"){done();}else{const f=$("#aFoot");if(f)f.innerHTML=done;}return;}const el=document.getElementById("ps"+i);if(!el)return;el.classList.add("run");el.querySelector(".pi i").className="ti ti-loader-2 spin";el.querySelector(".ps").textContent="läuft …";setTimeout(()=>{if(!document.getElementById("ps"+i))return;el.classList.remove("run");el.classList.add("done");el.querySelector(".pi i").className="ti ti-check";el.querySelector(".ps").textContent="fertig";procStep(i+1,steps,done);},670);}
+function procBody(steps){return '<div class="proc">'+steps.map((s,i)=>`<div class="pstep" id="ps${i}"><span class="pi"><i class="ti ${s[0]}"></i></span><span class="pl">${s[1]}</span><span class="ps">wartet</span></div>`).join("")+'</div>';}
+const CRAWL_STEPS=[["ti-map-search","Relevante Seiten ermitteln (Firecrawl Map)"],["ti-spider","19 Seiten crawlen"],["ti-sparkles","Inhalt bereinigen & extrahieren (Claude)"],["ti-category","KI: Kategorie zuordnen"],["ti-list-check","Funktionen · Preise · Integrationen erkennen"],["ti-book","Canonical-Mapping (Feature-Wörterbuch)"],["ti-checkup-list","Validierung &amp; Reifegrad setzen"]];
+function runCrawl(){const n=(dlgRow&&dlgRow.name)||"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
+async function crawlDo(sid){if(!sid)return;try{const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});if(r&&r.error)throw new Error(r.error.message||'Fehler');toast('Crawl gestartet – läuft im Hintergrund');closeAov();}catch(e){alert('Crawl-Start fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+function crawlDone(){crawlCat("auto");}
+function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
+  if(modus==="auto"){
+    c.innerHTML='<div class="catr ok"><div class="h"><i class="ti ti-category"></i> KI-Kategorie-Zuordnung</div>Erkannte Kategorie: <b>Buchhaltung</b> <span style="color:var(--muted)">· Konfidenz 96 %</span><div class="catbar"><span style="width:96%;background:var(--ok)"></span></div><div style="color:var(--ok);font-size:12px"><i class="ti ti-check"></i> Automatisch übernommen.</div><div style="margin-top:8px;font-size:11.5px"><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlCat(\'unklar\')">Demo: unklaren Fall anzeigen →</a></div></div>'+'<div class="catr" style="margin-top:10px"><div class="h"><i class="ti ti-book"></i> Canonical-Mapping (Feature-Wörterbuch)</div>17 Funktionen geprüft · <b style="color:var(--ok)">11 automatisch zugeordnet</b> (≥ 90 %) · <b style="color:var(--warn)">6 brauchen deine Zuordnung</b>.<div style="font-size:11.5px;color:var(--muted);margin-top:6px"><i class="ti ti-info-circle"></i> Offene Begriffe sind sicher in der Inbox geparkt – sevDesk bleibt bei 94 %, bis sie zugeordnet sind (Bedingung für 100 % &amp; Vergleiche).</div></div>';
+    if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Später</span> <span class="tb primary" onclick="closeAov();route(\'wbinbox\')"><i class="ti ti-arrow-right"></i> 6 Begriffe jetzt zuordnen</span>';
+  }else{
+    c.innerHTML='<div class="catr warn"><div class="h"><i class="ti ti-alert-triangle"></i> Kategorie nicht eindeutig</div>Die KI konnte keine Kategorie sicher zuordnen <span style="color:#92400e">(höchste Konfidenz 52 %)</span> – mehrere plausibel: Buchhaltung · Rechnung · Belegmanagement.<div class="catbar"><span style="width:52%;background:var(--warn)"></span></div><div style="font-weight:600;margin:10px 0 6px;color:#92400e">Manuelle Auswahl zwingend erforderlich:</div><select id="catSel" onchange="catPick(this.value)" style="height:32px;border:1px solid var(--warn);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;padding:0 9px;width:100%;max-width:280px"><option value="">— Kategorie wählen —</option>'+VIEWS.kategorien.rows.map(k=>"<option>"+k.name+"</option>").join("")+'</select></div>';
+    if(f)f.innerHTML='<span class="tb" id="catFin" disabled onclick="toast(\'Kategorie gesetzt & Crawl abgeschlossen (Demo)\');closeAov()"><i class="ti ti-check"></i> Crawl abschließen</span>';
+  }}
+function catPick(v){const b=$("#catFin");if(b){if(v)b.removeAttribute("disabled");else b.setAttribute("disabled","");}}
+let WBINBOX=[];let WB_WB=[];
+function wbNorm(s){return (s||"").toLowerCase().replace(/[^a-zäöüß0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2);}
+function wbScore(name,c){const a=new Set(wbNorm(name));const bb=new Set();wbNorm(c.canonical_name).forEach(w=>bb.add(w));(c.synonyme||[]).forEach(sy=>wbNorm(sy).forEach(w=>bb.add(w)));if(!a.size||!bb.size)return 0;let inter=0;a.forEach(w=>{if(bb.has(w))inter++;});return Math.round(inter/(a.size+bb.size-inter)*100);}
+async function wbLoad(){try{const r=await Promise.all([sb.from('funktionen').select('funktions_id,funktions_name,kategorie,software_id,herkunft,erstellt_am,software(name)').or('canonical_name.is.null,canonical_name.eq.').order('software_id'),sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name')]);const f=r[0].data||[];WB_WB=r[1].data||[];WBINBOX=f.map(function(x){const kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.funktions_name,c)};}).filter(k=>k.s>=12).sort((a,b)=>b.s-a.s).slice(0,3);const tage=x.erstellt_am?Math.floor((Date.now()-new Date(x.erstellt_am).getTime())/86400000):0;return {id:x.funktions_id,roh:x.funktions_name,sw:(x.software&&x.software.name)||"—",q:x.herkunft||"Crawl",art:"Funktion",kat:x.kategorie||"",tage:tage,kand:kand};});}catch(e){WBINBOX=[];}}
+function wbAmpel(t){return t<7?"g":t<14?"a":"r";}
+async function wbView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Feature-Inbox …</div>';await wbLoad();updateWbBadge();wbRender();}
+function wbRender(){const cv=$("#customview");if(!cv)return;
+  if(!WBINBOX.length){cv.innerHTML='<div class="empty-tab" style="padding:64px 0"><i class="ti ti-circle-check" style="color:var(--ok);font-size:34px"></i><b>Inbox leer</b><div style="color:var(--muted);font-size:12.5px">Alle Feature-Begriffe sind zugeordnet.</div></div>';return;}
+  const groups={};WBINBOX.forEach(x=>{(groups[x.sw]=groups[x.sw]||[]).push(x);});
+  let html='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-inbox"></i></div><div><h2>Zuordnungs-Inbox</h2><p>Offene Feature-Begriffe aus Crawls &amp; Videos – sicher geparkt, <b>kein Begriff wird still angelegt</b>. Ein Tool wird erst <b>100 % &amp; vergleichbar</b>, wenn seine Begriffe zugeordnet sind. Passenden Vorschlag anklicken, zusammenführen, neu anlegen oder verwerfen.</p></div></div>';
+  Object.keys(groups).forEach(function(sw){const g=groups[sw];html+='<div class="wbg"><div class="wbg-h"><i class="ti ti-lock"></i> '+g.length+' offen — hält <b>'+esc(sw)+'</b> von 100 % ab</div>'+g.map(wbCard).join("")+'</div>';});
+  cv.innerHTML=html;
+}
+function wbCard(x){const ac=wbAmpel(x.tage);
+  const chips=x.kand.map(function(k){return '<span class="wb-cand '+(k.s>=70?"":"weak")+'" onclick="wbAct(\''+x.id+'\',\'merge\',\''+String(k.id)+'\')"><b>'+esc(k.c)+'</b><span class="wb-sc '+(k.s>=70?"hi":"lo")+'">'+k.s+'%</span> <i class="ti ti-plus"></i></span>';}).join("");
+  const opts=WB_WB.map(function(r){return '<option value="'+r.id+'">'+esc(r.canonical_name)+'</option>';}).join("");
+  return '<div class="wb-card">'+
+    '<div class="wb-top"><span class="age-b '+ac+'"><i class="ti ti-circle-filled" style="font-size:7px"></i> '+x.tage+' T</span><span class="wb-roh">'+esc(x.roh)+'</span><span class="pill">'+esc(x.art)+'</span><span class="wb-src"><i class="ti '+(x.q==="Video"?"ti-brand-youtube":"ti-spider")+'"></i> '+esc(x.q)+'</span></div>'+
+    '<div class="wb-cands"><span class="wb-lab">Vorschläge</span>'+(chips||'<span class="wb-none" style="color:var(--faint);font-size:12px">keine ähnlichen – neu anlegen</span>')+'</div>'+
+    '<div class="wb-acts"><select class="wb-msel" onchange="if(this.value){wbAct(\''+x.id+'\',\'merge\',this.value)}"><option value="">↪ Zusammenführen mit …</option>'+opts+'</select>'+
+    '<span class="tb" onclick="wbAct(\''+x.id+'\',\'neu\')"><i class="ti ti-plus"></i> Neu anlegen</span>'+
+    '<span class="tb" onclick="wbAct(\''+x.id+'\',\'verwerfen\')"><i class="ti ti-trash"></i> Verwerfen</span></div></div>';
+}
+async function wbAct(id,mode,val){const x=WBINBOX.find(z=>z.id===id);if(!x)return;
+  try{
+    if(mode==="merge"){const c=WB_WB.find(w=>String(w.id)===String(val));if(!c){toast("Canonical nicht gefunden");return;}
+      await dbW('update','funktionen',id,{canonical_name:c.canonical_name,geaendert_am:new Date().toISOString()},'funktions_id');
+      const syn=c.synonyme||[];if(!syn.some(s=>String(s).toLowerCase()===x.roh.toLowerCase())){await dbW('update','funktions_woerterbuch',c.id,{synonyme:syn.concat([x.roh]),geaendert_am:new Date().toISOString()});}
+      toast('„'+x.roh+'" → '+c.canonical_name+' ✓');
+    }else if(mode==="neu"){
+      await dbW('create','funktions_woerterbuch',null,{canonical_name:x.roh,kategorie:x.kat||'Sonstige',synonyme:[x.roh]});
+      await dbW('update','funktionen',id,{canonical_name:x.roh,geaendert_am:new Date().toISOString()},'funktions_id');
+      toast('Neuer Canonical „'+x.roh+'" angelegt ✓');
+    }else if(mode==="verwerfen"){
+      if(!confirm('Funktion „'+x.roh+'" verwerfen (löschen)?\nNur wenn es kein echtes Feature ist (Marketing-Floskel o. Ä.).'))return;
+      await dbW('delete','funktionen',id,null,'funktions_id');
+      toast('„'+x.roh+'" verworfen');
+    }
+    await wbView();
+  }catch(e){alert('Aktion fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+function updateWbBadge(){const b=$("#wbBadge");if(b){if(WBINBOX.length){b.textContent=WBINBOX.length;b.style.display="";}else{b.style.display="none";}}}
+const BUILD_STEPS=[["ti-database","SSoT lesen (Live-Artikel)"],["ti-hammer","Astro-Portal bauen"],["ti-photo","Assets &amp; Sitemap erzeugen"],["ti-rocket","Deploy auf Server"]];
+function runBuild(){aov("Portal bauen","Markt DE",procBody(BUILD_STEPS),'<span class="tb" onclick="closeAov()">Im Hintergrund</span>');procStep(0,BUILD_STEPS,'<span class="tb ok" onclick="closeAov()"><i class="ti ti-check"></i> Build erfolgreich</span>');}
+function runValidate(){const f=(dlgRow&&dlgRow._d&&dlgRow._d.full)||{};const has=v=>v!==null&&v!==undefined&&String(v).trim()!=="";const ch=[];[["name","Name"],["hersteller","Hersteller"],["hersteller_url","Hersteller-URL"],["kategorie","Kategorie"]].forEach(p=>ch.push([has(f[p[0]])?"g":"r","Pflichtfeld: "+p[1],has(f[p[0]])?"ok":"FEHLT"]));ch.push([has(f.kurzbeschreibung)?"g":"a","Kurzbeschreibung",has(f.kurzbeschreibung)?"ok":"empfohlen"]);const ba=f.bereitstellungs_art;ch.push([!has(ba)||["cloud","on_premise","hybrid","saas"].includes(String(ba).toLowerCase())?"g":"r","Bereitstellungs-Art (CHECK)",has(ba)?String(ba):"—"]);const fk=(dlgRow&&dlgRow._d&&dlgRow._d.funk)||[];const offen=fk.filter(x=>!has(x.canonical_name)).length;ch.push([!fk.length?"a":(offen?"a":"g"),"Funktionen gemappt",!fk.length?"keine":(offen?offen+" offen":fk.length+" ok")]);const pr=(dlgRow&&dlgRow._d&&dlgRow._d.preise)||[];ch.push([pr.length?"g":"a","Preise erfasst",pr.length?pr.length+" Tarif(e)":"fehlen"]);const fe=ch.filter(c=>c[0]==="r").length,wa=ch.filter(c=>c[0]==="a").length,ok=ch.filter(c=>c[0]==="g").length;aov("Validierung",(dlgRow&&dlgRow.name)||"",'<div>'+ch.map(c=>`<div class="chk"><i class="ti ti-${c[0]==="g"?"circle-check":c[0]==="a"?"alert-triangle":"circle-x"} p${c[0]}"></i> ${esc(c[1])}<span class="r p${c[0]}">${esc(String(c[2]))}</span></div>`).join("")+'</div><div style="padding:13px 14px;color:var(--muted);font-size:12.5px">'+ok+' ok · '+wa+' Warnungen · '+fe+' Fehler – '+(fe?'bitte Pflichtfelder ergänzen.':'Freigabe möglich.')+'</div>');}
+function runFreigabe(){const n=(dlgRow&&dlgRow.name)||"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));aov("Freigeben",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Software <b>${esc(n)}</b> für die Publikation freigeben?<br><span style="color:var(--muted)">Reifegrad → <b>bereit_fuer_publikation</b>. Die Veröffentlichung ins Portal erfolgt anschließend im separaten Portal-Build.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb ok" onclick="freigabeDo('${sid}')"><i class="ti ti-rosette-discount-check"></i> Freigeben</span>`);}
+async function freigabeDo(sid){if(!sid)return;try{await dbW('update','software',sid,{daten_reifegrad:'bereit_fuer_publikation',geaendert_am:new Date().toISOString()});toast('Freigegeben – Reifegrad: bereit für Publikation ✓');closeAov();closeDlg();await ladeSW();render();}catch(e){alert('Freigabe fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+function gsBuild(){const out=[];
+  SW.forEach((s,i)=>out.push({t:s.name,sub:s.kat,grp:"Software-Produkte",ic:"ti-apps",act:()=>{route('software');openDlg(i);}}));
+  VIEWS.kategorien.rows.forEach(k=>out.push({t:k.name,sub:k.anzahl+" Produkte",grp:"Kategorien",ic:"ti-category",act:()=>route('kategorien')}));
+  VIEWS.woerterbuch.rows.forEach(f=>out.push({t:f.canonical,sub:f.kat,grp:"Features",ic:"ti-list-check",act:()=>route('woerterbuch')}));
+  [["Handwerksbetrieb","sevDesk"],["Freelancer / Kreative","sevDesk"],["Kleiner Onlineshop","sevDesk"],["Gründer","sevDesk"]].forEach(a=>out.push({t:a[0],sub:a[1],grp:"Anwendungsfälle",ic:"ti-user-search",act:()=>toast("Anwendungsfall: "+a[0]+" (Demo)")}));
+  ["DATEV","ELSTER","Shopify","WooCommerce","PayPal","Stripe","Make","Zapier"].forEach(n=>out.push({t:n,sub:"Integration",grp:"Integrationen",ic:"ti-plug",act:()=>toast("Integration: "+n+" (Demo)")}));
+  return out;}
+function gsNorm(s){return (s||"").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g,"");}
+function gsHl(t,nq){const i=gsNorm(t).indexOf(nq);return i<0?t:t.slice(0,i)+"<mark>"+t.slice(i,i+nq.length)+"</mark>"+t.slice(i+nq.length);}
+function gsRender(q){const nq=gsNorm(q.trim());const ac=$("#gac");if(!nq){ac.classList.remove("show");return;}
+  const hits=GI.filter(x=>gsNorm(x.t+" "+x.sub).indexOf(nq)!==-1);
+  if(!hits.length){ac.innerHTML='<div class="ac-empty">Keine Treffer für „'+q.trim()+'“</div>';ac.classList.add("show");return;}
+  const order=["Software-Produkte","Kategorien","Features","Anwendungsfälle","Integrationen"];let html="";
+  order.forEach(g=>{const items=hits.filter(h=>h.grp===g);if(!items.length)return;html+=`<div class="ac-grp">${g}<span class="gc">${items.length}</span></div>`+items.slice(0,6).map(h=>`<div class="ac-opt" data-gi="${GI.indexOf(h)}"><i class="ti ${h.ic}"></i><span>${gsHl(h.t,nq)}</span><span class="sub">${h.sub}</span></div>`).join("");});
+  ac.innerHTML=html;ac.classList.add("show");
+  ac.querySelectorAll(".ac-opt").forEach(el=>el.onclick=()=>{const h=GI[+el.dataset.gi];ac.classList.remove("show");$("#gq").value="";if(h)h.act();});}
+function gsInit(){GI=gsBuild();const q=$("#gq");q.addEventListener("input",()=>gsRender(q.value));q.addEventListener("focus",()=>{if(q.value.trim())gsRender(q.value);});
+  q.addEventListener("keydown",e=>{if(e.key==="Enter"){const f=$("#gac").querySelector(".ac-opt");if(f)f.click();}else if(e.key==="Escape")$("#gac").classList.remove("show");});
+  document.addEventListener("mousedown",e=>{if(!e.target.closest(".gsearch"))$("#gac").classList.remove("show");});}
+gsInit();
+let vglCat="",vglSel=new Set();
+const VGLDATA={"Lexware Office":{preis:"ab 7,90 €",gratis:"Nein",note:"9,2"},"Sage 50":{preis:"ab 11,90 €",gratis:"Nein",note:"8,6"},"DATEV Unternehmen online":{preis:"ab 9,00 €",gratis:"Nein",note:"8,9"},"sevDesk":{preis:"ab 12,90 €",gratis:"Ja",note:"9,1"}};
+function vglReady(s){return s.pct===100&&s.status==="live";}
+let vglLastNames=[];
+function openVglGen(){if(!vglCat)vglCat=VIEWS.kategorien.rows[0].name;const cat=vglCat;const inCat=SW.filter(s=>s.kat===cat);const ready=inCat.filter(vglReady);
+  [...vglSel].forEach(n=>{const s=SW.find(x=>x.name===n);if(!s||s.kat!==cat||!vglReady(s))vglSel.delete(n);});
+  aov("Neuen Vergleich erstellen","2+ Programme einer Kategorie · 100% befüllt & veröffentlicht",
+    '<div class="bw-row"><label style="font-size:12px;color:var(--muted);width:80px">Kategorie</label><select id="vglCatSel" onchange="vglCat=this.value;vglSel=new Set();openVglGen()">'+VIEWS.kategorien.rows.map(k=>"<option "+(k.name===cat?"selected":"")+">"+k.name+"</option>").join("")+'</select><span style="font-size:12px;color:var(--muted)">'+ready.length+" von "+inCat.length+' bereit</span></div><div class="vgl-list">'+(inCat.length?inCat.map(vglRow).join(""):'<div class="empty-tab"><i class="ti ti-folder-off"></i><b>Keine Programme</b></div>')+'</div>',
+    '<span id="vglCnt" style="font-size:12px;color:var(--muted)"></span><span class="tb primary" id="vglGo" disabled onclick="vglGen()" style="margin-left:auto"><i class="ti ti-wand"></i> Vergleichsartikel generieren</span>');
+  vglCnt();
+}
+function vglRow(s){const rdy=vglReady(s),sel=vglSel.has(s.name),st=ST[s.status];
+  return '<div class="vgl-item '+(rdy?"":"off")+" "+(sel?"sel":"")+'" '+(rdy?"onclick=\"vglToggle('"+s.name.replace(/'/g,"")+"')\"":"")+'>'+
+    '<span class="vgl-chk">'+(rdy?(sel?'<i class="ti ti-square-check-filled"></i>':'<i class="ti ti-square"></i>'):'<i class="ti ti-lock"></i>')+'</span>'+
+    '<span class="logo" style="background:'+s._hue+';width:22px;height:22px;font-size:10px">'+s.name.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()+'</span>'+
+    '<span class="vgl-n">'+s.name+'</span><span class="vgl-meta">'+s.hersteller+'</span>'+
+    '<span class="vgl-st"><i class="ti ti-circle-filled dot '+st.c+'"></i> '+st.l+" · "+s.pct+'%</span>'+
+    (rdy?'<span class="vgl-ok"><i class="ti ti-circle-check"></i> bereit</span>':'<span class="vgl-no"><i class="ti ti-lock"></i> '+(s.pct<100?"nicht 100% befuellt":"nicht veroeffentlicht")+'</span>')+'</div>';
+}
+function vglToggle(n){vglSel.has(n)?vglSel.delete(n):vglSel.add(n);openVglGen();}
+function vglCnt(){const n=vglSel.size,c=$("#vglCnt"),g=$("#vglGo");if(c)c.textContent=n+" ausgewaehlt"+(n<2?" — mind. 2 noetig":"");if(g){if(n>=2)g.removeAttribute("disabled");else g.setAttribute("disabled","");}}
+const VGL_STEPS=[["ti-database","SSoT-Daten der Programme laden"],["ti-table","Vergleichsdimensionen & Funktions-Matrix (Canonical)"],["ti-scale","Pro/Contra & Empfehlung je Tool"],["ti-search","SEO/GEO: Meta, FAQ, Schema.org, interne Links"],["ti-article","Artikel zusammenstellen & prüfen"]];
+function vglGen(){if(vglSel.size<2)return;const names=[...vglSel];vglLastNames=names;aov("Vergleichsartikel generieren",names.join(" vs. "),procBody(VGL_STEPS)+'<div id="vglRes"></div>','<span class="tb" onclick="closeAov()">Abbrechen</span>');procStep(0,VGL_STEPS,function(){vglResult(names);});}
+function vglResult(names){const c=$("#vglRes"),f=$("#aFoot");if(!c)return;
+  const rows=names.map(function(n){const s=SW.find(x=>x.name===n)||{};const d=VGLDATA[n]||{};return "<tr><td style=\"font-weight:500\">"+n+"</td><td>"+(d.preis||"—")+"</td><td>"+(d.gratis||"—")+"</td><td class=\"num\">"+(s.funk||"—")+"</td><td><span class=\"pill\">"+(d.note||"—")+"</span></td></tr>";}).join("");
+  c.innerHTML='<div class="vgl-res">'+
+   '<div class="vr-h"><i class="ti ti-circle-check" style="color:var(--ok)"></i> Artikel generiert <span class="vr-words">~2.400 Wörter · NeuronWriter 84 · GEO-Score 92</span></div>'+
+   '<div class="vr-b"><span class="vr-l">H1</span><b>'+names.join(" vs. ")+': Der große Vergleich 2026</b></div>'+
+   '<div class="vr-b"><span class="vr-l">Meta-Title</span>'+names.slice(0,2).join(" vs. ")+(names.length>2?" & Co.":"")+' – Vergleich, Test & Empfehlung 2026</div>'+
+   '<div class="vr-b"><span class="vr-l">Meta-Desc</span>'+names.join(", ")+' im direkten Vergleich: Funktionen, Preise, Vor- &amp; Nachteile – mit klarer Empfehlung je Anwendungsfall.</div>'+
+   '<span class="vr-l" style="display:block;margin:12px 0 4px">Vergleichstabelle</span><table class="dtbl"><thead><tr><th>Tool</th><th>Einstieg</th><th>Gratis</th><th style="text-align:right">Funktionen</th><th>SF24</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+   '<span class="vr-l" style="display:block;margin:14px 0 6px">Enthaltene Bausteine</span><div class="vr-chips">'+["Einleitung","Vergleichstabelle","Funktions-Matrix","Pro/Contra je Tool","Empfehlung „Für wen?“","FAQ","Fazit","Changelog"].map(x=>'<span class="vr-chip"><i class="ti ti-check"></i> '+x+"</span>").join("")+'</div>'+
+   '<span class="vr-l" style="display:block;margin:14px 0 6px">SEO &amp; GEO – maschinenlesbar eingebaut</span><div class="vr-seo">'+["FAQPage-Schema","ItemList/Product-Schema","Vergleichstabelle (extrahierbar)","Meta-Title & -Description","Key-Takeaways je Abschnitt","interne Links zu den Einzelartikeln","Pro/Contra strukturiert","Fazit mit klarer Empfehlung"].map(x=>'<span class="vr-s"><i class="ti ti-circle-check"></i> '+x+"</span>").join("")+'</div>'+
+   '</div>';
+  if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb" onclick="toast(\'Als Entwurf gespeichert (Demo)\')"><i class="ti ti-device-floppy"></i> Als Entwurf</span> <span class="tb ok" onclick="vglPublish()"><i class="ti ti-rosette-discount-check"></i> Veröffentlichen</span>';
+}
+function vglPublish(){const names=vglLastNames;if(!names||names.length<2)return;VIEWS.vergleiche.rows.unshift({name:names.join(" vs. "),kat:vglCat,tools:names.length,markt:"DE",angelegt:"2026-06-22",pct:100,status:"live",geprueft:"2026-06-22",nw:80,_hue:HUE[VIEWS.vergleiche.rows.length%HUE.length]});vglSel=new Set();toast("Vergleichsartikel veröffentlicht & in Übersicht aufgenommen");closeAov();route("vergleiche");}
+async function startApp(){ await ladeSW(); gsInit(); route("software"); wbLoad().then(updateWbBadge); }
+_$("lgBtn").onclick=lgLogin;
+_$("lgReset").onclick=lgReset;
+["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
+document.querySelectorAll("#side .nav").forEach(n=>n.onclick=()=>route(n.dataset.v));
+bootAuth();
+</script>
+</body>
+</html>
