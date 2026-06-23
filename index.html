@@ -147,6 +147,7 @@
   .dtbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
   .dtbl th{text-align:left;font-weight:500;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0}
   .dtbl td{padding:6px 8px;border-bottom:1px solid var(--line2);word-break:break-word;overflow-wrap:anywhere;vertical-align:top}.dtbl tr:hover{background:var(--accent-soft)}
+  body.dense td{padding-top:3px!important;padding-bottom:3px!important}body.dense .dtbl th{padding-top:4px;padding-bottom:4px}
   .dact{display:flex;gap:8px;color:var(--faint)}.dact i{cursor:pointer;font-size:15px}.dact i:hover{color:var(--accent)}
   .mini2{height:21px;padding:0 7px;border:1px solid var(--line);border-radius:5px;font-size:11px;color:var(--accent-ink);cursor:pointer;display:inline-block;line-height:19px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}.chip{font-size:11.5px;padding:3px 10px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
@@ -239,7 +240,7 @@
     <span class="tb ok ctx" onclick="runFreigabe()"><i class="ti ti-rosette-discount-check"></i> Freigeben</span>
     <span class="sep"></span>
     <span class="tb" onclick="openCols(this)"><i class="ti ti-columns"></i> Spalten</span>
-    <span class="tb" onclick="toast('Export wird vorbereitet … (Demo)')"><i class="ti ti-file-export"></i> Export</span>
+    <span class="tb" onclick="openExport()"><i class="ti ti-file-export"></i> Export</span>
     <span class="tb" onclick="render()"><i class="ti ti-refresh"></i> Aktualisieren</span>
   </div>
   <div class="body">
@@ -591,13 +592,22 @@ function clearAll(){VIEWS[CUR]._filt={};render();}
 function closePop(){$("#fpop").classList.remove("show");}
 document.addEventListener("mousedown",e=>{if(!e.target.closest("#fpop")&&!e.target.closest(".th-in")&&!e.target.closest('.m')&&!e.target.closest('[onclick*=openCols]'))closePop();});
 const MENUS={
- Datei:[{l:"Neue Software",i:"ti-plus",a:()=>{route('software');onNew();}},{l:"Import (CSV / JSON)",i:"ti-file-import"},{l:"Export",i:"ti-file-export"},{sep:1},{l:"Sicherung",i:"ti-database-export"},{l:"Abmelden",i:"ti-logout",a:()=>cockpitLogout()}],
+ Datei:[{l:"Neue Software",i:"ti-plus",a:()=>{route('software');onNew();}},{l:"Import (CSV / JSON)",i:"ti-file-import"},{l:"Export",i:"ti-file-export",a:()=>openExport()},{sep:1},{l:"Sicherung",i:"ti-database-export",a:()=>backupAll()},{l:"Abmelden",i:"ti-logout",a:()=>cockpitLogout()}],
  Pipeline:[{l:"Fällige Crawls starten",i:"ti-spider",a:()=>runCrawl()},{l:"Auto-Watcher-Status",i:"ti-robot"},{l:"Aktualisierungs-Ampel",i:"ti-traffic-lights"},{l:"Validierungslauf (alle)",i:"ti-checkup-list",a:()=>runValidate()}],
  Portal:[{l:"Alle Märkte bauen",i:"ti-hammer",a:()=>runBuild()},{l:"Build-Protokoll",i:"ti-history",a:()=>route('portalbuild')},{l:"Staging öffnen",i:"ti-external-link"},{l:"Live öffnen",i:"ti-external-link",a:()=>window.open('https://softwarefinder24.de','_blank','noopener')}],
- Ansicht:[{l:"Hell / Dunkel",i:"ti-contrast-2",a:()=>document.body.classList.toggle('dark')},{l:"Dichte: kompakt / komfortabel",i:"ti-baseline-density-medium"},{l:"Spalten zurücksetzen",i:"ti-columns",a:()=>{VIEWS[CUR].cols.forEach(c=>c.vis=true);render();toast('Spalten zurückgesetzt');}}],
+ Ansicht:[{l:"Hell / Dunkel",i:"ti-contrast-2",a:()=>document.body.classList.toggle('dark')},{l:"Dichte: kompakt / komfortabel",i:"ti-baseline-density-medium",a:()=>toggleDichte()},{l:"Spalten zurücksetzen",i:"ti-columns",a:()=>{VIEWS[CUR].cols.forEach(c=>c.vis=true);render();toast('Spalten zurückgesetzt');}}],
  Extras:[{l:"n8n öffnen",i:"ti-external-link",a:()=>window.open('https://n8n.schober.media','_blank','noopener')},{l:"Firecrawl öffnen",i:"ti-external-link",a:()=>window.open('https://www.firecrawl.dev','_blank','noopener')},{l:"Supabase öffnen",i:"ti-external-link",a:()=>window.open('https://supabase.com/dashboard/project/xoyjsjenitjppxpcheza','_blank','noopener')},{l:"claude.ai öffnen",i:"ti-external-link",a:()=>window.open('https://claude.ai','_blank','noopener')},{sep:1},{l:"Logs",i:"ti-file-text"}],
  Hilfe:[{l:"Dokumentation",i:"ti-book"},{l:"Tastenkürzel",i:"ti-keyboard"},{l:"Über",i:"ti-info-circle",a:()=>toast('SF24 Cockpit · live unter sf24.schober.media · Daten zentral in Supabase')}]
 };
+/* Export / Sicherung / Dichte */
+function dl(content,name,mime){const blob=new Blob(['﻿'+content],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
+function openExport(){const v=VIEWS[CUR];const n=(v._view||v.rows||[]).length;aov('Export – '+v.t,n+' Zeilen · sichtbare Spalten (inkl. Filter & Sortierung)','<div style="padding:18px;font-size:13px;color:var(--muted)">Aktuelle Ansicht herunterladen:</div>','<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb" onclick="exportNow(\'csv\')"><i class="ti ti-file-spreadsheet"></i> CSV</span> <span class="tb primary" onclick="exportNow(\'json\')"><i class="ti ti-file-code"></i> JSON</span>');}
+function exportNow(fmt){const v=VIEWS[CUR];const cols=v.cols.filter(function(c){return c.vis;});const rows=v._view||v.rows||[];
+  if(fmt==='json'){const data=rows.map(function(r){const o={};cols.forEach(function(c){o[c.k]=r[c.k];});return o;});dl(JSON.stringify(data,null,2),v.t+'.json','application/json');}
+  else{const q=function(s){s=String(s==null?'':s);return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};const head=cols.map(function(c){return q(c.t);}).join(';');const lines=rows.map(function(r){return cols.map(function(c){return q(r[c.k]);}).join(';');});dl([head].concat(lines).join('\r\n'),v.t+'.csv','text/csv;charset=utf-8');}
+  closeAov();toast('Export erstellt ✓');}
+async function backupAll(){toast('Sicherung wird erstellt …');const tabs=['software','funktionen','preise','integrationen','anwendungsfaelle','vorteile_nachteile','kategorien','funktions_woerterbuch','bewertungs_synthesen','video_warteschlange','freigaben','inhalts_artikel','software_bilder','cockpit_redirects','cockpit_einstellungen','maerkte','seiten'];const out={_erstellt:new Date().toISOString(),_quelle:'sf24-cockpit'};try{for(var i=0;i<tabs.length;i++){const t=tabs[i];const r=await sb.from(t).select('*');out[t]=r.data||[];}dl(JSON.stringify(out,null,2),'sf24-backup-'+new Date().toISOString().slice(0,10)+'.json','application/json');toast('Sicherung heruntergeladen ✓ ('+tabs.length+' Tabellen)');}catch(e){alert('Sicherung fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+function toggleDichte(){document.body.classList.toggle('dense');toast(document.body.classList.contains('dense')?'Kompakte Ansicht aktiv':'Komfortable Ansicht aktiv');}
 function openMenu(name,anchor){const items=MENUS[name];const pop=$("#fpop");pop.innerHTML=items.map(it=>it.sep?'<div class="fp-sep"></div>':`<div class="fp-s" data-mi="${encodeURIComponent(it.l)}"><i class="ti ${it.i}"></i> ${it.l}</div>`).join("");const r=anchor.getBoundingClientRect();pop.style.left=r.left+"px";pop.style.top=(r.bottom+5)+"px";pop.classList.add("show");pop.querySelectorAll(".fp-s").forEach(el=>{el.onclick=()=>{const it=items.find(x=>encodeURIComponent(x.l)===el.dataset.mi);closePop();if(it&&it.a)it.a();else if(it)toast("„"+it.l+"“ – noch nicht verfügbar");};});}
 function openCols(anchor){const v=VIEWS[CUR];const pop=$("#fpop");pop.innerHTML=`<div class="fp-s" style="cursor:default;color:var(--muted);font-weight:500"><i class="ti ti-columns"></i> Spalten anzeigen</div><div class="fp-sep"></div><div class="fp-list">${v.cols.map((c,i)=>`<label class="fp-row"><input type="checkbox" ${c.vis?"checked":""} ${i===0?"disabled":""} onchange="VIEWS['${CUR}'].cols[${i}].vis=this.checked;render()"> ${c.t}</label>`).join("")}</div>`;const r=anchor.getBoundingClientRect();pop.style.left=Math.min(r.left,window.innerWidth-250)+"px";pop.style.top=(r.bottom+4)+"px";pop.classList.add("show");}
 
