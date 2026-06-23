@@ -677,10 +677,10 @@ async function openDlg(i){const neu=i<0;dlgRow=neu?{name:"",hersteller:"",kat:"B
   if(!neu&&r.id){const id=r.id;
     const res=await Promise.all([
       sb.from("software").select("*").eq("id",id).single(),
-      sb.from("funktionen").select("funktions_name,canonical_name,kategorie,verfuegbar_ab_tarif,konfidenz_score").eq("software_id",id).order("konfidenz_score",{ascending:false,nullsFirst:false}),
+      sb.from("funktionen").select("funktions_id,funktions_name,canonical_name,kategorie,verfuegbar_ab_tarif,konfidenz_score").eq("software_id",id).order("konfidenz_score",{ascending:false,nullsFirst:false}),
       sb.from("preise").select("*").eq("software_id",id),
-      sb.from("integrationen").select("integrations_name,kategorie").eq("software_id",id),
-      sb.from("anwendungsfaelle").select("titel,zielgruppe,beschreibung").eq("software_id",id)
+      sb.from("integrationen").select("integrations_id,integrations_name,integrations_typ,kategorie,beschreibung").eq("software_id",id),
+      sb.from("anwendungsfaelle").select("anwendungsfall_id,titel,zielgruppe,beschreibung,mehrwert").eq("software_id",id)
     ]);
     if(dlgRow!==r)return;
     r._d={full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],lade:false};
@@ -721,9 +721,37 @@ function tabStamm(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","L
   <div class="fgrp">Pipeline <span style="text-transform:none;font-weight:400;color:var(--faint)">· automatisch befüllt</span></div><div class="fgrid">${fld("Reifegrad",f.daten_reifegrad,{ro:1})}${fld("Veröffentlichungs-Status",f.veroeffentlichungs_status,{ro:1})}${fld("Fortschritt",(r.pct||0)+" %",{ro:1})}${fld("Zuletzt geprüft",dat,{ro:1})}</div>`;}
 function tabFunk(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");
   const rows=d.funk||[];if(!rows.length)return emptyTab("ti-list-check","Noch keine Funktionen","Erst Website crawlen &amp; anreichern – dann erscheinen hier die extrahierten Funktionen.");
-  const gem=rows.filter(x=>x.canonical_name&&String(x.canonical_name).trim()).length;
-  const konfCl=(v)=>v==null?"":v>=85?"pg":v>=60?"pa":"pr";
-  return `<div class="tabhint"><i class="ti ti-info-circle"></i> Roh-Funktion → Canonical-Begriff (Feature-Wörterbuch). ${rows.length} erfasst · ${gem} gemappt · <span class="pr">${rows.length-gem} offen</span>.</div><table class="dtbl"><thead><tr><th>Funktion (roh)</th><th>→ Canonical</th><th>Kategorie</th><th>ab Tarif</th><th style="text-align:right">Konf.</th><th>Status</th></tr></thead><tbody>${rows.map(function(x){const ok=x.canonical_name&&String(x.canonical_name).trim();return `<tr><td>${esc(x.funktions_name)}</td><td>${ok?esc(x.canonical_name):'<span class="pr">— nicht zugeordnet —</span>'}</td><td><span class="b-cat">${esc(x.kategorie||"")}</span></td><td>${esc(x.verfuegbar_ab_tarif||"—")}</td><td style="text-align:right" class="${konfCl(x.konfidenz_score)}">${x.konfidenz_score!=null?x.konfidenz_score+"%":"—"}</td><td><span class="${ok?"pg":"pr"}">${ok?"gemappt":"offen"}</span></td></tr>`;}).join("")}</tbody></table>`;}
+  const gem=rows.filter(function(x){return x.canonical_name&&String(x.canonical_name).trim();}).length;
+  const konfCl=function(v){return v==null?"":v>=85?"pg":v>=60?"pa":"pr";};
+  return `<div class="tabhint"><i class="ti ti-info-circle"></i> Roh-Funktion → Canonical-Begriff (Feature-Wörterbuch). Auf „zuordnen" klicken → KI-Vorschläge. ${rows.length} erfasst · ${gem} gemappt · <span class="pr">${rows.length-gem} offen</span>.</div><table class="dtbl"><thead><tr><th>Funktion (roh)</th><th>→ Canonical</th><th>Kategorie</th><th>ab Tarif</th><th style="text-align:right">Konf.</th><th>Status</th></tr></thead><tbody>${rows.map(function(x){const ok=x.canonical_name&&String(x.canonical_name).trim();const cell=ok?esc(x.canonical_name)+' <i class="ti ti-edit" title="Ändern" style="cursor:pointer;opacity:.5;font-size:13px" onclick="funkMap(\''+x.funktions_id+'\')"></i>':'<span class="pr" style="cursor:pointer;border-bottom:1px dashed currentColor" onclick="funkMap(\''+x.funktions_id+'\')">— zuordnen —</span>';return `<tr><td>${esc(x.funktions_name)}</td><td>${cell}</td><td><span class="b-cat">${esc(x.kategorie||"")}</span></td><td>${esc(x.verfuegbar_ab_tarif||"—")}</td><td style="text-align:right" class="${konfCl(x.konfidenz_score)}">${x.konfidenz_score!=null?x.konfidenz_score+"%":"—"}</td><td><span class="${ok?"pg":"pr"}">${ok?"gemappt":"offen"}</span></td></tr>`;}).join("")}</tbody></table>`;}
+async function funkEnsureWB(){if(typeof WB_WB==='undefined'||!WB_WB||!WB_WB.length){try{const r=await sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name');WB_WB=r.data||[];}catch(e){}}}
+async function funkMap(id){await funkEnsureWB();const f=((dlgRow._d&&dlgRow._d.funk)||[]).find(function(x){return x.funktions_id===id;});if(!f){toast("Funktion nicht gefunden");return;}
+  const kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(f.funktions_name,c)};}).filter(function(k){return k.s>=12;}).sort(function(a,b){return b.s-a.s;}).slice(0,4);
+  const chips=kand.length?kand.map(function(k){return '<span class="wb-cand '+(k.s>=70?"":"weak")+'" style="cursor:pointer" onclick="funkAssign(\''+id+'\',\''+k.id+'\')"><b>'+esc(k.c)+'</b> <span class="wb-sc '+(k.s>=70?"hi":"lo")+'">'+k.s+'%</span></span>';}).join(""):'<span style="color:var(--faint);font-size:12px">keine ähnlichen Begriffe – bitte unten wählen oder neu anlegen</span>';
+  const opts=WB_WB.map(function(c){return '<option value="'+c.id+'">'+esc(c.canonical_name)+'</option>';}).join("");
+  const cur=f.canonical_name&&String(f.canonical_name).trim();
+  const body='<div style="padding:16px">'
+    +'<div style="font-size:12px;color:var(--muted)">Roh-Funktion</div><div style="font-weight:600;margin-bottom:6px">'+esc(f.funktions_name)+'</div>'
+    +(cur?'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">aktuell: <b>'+esc(f.canonical_name)+'</b></div>':'')
+    +'<div style="margin:10px 0 6px;font-size:12px;color:var(--muted)"><i class="ti ti-sparkles"></i> KI-Vorschläge (Ähnlichkeit zum Wörterbuch)</div><div class="wb-cands" style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div>'
+    +'<div style="margin:14px 0 6px;font-size:12px;color:var(--muted)">… oder manuell wählen</div><select id="funkSel" style="width:100%;height:34px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);padding:0 9px"><option value="">— Canonical-Begriff wählen —</option>'+opts+'</select>'
+    +'</div>';
+  const foot='<span class="tb" onclick="closeAov()">Abbrechen</span>'
+    +(cur?' <span class="tb" onclick="funkClear(\''+id+'\')"><i class="ti ti-unlink"></i> Entfernen</span>':'')
+    +' <span class="tb" onclick="funkNew(\''+id+'\')"><i class="ti ti-plus"></i> Neu anlegen</span>'
+    +' <span class="tb primary" onclick="funkAssignSel(\''+id+'\')"><i class="ti ti-check"></i> Zuordnen</span>';
+  aov("Funktion zuordnen",(dlgRow&&dlgRow.name)||"",body,foot);
+}
+async function funkAssign(id,canonId){await funkEnsureWB();const c=WB_WB.find(function(w){return String(w.id)===String(canonId);});if(!c){toast("Canonical nicht gefunden");return;}const f=((dlgRow._d&&dlgRow._d.funk)||[]).find(function(x){return x.funktions_id===id;});
+  try{await dbW('update','funktionen',id,{canonical_name:c.canonical_name,geaendert_am:new Date().toISOString()},'funktions_id');
+    if(f){const syn=c.synonyme||[];if(!syn.some(function(s){return String(s).toLowerCase()===String(f.funktions_name).toLowerCase();})){await dbW('update','funktions_woerterbuch',c.id,{synonyme:syn.concat([f.funktions_name]),geaendert_am:new Date().toISOString()});}}
+    toast('Zugeordnet: '+c.canonical_name+' ✓');closeAov();await funkReload();renderTab();}catch(e){alert('Zuordnen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+function funkAssignSel(id){const sel=document.getElementById('funkSel');if(!sel||!sel.value){toast("Bitte einen Begriff wählen");return;}funkAssign(id,sel.value);}
+async function funkNew(id){const f=((dlgRow._d&&dlgRow._d.funk)||[]).find(function(x){return x.funktions_id===id;});if(!f)return;const name=f.funktions_name;
+  try{await dbW('create','funktions_woerterbuch',null,{canonical_name:name,kategorie:f.kategorie||'Sonstige',synonyme:[name]});await dbW('update','funktionen',id,{canonical_name:name,geaendert_am:new Date().toISOString()},'funktions_id');
+    toast('Neuer Begriff „'+name+'" angelegt & zugeordnet ✓');closeAov();WB_WB=[];await funkEnsureWB();await funkReload();renderTab();if(typeof updateWbBadge==='function')updateWbBadge();}catch(e){alert('Anlegen fehlgeschlagen: '+(/duplicate|unique/i.test(String(e&&e.message))?'„'+name+'" existiert schon – bitte „Zuordnen" nutzen.':(e&&e.message?e.message:e)));}}
+async function funkClear(id){try{await dbW('update','funktionen',id,{canonical_name:null,geaendert_am:new Date().toISOString()},'funktions_id');toast('Zuordnung entfernt');closeAov();await funkReload();renderTab();}catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+async function funkReload(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!sid)return;try{const r=await sb.from('funktionen').select('*').eq('software_id',sid).order('konfidenz_score',{ascending:false,nullsFirst:false});if(dlgRow._d)dlgRow._d.funk=r.data||[];}catch(e){}}
 const CHILD={
  preise:{coll:'preise',pk:'preis_id',arr:'preise',titel:'Tarif',felder:[{k:'name',l:'Bezeichnung',req:1},{k:'typ',l:'Typ',req:1},{k:'preis_netto',l:'Preis netto',t:'num'},{k:'preis_brutto',l:'Preis brutto',t:'num'},{k:'waehrung',l:'Währung',def:'€'},{k:'abrechnung',l:'Abrechnung'},{k:'enthaltene_nutzer',l:'Enthaltene Nutzer',t:'num'},{k:'beschreibung',l:'Beschreibung',ta:1}]},
  integrationen:{coll:'integrationen',pk:'integrations_id',arr:'integ',titel:'Integration',felder:[{k:'integrations_name',l:'Name',req:1},{k:'kategorie',l:'Kategorie'},{k:'integrations_typ',l:'Typ'},{k:'beschreibung',l:'Beschreibung',ta:1}]},
