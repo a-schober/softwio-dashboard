@@ -447,7 +447,9 @@ function mapRow(r,i){
 async function ladeSW(){
   const {data,error}=await sb.from("cockpit_startseite").select("*").order("name");
   if(error){ if(typeof toast==="function")toast("Laden fehlgeschlagen: "+error.message); return; }
-  SW=(data||[]).map(mapRow); VIEWS.software.rows=SW;
+  let logoMap={};
+  try{const lr=await sb.from('software').select('id,logo_pfad');(lr.data||[]).forEach(function(s){if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});}catch(e){}
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
@@ -504,7 +506,7 @@ function pillCls(t){t=(t||"").toLowerCase();if(["aktiv","live","erfolgreich","ja
 function cellHtml(v,r,c){const x=r[c.k];
   if(c.ty==="age"){const a=ageOf(r);return a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';}
   if(c.ty==="nw"){const a=nwOf(r);return a.v==null?'<span class="pn">—</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>';}
-  if(c.ty==="name"){const h=r._hue||"#64748b";return `<div class="nm"><span class="logo" style="background:${h}">${String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()}</span>${x}</div>`;}
+  if(c.ty==="name"){const h=r._hue||"#64748b";const ini=String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase();const lg=r._logo?`<span class="logo" style="background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="${r._logo}" alt="" style="width:100%;height:100%;object-fit:contain"></span>`:`<span class="logo" style="background:${h}">${ini}</span>`;return `<div class="nm">${lg}${x}</div>`;}
   if(c.ty==="badge")return `<span class="b-cat">${x}</span>`;
   if(c.ty==="date")return fmtD(x);
   if(c.ty==="num")return (x===""||x==null)?'<span class="pn">—</span>':x;
@@ -845,7 +847,7 @@ function fld(label,val,o){o=o||{};const lab=label+(o.req?' <span style="color:va
 let dlgRow=null,dlgTab="stammdaten";
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
 async function openDlg(i){const neu=i<0;dlgRow=neu?{name:"",hersteller:"",kat:"Buchhaltung",markt:"DE",angelegt:"",funk:0,pct:0,status:"neu",geprueft:"",_hue:"#64748b"}:VIEWS.software.rows[i];const r=dlgRow,s=ST[r.status];
-  $("#dLogo").textContent=(r.name||"NN").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()||"NN";$("#dLogo").style.background=r._hue||"#64748b";
+  if(r._logo){$("#dLogo").innerHTML='<img src="'+r._logo+'" alt="" style="width:100%;height:100%;object-fit:contain">';$("#dLogo").style.background="#fff";}else{$("#dLogo").innerHTML="";$("#dLogo").textContent=(r.name||"NN").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()||"NN";$("#dLogo").style.background=r._hue||"#64748b";}
   $("#dName").textContent=neu?"Neue Software anlegen":r.name;$("#dSub").textContent=neu?"Stammdaten erfassen":(r.hersteller+" · "+r.kat);$("#dBadge").textContent=s.l;$("#dnFunk").textContent=r.funk||0;setBildCount(r.id||(r._d&&r._d.full&&r._d.full.id));
   r._d=neu?{full:{},funk:[],preise:[],integ:[],faelle:[],lade:false}:{lade:true,funk:[],preise:[],integ:[],faelle:[],full:{}};
   setTab("stammdaten");$("#ov").classList.add("show");
