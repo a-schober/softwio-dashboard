@@ -1,0 +1,15 @@
+name: deploy
+# Bei jedem Push auf main den Easypanel-Deploy der Dashboard-App auslösen.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Easypanel deploy
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${{ secrets.EASYPANEL_HOOK }}")
+          echo "Easypanel deploy hook -> HTTP $code"
+          test "$code" = "200"

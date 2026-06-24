@@ -329,6 +329,7 @@
       <div class="nav active" data-v="software"><i class="ti ti-apps"></i> Software <span class="cnt" id="navCount">16</span></div>
       <div class="nav" data-v="kategorien"><i class="ti ti-category"></i> Kategorien</div>
       <div class="nav" data-v="maerkte"><i class="ti ti-world-pin"></i> Märkte &amp; Länder</div>
+      <div class="nav" data-v="logos"><i class="ti ti-photo"></i> Logos</div>
       <div class="grp">Anreicherung</div>
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg">3</span></div>
@@ -570,6 +571,7 @@ const LOADERS={kategorien:ladeKategorien,woerterbuch:ladeWoerterbuch,youtube:lad
 function toggleSidebar(open){const sb=document.getElementById("side");const bd=document.getElementById("sideBackdrop");if(!sb)return;const willOpen=(open===undefined)?!sb.classList.contains("open"):open;sb.classList.toggle("open",willOpen);if(bd)bd.classList.toggle("show",willOpen);}
 function route(key){CUR=key;document.querySelectorAll("#side .nav").forEach(n=>n.classList.toggle("active",n.dataset.v===key));
   if(key==="wbinbox"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-inbox"></i> <b>Feature-Inbox</b> <span class="sp">›</span> offene Zuordnungen aus Crawls & Videos';wbView();return;}
+  if(key==="logos"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-photo"></i> <b>Logos</b> <span class="sp">›</span> Software- &amp; Integrations-Logos (self-hosted)';logosView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
 
 // ---- YouTube-Tool ----
@@ -1202,6 +1204,57 @@ async function wbAct(id,mode,val){const x=WBINBOX.find(z=>z.id===id);if(!x)retur
   }catch(e){alert('Aktion fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 function updateWbBadge(){const b=$("#wbBadge");if(b){if(WBINBOX.length){b.textContent=WBINBOX.length;b.style.display="";}else{b.style.display="none";}}}
+
+/* ===== Logos-Verwaltung (Software + Integrationen, self-hosted via Edge Function integration-logo) ===== */
+let LG_TAB='software',LG_SW=[],LG_INT=[],LG_POOL={},LG_FILTER='fehlt',LG_Q='';
+const lgNorm=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'');
+const lgPub=(bucket,pfad)=>pfad?sb.storage.from(bucket).getPublicUrl(pfad).data.publicUrl:null;
+function lgDom(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return (u||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];}}
+async function logosView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Logos …</div>';
+  try{const r=await Promise.all([sb.from('software').select('id,name,hersteller_url,logo_pfad').order('name'),sb.from('integrationen').select('integrations_name'),sb.from('integration_logos').select('name_norm,logo_pfad,domain,quelle')]);
+    LG_SW=(r[0].data||[]).map(s=>({key:s.id,name:s.name,domain:lgDom(s.hersteller_url),pfad:s.logo_pfad,logo:lgPub('software-logos',s.logo_pfad),kind:'software'}));
+    const m=new Map();(r[1].data||[]).forEach(x=>{const n=lgNorm(x.integrations_name);if(n&&!m.has(n))m.set(n,x.integrations_name);});
+    LG_POOL={};(r[2].data||[]).forEach(l=>{LG_POOL[l.name_norm]=l;});
+    LG_INT=[...m.entries()].map(([n,an])=>{const l=LG_POOL[n];return {key:n,name:an,domain:(l&&l.domain)||'',pfad:l&&l.logo_pfad,logo:lgPub('integration-logos',l&&l.logo_pfad),kind:'integration'};}).sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  }catch(e){if(cv)cv.innerHTML='<div style="padding:32px;color:#e11d48">Laden fehlgeschlagen: '+esc(String(e&&e.message?e.message:e))+'</div>';return;}
+  logosRender();
+}
+function logosRender(){const cv=$("#customview");if(!cv)return;const list=LG_TAB==='software'?LG_SW:LG_INT;
+  const q=LG_Q.trim().toLowerCase();
+  const vis=list.filter(r=>{if(LG_FILTER==='fehlt'&&r.logo)return false;if(LG_FILTER==='vorhanden'&&!r.logo)return false;if(q&&r.name.toLowerCase().indexOf(q)<0)return false;return true;});
+  const has=list.filter(r=>r.logo).length,fehlt=list.length-has;
+  let h='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-photo"></i></div><div><h2>Logos</h2><p>Echte Hersteller-Logos (self-hosted). Pro Eintrag: <b>logo.dev holen</b> (Domain), eigenes <b>hochladen</b> oder <b>entfernen</b>. Fehlt eins, zeigt das Portal ein Monogramm.</p></div></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">'+[['software','Software'],['integration','Integrationen']].map(t=>'<span class="tb'+(LG_TAB===t[0]?' primary':'')+'" onclick="lgTab(\''+t[0]+'\')">'+t[1]+'</span>').join('')+'</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'+['fehlt','vorhanden','alle'].map(f=>'<span class="tb'+(LG_FILTER===f?' primary':'')+'" onclick="lgFilter(\''+f+'\')">'+(f==='fehlt'?'Fehlende ('+fehlt+')':f==='vorhanden'?'Vorhanden ('+has+')':'Alle ('+list.length+')')+'</span>').join('')+'<input value="'+esc(LG_Q)+'" oninput="LG_Q=this.value;logosRender()" placeholder="Suchen …" style="margin-left:auto;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:12.5px;max-width:240px"></div>';
+  if(!vis.length){h+='<div class="empty-tab"><i class="ti ti-photo-off"></i><b>Keine Einträge</b><div class="d">für diese Auswahl</div></div>';}
+  else{h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px">'+vis.map(logoCard).join('')+'</div>';}
+  cv.innerHTML=h;
+}
+function logoCard(r){const ini=(r.name.match(/[A-Za-z0-9]/g)||['?']).slice(0,2).join('').toUpperCase();
+  const ic=r.logo?'<span class="logo" style="width:34px;height:34px;background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="'+r.logo+'" style="width:100%;height:100%;object-fit:contain"></span>':'<span class="logo" style="width:34px;height:34px;background:#64748b">'+ini+'</span>';
+  return '<div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--panel)">'+ic+
+    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.name)+'</div><div style="font-size:11px;color:'+(r.logo?'var(--ok)':'var(--faint)')+'">'+(r.logo?'✓ Logo':(r.domain?esc(r.domain):'kein Logo'))+'</div></div>'+
+    '<span class="mini2" onclick="logoHolen(\''+r.kind+'\',\''+esc(r.key)+'\')">logo.dev</span>'+
+    '<span class="mini2" onclick="logoUpload(\''+r.kind+'\',\''+esc(r.key)+'\')">⬆</span>'+
+    (r.logo?'<span class="mini2" onclick="logoDel(\''+r.kind+'\',\''+esc(r.key)+'\')">🗑</span>':'')+
+    '</div>';
+}
+function lgTab(t){LG_TAB=t;LG_FILTER='fehlt';LG_Q='';logosRender();}
+function lgFilter(f){LG_FILTER=f;logosRender();}
+function lgFind(kind,key){return (kind==='software'?LG_SW:LG_INT).find(r=>String(r.key)===String(key));}
+async function logoCall(body,ok){const r=await sb.functions.invoke('integration-logo',{body});if(r&&r.error){let m=r.error.message||'Fehler';try{const b=await r.error.context.json();if(b&&b.error)m=b.error;}catch(e){}throw new Error(m);}if(r.data&&r.data.error)throw new Error(r.data.error);toast(ok);await logosView();}
+async function logoHolen(kind,key){const r=lgFind(kind,key);if(!r)return;const domain=prompt('Domain für „'+r.name+'" (logo.dev):',r.domain||'');if(!domain)return;
+  const body=kind==='software'?{action:'fetch',target:'software',id:key,domain:domain.trim()}:{action:'fetch',target:'integration',name_norm:key,anzeige_name:r.name,domain:domain.trim()};
+  try{await logoCall(body,'Logo geholt ✓');}catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+function logoUpload(kind,key){const r=lgFind(kind,key);if(!r)return;const inp=document.createElement('input');inp.type='file';inp.accept='image/png,image/svg+xml,image/webp,image/jpeg';
+  inp.onchange=async function(){const f=inp.files&&inp.files[0];if(!f)return;const ext=f.type.indexOf('svg')>=0?'svg':f.type.indexOf('png')>=0?'png':f.type.indexOf('webp')>=0?'webp':'jpg';
+    const b64=await new Promise((res,rej)=>{const rd=new FileReader();rd.onload=()=>res(String(rd.result).split(',')[1]);rd.onerror=rej;rd.readAsDataURL(f);});
+    const body=kind==='software'?{action:'store',target:'software',id:key,ext:ext,contentType:f.type||'image/png',dataBase64:b64}:{action:'store',target:'integration',name_norm:key,anzeige_name:r.name,ext:ext,contentType:f.type||'image/png',dataBase64:b64};
+    try{await logoCall(body,'Logo hochgeladen ✓');}catch(e){alert('Upload fehlgeschlagen: '+(e&&e.message?e.message:e));}};
+  inp.click();}
+async function logoDel(kind,key){const r=lgFind(kind,key);if(!r)return;if(!confirm('Logo für „'+r.name+'" entfernen?'))return;
+  const body=kind==='software'?{action:'delete',target:'software',id:key,logo_pfad:r.pfad}:{action:'delete',target:'integration',name_norm:key,logo_pfad:r.pfad};
+  try{await logoCall(body,'Logo entfernt');}catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 const BUILD_STEPS=[["ti-database","SSoT lesen (Live-Artikel)"],["ti-hammer","Astro-Portal bauen"],["ti-photo","Assets &amp; Sitemap erzeugen"],["ti-rocket","Deploy auf Server"]];
 function runBuild(){aov("Portal bauen","Markt DE",procBody(BUILD_STEPS),'<span class="tb" onclick="closeAov()">Im Hintergrund</span>');procStep(0,BUILD_STEPS,'<span class="tb ok" onclick="closeAov()"><i class="ti ti-check"></i> Build erfolgreich</span>');}
 function runValidate(){const f=(dlgRow&&dlgRow._d&&dlgRow._d.full)||{};const has=v=>v!==null&&v!==undefined&&String(v).trim()!=="";const ch=[];[["name","Name"],["hersteller","Hersteller"],["hersteller_url","Hersteller-URL"],["kategorie","Kategorie"]].forEach(p=>ch.push([has(f[p[0]])?"g":"r","Pflichtfeld: "+p[1],has(f[p[0]])?"ok":"FEHLT"]));ch.push([has(f.kurzbeschreibung)?"g":"a","Kurzbeschreibung",has(f.kurzbeschreibung)?"ok":"empfohlen"]);const ba=f.bereitstellungs_art;ch.push([!has(ba)||["cloud","on_premise","hybrid","saas"].includes(String(ba).toLowerCase())?"g":"r","Bereitstellungs-Art (CHECK)",has(ba)?String(ba):"—"]);const fk=(dlgRow&&dlgRow._d&&dlgRow._d.funk)||[];const offen=fk.filter(x=>!has(x.canonical_name)).length;ch.push([!fk.length?"a":(offen?"a":"g"),"Funktionen gemappt",!fk.length?"keine":(offen?offen+" offen":fk.length+" ok")]);const pr=(dlgRow&&dlgRow._d&&dlgRow._d.preise)||[];ch.push([pr.length?"g":"a","Preise erfasst",pr.length?pr.length+" Tarif(e)":"fehlen"]);const fe=ch.filter(c=>c[0]==="r").length,wa=ch.filter(c=>c[0]==="a").length,ok=ch.filter(c=>c[0]==="g").length;aov("Validierung",(dlgRow&&dlgRow.name)||"",'<div>'+ch.map(c=>`<div class="chk"><i class="ti ti-${c[0]==="g"?"circle-check":c[0]==="a"?"alert-triangle":"circle-x"} p${c[0]}"></i> ${esc(c[1])}<span class="r p${c[0]}">${esc(String(c[2]))}</span></div>`).join("")+'</div><div style="padding:13px 14px;color:var(--muted);font-size:12.5px">'+ok+' ok · '+wa+' Warnungen · '+fe+' Fehler – '+(fe?'bitte Pflichtfelder ergänzen.':'Freigabe möglich.')+'</div>');}
