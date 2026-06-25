@@ -162,7 +162,12 @@
   .wb-card.sel{border-color:#4f46e5;box-shadow:0 0 0 2px #c7d2fe inset}
   .wb-bulkbar{position:sticky;bottom:10px;z-index:6;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid #c7d2fe;box-shadow:0 -2px 16px rgba(79,70,229,.20);border-radius:10px;padding:10px 14px;margin-top:12px}
   .wb-bulk-n{font-size:13px;color:var(--ink)}.wb-bulk-n b{font-size:15px;color:#4338ca}
-  .wb-kibar{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:-4px 0 14px}
+  .wb-kibar{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:-4px 0 14px;flex-wrap:wrap}
+  .wb-filter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+  .wb-search{flex:1;min-width:200px;display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--panel)}
+  .wb-search i{color:var(--muted);font-size:15px}
+  .wb-search input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13px;padding:8px 0;outline:none}
+  .wb-fsw{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:0 8px;max-width:240px}
   .yt-card.done{opacity:.6;cursor:default}
   .yt-card.done .yt-thumb{filter:grayscale(.4)}
   .yt-done{position:absolute;top:6px;left:6px;background:var(--ok);color:#fff;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:11px;display:inline-flex;align-items:center;gap:4px;z-index:2}
@@ -1283,18 +1288,25 @@ function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
     if(f)f.innerHTML='<span class="tb" id="catFin" disabled onclick="toast(\'Kategorie gesetzt & Crawl abgeschlossen (Demo)\');closeAov()"><i class="ti ti-check"></i> Crawl abschließen</span>';
   }}
 function catPick(v){const b=$("#catFin");if(b){if(v)b.removeAttribute("disabled");else b.setAttribute("disabled","");}}
-let WBINBOX=[];let WB_WB=[];let WBSEL=new Set();
+let WBINBOX=[];let WB_WB=[];let WBSEL=new Set();let WBQ='';let WBFSW='';
 function wbNorm(s){return (s||"").toLowerCase().replace(/[^a-zäöüß0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2);}
 function wbScore(name,c){const a=new Set(wbNorm(name));const bb=new Set();wbNorm(c.canonical_name).forEach(w=>bb.add(w));(c.synonyme||[]).forEach(sy=>wbNorm(sy).forEach(w=>bb.add(w)));if(!a.size||!bb.size)return 0;let inter=0;a.forEach(w=>{if(bb.has(w))inter++;});return Math.round(inter/(a.size+bb.size-inter)*100);}
 async function wbLoad(){try{const r=await Promise.all([sb.from('funktionen').select('funktions_id,funktions_name,kategorie,software_id,herkunft,erstellt_am,software(name)').or('canonical_name.is.null,canonical_name.eq.').order('software_id'),sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name')]);const f=r[0].data||[];WB_WB=r[1].data||[];WBINBOX=f.map(function(x){const kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.funktions_name,c)};}).filter(k=>k.s>=12).sort((a,b)=>b.s-a.s).slice(0,3);const tage=x.erstellt_am?Math.floor((Date.now()-new Date(x.erstellt_am).getTime())/86400000):0;return {id:x.funktions_id,roh:x.funktions_name,sw:(x.software&&x.software.name)||"—",q:x.herkunft||"Crawl",art:"Funktion",kat:x.kategorie||"",tage:tage,kand:kand};});}catch(e){WBINBOX=[];}}
 function wbAmpel(t){return t<7?"g":t<14?"a":"r";}
-async function wbView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Feature-Inbox …</div>';await wbLoad();WBSEL=new Set();updateWbBadge();wbRender();}
+async function wbView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Feature-Inbox …</div>';await wbLoad();WBSEL=new Set();WBQ='';WBFSW='';updateWbBadge();wbRender();}
+function wbFiltered(){return WBINBOX.filter(function(x){if(WBFSW&&x.sw!==WBFSW)return false;if(WBQ){var q=WBQ.toLowerCase();var hay=(x.roh+' '+(x.kat||'')+' '+((x.ai&&x.ai.canonical)||'')).toLowerCase();if(hay.indexOf(q)<0)return false;}return true;});}
+function wbRefocus(){const s=document.getElementById('wbSearch');if(s){s.focus();try{const L=s.value.length;s.setSelectionRange(L,L);}catch(e){}}}
 function wbRender(){const cv=$("#customview");if(!cv)return;
   if(!WBINBOX.length){cv.innerHTML='<div class="empty-tab" style="padding:64px 0"><i class="ti ti-circle-check" style="color:var(--ok);font-size:34px"></i><b>Inbox leer</b><div style="color:var(--muted);font-size:12.5px">Alle Feature-Begriffe sind zugeordnet.</div></div>';return;}
-  const groups={};WBINBOX.forEach(x=>{(groups[x.sw]=groups[x.sw]||[]).push(x);});
+  /* Gruppen werden unten nach Filterung (wbFiltered) gebildet */
   let html='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-inbox"></i></div><div><h2>Zuordnungs-Inbox</h2><p>Offene Feature-Begriffe aus Crawls &amp; Videos – sicher geparkt, <b>kein Begriff wird still angelegt</b>. Ein Tool wird erst <b>100 % &amp; vergleichbar</b>, wenn seine Begriffe zugeordnet sind. Passenden Vorschlag anklicken, zusammenführen, neu anlegen oder verwerfen.</p></div></div>';
   html+='<div class="wb-kibar"><span style="font-size:11.5px;color:var(--muted)">KI prüft die Begriffe gegen das Wörterbuch und empfiehlt Zuordnung oder Neuanlage – mit Auswahl nur die markierten, sonst alle.</span><button class="tb" onclick="wbSelAll()"><i class="ti ti-checkbox"></i> Alle auswählen</button><button class="tb" title="Stattdessen über Claude Max (kein API) erledigen – Befehl für Claude Code kopieren" onclick="wbCopyCmd()"><i class="ti ti-info-circle"></i> Über Claude Max</button><button id="wbKiBtn" class="tb primary" onclick="wbKiLoad()"><i class="ti ti-sparkles"></i> KI-Empfehlungen laden</button></div>';
-  Object.keys(groups).forEach(function(sw){const g=groups[sw];html+='<div class="wbg"><div class="wbg-h"><i class="ti ti-lock"></i> '+g.length+' offen — hält <b>'+esc(sw)+'</b> von 100 % ab</div>'+g.map(wbCard).join("")+'</div>';});
+  const swCount={};WBINBOX.forEach(function(x){swCount[x.sw]=(swCount[x.sw]||0)+1;});
+  const swOpts=Object.keys(swCount).sort(function(a,b){return String(a).localeCompare(String(b),'de');}).map(function(s){return '<option value="'+esc(s)+'"'+(WBFSW===s?' selected':'')+'>'+esc(s)+' ('+swCount[s]+')</option>';}).join('');
+  html+='<div class="wb-filter"><div class="wb-search"><i class="ti ti-search"></i><input id="wbSearch" placeholder="Begriff suchen …" value="'+esc(WBQ)+'" oninput="WBQ=this.value;wbRender();wbRefocus();"></div><select class="wb-fsw" onchange="WBFSW=this.value;wbRender();"><option value="">Alle Programme ('+WBINBOX.length+')</option>'+swOpts+'</select>'+((WBQ||WBFSW)?'<button class="tb" onclick="WBQ=\'\';WBFSW=\'\';wbRender();"><i class="ti ti-x"></i> Filter zurücksetzen</button>':'')+'</div>';
+  const vis=wbFiltered();
+  if(!vis.length){html+='<div class="empty-tab" style="padding:40px 0"><i class="ti ti-search-off" style="font-size:28px;color:var(--muted)"></i><b>Keine Treffer</b><div style="color:var(--muted);font-size:12.5px">Für den aktuellen Filter gibt es keine offenen Begriffe.</div></div>';}
+  else{const groups={};vis.forEach(function(x){(groups[x.sw]=groups[x.sw]||[]).push(x);});Object.keys(groups).forEach(function(sw){const g=groups[sw];html+='<div class="wbg"><div class="wbg-h"><i class="ti ti-lock"></i> '+g.length+' offen — hält <b>'+esc(sw)+'</b> von 100 % ab</div>'+g.map(wbCard).join("")+'</div>';});}
   html+='<div id="wbBulkBar" class="wb-bulkbar" style="display:none"></div>';
   cv.innerHTML=html;wbUpdateBar();
 }
@@ -1348,7 +1360,7 @@ function wbCanonKey(s){return String(s||'').toLowerCase().replace(/\([^)]*\)/g,'
 async function wbRefreshWBOnly(){try{const r=await sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name');WB_WB=r.data||[];}catch(e){}}
 function wbRecompKand(){WBINBOX.forEach(function(x){x.kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.roh,c)};}).filter(function(k){return k.s>=12;}).sort(function(a,b){return b.s-a.s;}).slice(0,3);});}
 function wbCopyCmd(){const t='Schlage für die offenen Feature-Begriffe in der Zuordnungs-Inbox (Cockpit) die Canonical-Zuordnung vor (bestehende canonical-mapping-Logik): je Begriff passender Canonical zum Zusammenführen ODER ein sauberer, tool-neutraler neuer Canonical, jeweils mit Konfidenz und kurzer Begründung. WICHTIG: Schreibe noch NICHTS in die Datenbank – leg mir zuerst die komplette Vorschlagsliste vor; ich gebe frei, was übernommen wird (alles / nur einzelne / keine). Erst nach meiner Freigabe zusammenführen (Rohname als Synonym ergänzen) bzw. neue Canonicals anlegen.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('Befehl für Claude Code kopiert ✓');},function(){toast('Kopieren nicht möglich');});}else{toast('Kopieren nicht möglich');}}
-async function wbKiLoad(){const scope=WBSEL.size?WBINBOX.filter(function(x){return WBSEL.has(x.id);}):WBINBOX;if(!scope.length){toast('Nichts zu laden');return;}
+async function wbKiLoad(){const scope=WBSEL.size?WBINBOX.filter(function(x){return WBSEL.has(x.id);}):wbFiltered();if(!scope.length){toast('Nichts zu laden');return;}
   const btn=$("#wbKiBtn");if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> KI denkt …';}
   try{
     const wb=WB_WB.map(function(c){return {canonical_name:c.canonical_name,kategorie:c.kategorie||''};});
@@ -1383,7 +1395,7 @@ async function wbAiApply(id){const x=WBINBOX.find(function(z){return z.id===id;}
   }catch(e){alert('Übernehmen fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 function wbToggleSel(id,ev){const chk=ev&&ev.target;const on=chk?chk.checked:!WBSEL.has(id);if(on)WBSEL.add(id);else WBSEL.delete(id);if(chk){const card=chk.closest('.wb-card');if(card)card.classList.toggle('sel',on);}wbUpdateBar();}
-function wbSelAll(){const allSel=WBINBOX.length&&WBINBOX.every(function(x){return WBSEL.has(x.id);});WBSEL=new Set(allSel?[]:WBINBOX.map(function(x){return x.id;}));wbRender();}
+function wbSelAll(){const vis=wbFiltered();const allSel=vis.length&&vis.every(function(x){return WBSEL.has(x.id);});vis.forEach(function(x){if(allSel)WBSEL.delete(x.id);else WBSEL.add(x.id);});wbRender();}
 function wbSelClear(){WBSEL=new Set();wbRender();}
 function wbUpdateBar(){const bar=$("#wbBulkBar");if(!bar)return;const n=WBSEL.size;if(!n){bar.style.display='none';bar.innerHTML='';return;}
   const withAi=WBINBOX.filter(function(x){return WBSEL.has(x.id)&&x.ai&&x.ai.canonical;}).length;
