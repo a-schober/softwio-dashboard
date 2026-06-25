@@ -20,7 +20,9 @@
   .toolbar{display:flex;align-items:center;gap:3px;padding:6px 10px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap}
   .tb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid var(--line);background:var(--panel);border-radius:6px;color:var(--ink);font-size:12.5px;cursor:pointer}
   .tb:hover{background:var(--accent-soft);border-color:var(--accent)}.tb i{font-size:16px;color:var(--muted)}
-  .tb.primary{border-color:var(--accent);color:var(--accent-ink)}.tb.primary i{color:var(--accent)}.tb.ok{border-color:var(--ok);color:var(--ok)}.tb.ok i{color:var(--ok)}
+  .tb.primary{border-color:var(--accent);color:var(--accent-ink)}.tb.primary i{color:var(--accent)}
+  .tb-search{height:30px;min-width:210px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;padding:0 10px;margin-left:auto;outline:none}
+  .tb-search:focus{border-color:var(--accent)}.tb.ok{border-color:var(--ok);color:var(--ok)}.tb.ok i{color:var(--ok)}
   .tb[disabled]{opacity:.45;pointer-events:none}.sep{width:1px;height:22px;background:var(--line);margin:0 6px}
   body.gen .ctx{display:none}
   .body{flex:1;display:flex;min-height:0}
@@ -341,6 +343,7 @@
     <span class="tb" onclick="openCols(this)"><i class="ti ti-columns"></i> Spalten</span>
     <span class="tb" onclick="openExport()"><i class="ti ti-file-export"></i> Export</span>
     <span class="tb" onclick="render()"><i class="ti ti-refresh"></i> Aktualisieren</span>
+    <input id="tbSearch" class="tb-search" placeholder="In dieser Ansicht suchen …" oninput="tbSearchInput(this.value)">
   </div>
   <div class="body">
     <aside class="sidebar" id="side">
@@ -545,7 +548,7 @@ function colDragOver(e){e.preventDefault();e.currentTarget.classList.add("dragov
 function colDragLeave(e){e.currentTarget.classList.remove("dragover");}
 function colDrop(e,k){e.preventDefault();e.currentTarget.classList.remove("dragover");if(!dragCol||dragCol===k)return;const cols=VIEWS[CUR].cols,from=cols.findIndex(c=>c.k===dragCol),to=cols.findIndex(c=>c.k===k);if(from<0||to<0)return;const m=cols.splice(from,1)[0];cols.splice(to,0,m);dragCol=null;render();}
 function swNameMap(){const m={};SW.forEach(function(s){m[s.id]=s.name;});return m;}
-async function ladeKategorien(){try{const r=await Promise.all([sb.from('kategorien').select('*').order('reihenfolge'),sb.from('software').select('kategorie')]);const k=r[0].data||[],sw=r[1].data||[];const cnt={};sw.forEach(function(s){if(s.kategorie)cnt[s.kategorie]=(cnt[s.kategorie]||0)+1;});VIEWS.kategorien.rows=k.map(function(x){return {id:x.id,name:x.name,slug:x.slug_basis||"",anzahl:cnt[x.name]||0,reihenfolge:x.reihenfolge||0,sichtbar:true};});}catch(e){}}
+async function ladeKategorien(){try{const r=await Promise.all([sb.from('kategorien').select('*').order('reihenfolge'),sb.from('software').select('kategorie')]);const k=r[0].data||[],sw=r[1].data||[];const cnt={};sw.forEach(function(s){if(s.kategorie)cnt[s.kategorie]=(cnt[s.kategorie]||0)+1;});VIEWS.kategorien.rows=k.map(function(x){return {id:x.id,name:x.name,slug:x.slug_basis||"",icon:x.icon||"",anzahl:cnt[x.name]||0,reihenfolge:x.reihenfolge||0,sichtbar:true};});KATS=VIEWS.kategorien.rows.map(function(r){return r.name;}).filter(Boolean).sort(function(a,b){return a.localeCompare(b,'de');});}catch(e){}}
 async function ladeWoerterbuch(){try{const r=await Promise.all([sb.from('funktions_woerterbuch').select('*').order('canonical_name'),sb.from('funktionen').select('canonical_name')]);const w=r[0].data||[],f=r[1].data||[];const cnt={};f.forEach(function(x){if(x.canonical_name)cnt[x.canonical_name]=(cnt[x.canonical_name]||0)+1;});VIEWS.woerterbuch.rows=w.map(function(x){return {id:x.id,canonical:x.canonical_name,kat:x.kategorie||"",synonyme:(x.synonyme||[]).join(" · "),tools:cnt[x.canonical_name]||0};});}catch(e){}}
 function wbwEdit(id){
   const row=id?VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(id);}):null;
@@ -857,13 +860,16 @@ function bwPaste(e){const items=(e.clipboardData&&e.clipboardData.items)||[];con
 function bwDropFiles(e){e.preventDefault();bwFiles((e.dataTransfer&&e.dataTransfer.files)||[]);}
 function bwFiles(files){[...files].forEach(function(f){if(!f.type||f.type.indexOf('image/')!==0)return;const rd=new FileReader();rd.onload=function(){const url=String(rd.result||"");const m=url.match(/^data:([^;]+);base64,(.*)$/);if(m){bwBilder.push({media_type:m[1],data:m[2],preview:url});bwRenderThumbs();}};rd.readAsDataURL(f);});}
 function bwRenderThumbs(){const t=$("#bwThumbs");if(!t)return;t.innerHTML=bwBilder.map((b,i)=>`<div class="bw-thumb"><img src="${b.preview}" alt=""><button class="bw-thumb-x" onclick="bwBilder.splice(${i},1);bwRenderThumbs()">✕</button></div>`).join("");}
+function rowMatchesQ(v,r,q){q=String(q||'').toLowerCase();return v.cols.some(function(c){if(c.vis===false)return false;return String(disp(v,r,c)||'').toLowerCase().indexOf(q)>=0;});}
+function tbSearchInput(q){const v=VIEWS[CUR];if(!v)return;v._q=q;render();}
 function render(){
   const v=VIEWS[CUR];const cols=v.cols.filter(c=>c.vis);
+  const _se=document.getElementById('tbSearch');if(_se&&_se.value!==(v._q||''))_se.value=v._q||'';
   $("#crumb").innerHTML=`<i class="ti ${v.ic}"></i> <b>${v.t}</b> <span class="sp">›</span> Übersicht`+(CUR==="software"?' <span class="sp">·</span> <span style="color:var(--faint)">Spaltenkopf = sortieren &amp; filtern · Zeile = Details</span>':"")+`<span class="clr ${Object.keys(v._filt).length?"on":""}" onclick="clearAll()"><i class="ti ti-filter-off"></i> Alle Filter löschen</span>`;
   $("#introSlot").innerHTML=v.d?`<div class="intro"><div class="ic"><i class="ti ${v.ic}"></i></div><div><h2>${v.t}</h2><p>${v.d}</p></div></div>`:"";
   $("#thead").innerHTML='<th class="nosort" style="width:28px"><span class="th-in"><input type="checkbox" onclick="event.stopPropagation();toggleAllRows(this.checked)"></span></th>'+
     cols.map(c=>`<th data-k="${c.k}" draggable="true" ondragstart="colDragStart(event,'${c.k}')" ondragover="colDragOver(event)" ondragleave="colDragLeave(event)" ondrop="colDrop(event,'${c.k}')" class="${v._filt[c.k]?"filtered":""} ${v._sort.k===c.k?"sorted":""}" ${c.w?`style="width:${c.w}px"`:""}><span class="th-in" onclick="openFilter('${c.k}',this)">${c.t} ${v._sort.k===c.k?`<span class="so">${v._sort.d>0?"▲":"▼"}</span>`:""}<i class="ti ti-circle-x clrf" onclick="clearFilter(event,'${c.k}')"></i><i class="ti ${v._filt[c.k]?"ti-filter":"ti-chevron-down"} fi"></i></span></th>`).join("");
-  let rows=v.rows.filter(r=>cols.every(c=>!v._filt[c.k]||v._filt[c.k].has(disp(v,r,c))));
+  let rows=v.rows.filter(r=>(!v._q||rowMatchesQ(v,r,v._q))&&cols.every(c=>!v._filt[c.k]||v._filt[c.k].has(disp(v,r,c))));
   const sk=v.cols.find(c=>c.k===v._sort.k);
   rows.sort((a,b)=>{if(sk&&sk.ty==="age"){return ((ageOf(a).t==null?-1:ageOf(a).t)-(ageOf(b).t==null?-1:ageOf(b).t))*v._sort.d;}if(sk&&sk.ty==="nw"){return ((nwOf(a).v==null?-1:nwOf(a).v)-(nwOf(b).v==null?-1:nwOf(b).v))*v._sort.d;}if(sk&&(sk.ty==="num"||sk.ty==="pct")){return ((a[sk.k]===""?-1:a[sk.k])-(b[sk.k]===""?-1:b[sk.k]))*v._sort.d;}return disp(v,a,sk).localeCompare(disp(v,b,sk),"de",{numeric:true})*v._sort.d;});
   v._view=rows;
@@ -925,7 +931,7 @@ function nsInput(id,label,val,list){
   return '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">'+label+'</label><input id="'+id+'" value="'+String(val||"").replace(/"/g,"&quot;")+'" '+dl+' style="width:100%;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:0 9px">'+datalist+'</div>';
 }
 function neueSoftwareDlg(){
-  const kats=[...new Set(SW.map(s=>s.kat).filter(Boolean))].sort();
+  const kats=(KATS&&KATS.length)?KATS.slice():[...new Set(SW.map(s=>s.kat).filter(Boolean))].sort();
   aov("Neue Software anlegen","wird in der SSoT angelegt (Reifegrad: erfasst)",
     nsInput("nsName","Name *","")+nsInput("nsHersteller","Hersteller *","")+nsInput("nsUrl","Hersteller-URL *","https://")+nsInput("nsKat","Kategorie *","",kats)+nsInput("nsKw","Ziel-Keyword (optional, sonst aus Name)",""),
     '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="neueSoftwareSave()"><i class="ti ti-check"></i> Anlegen</span>');
@@ -935,6 +941,7 @@ async function neueSoftwareSave(){
   const name=g("nsName"),her=g("nsHersteller"),url=g("nsUrl"),kat=g("nsKat");
   let kw=g("nsKw")||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
   if(!name||!her||!url||!kat){toast("Bitte Name, Hersteller, URL und Kategorie ausfüllen.");return;}
+  if(KATS&&KATS.length&&KATS.indexOf(kat)<0){toast("Bitte eine vorhandene Kategorie wählen – im Menü „Kategorien" anlegen.");return;}
   try{ await dbW("create","software",null,{name,hersteller:her,hersteller_url:url,kategorie:kat,ziel_schluesselwort:kw}); toast("„"+name+"\" angelegt"); closeAov(); await ladeSW(); render(); }
   catch(e){ alert("Anlegen fehlgeschlagen: "+(e&&e.message?e.message:e)); }
 }
@@ -942,14 +949,14 @@ function onRow(i){if(CUR==="software")openDlg(i);else if(CUR==="freigaben")freig
 function onNew(){if(CUR==="software"){openNewSoftware();}else if(CUR==="vergleiche"){openVglGen();}else if(CUR==="portalbuild"){runBuild("de");}else openEdit(-1);}
 function onEdit(){const i=selectedIdx();if(i<0)return;onRow(i);}
 async function onDel(){const sel=[...document.querySelectorAll("#tbody tr.sel")].map(tr=>+tr.dataset.i);if(!sel.length)return;
-  if(CUR!=="software"){if(CUR==='woerterbuch'){wbwBulkDelete(sel);return;}const _dv=DBVIEW[CUR];if(_dv){if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const rows=sel.map(i=>VIEWS[CUR].rows[i]);delEditDB(_dv,rows);return;}if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const v=VIEWS[CUR];v.rows=v.rows.filter((r,i)=>!sel.includes(i));render();return;}
+  if(CUR!=="software"){if(CUR==='woerterbuch'){wbwBulkDelete(sel);return;}if(CUR==='kategorien'){katBulkDelete(sel);return;}const _dv=DBVIEW[CUR];if(_dv){if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const rows=sel.map(i=>VIEWS[CUR].rows[i]);delEditDB(_dv,rows);return;}if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const v=VIEWS[CUR];v.rows=v.rows.filter((r,i)=>!sel.includes(i));render();return;}
   const v=VIEWS.software;const ids=sel.map(i=>v.rows[i]&&v.rows[i].id).filter(Boolean);
   if(!ids.length)return;if(!confirm(ids.length+" Software endgültig löschen? (inkl. zugehöriger Daten per Cascade)"))return;
   try{for(const id of ids){await dbW("delete","software",id);}toast(ids.length+" gelöscht");await ladeSW();render();}catch(e){toast("Löschen fehlgeschlagen: "+e.message);}}
 
 // generischer Edit-Dialog
 let eIdx=-1;
-function openEdit(i){if(CUR==='woerterbuch'){const _r=(i>=0?VIEWS.woerterbuch.rows[i]:null);wbwEdit(_r?_r.id:null);return;}const v=VIEWS[CUR];eIdx=i;const r=i>=0?v.rows[i]:{};
+function openEdit(i){if(CUR==='woerterbuch'){const _r=(i>=0?VIEWS.woerterbuch.rows[i]:null);wbwEdit(_r?_r.id:null);return;}if(CUR==='kategorien'){const _k=(i>=0?VIEWS.kategorien.rows[i]:null);katEdit(_k?_k.id:null);return;}const v=VIEWS[CUR];eIdx=i;const r=i>=0?v.rows[i]:{};
   $("#eTitle").textContent=(i>=0?"Bearbeiten":(v.newL||"Neu anlegen"))+" · "+v.t;$("#eSub").textContent=i>=0?"":"Neuer Eintrag";
   $("#eForm").innerHTML=`<div class="fgrid one">`+v.cols.map(c=>{const val=r[c.k];let inp;if(c.ty==="bool")inp=`<select data-k="${c.k}"><option ${val?"selected":""}>Ja</option><option ${!val?"selected":""}>Nein</option></select>`;else if(c.ty==="status")inp=`<select data-k="${c.k}">${Object.keys(ST).map(s=>`<option ${val===s?"selected":""}>${s}</option>`).join("")}</select>`;else inp=`<input data-k="${c.k}" value="${val==null?"":val}">`;return `<div class="fld"><label>${c.t}</label><div class="v">${inp}</div></div>`;}).join("")+`</div>`;
   $("#eov").classList.add("show");}
@@ -1010,7 +1017,7 @@ async function saveStamm(){
   }catch(e){alert("Speichern fehlgeschlagen:\n"+(e&&e.message?e.message:e));}
 }
 function tabStamm(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");const f=d.full||{};const mk=(f.relevante_maerkte||[]).join(", ");const dat=f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):"—";
-  return `<div class="fgrp">Identität &amp; Einordnung</div><div class="fgrid">${fld("Name",f.name,{k:"name",req:1})}${fld("Hersteller",f.hersteller,{k:"hersteller",req:1})}${fld("Hersteller-URL",f.hersteller_url,{k:"hersteller_url",req:1})}${fld("Kategorie",f.kategorie,{k:"kategorie",req:1})}${fld("Unterkategorie",f.unterkategorie,{k:"unterkategorie"})}${fld("Ziel-Keyword",f.ziel_schluesselwort,{k:"ziel_schluesselwort"})}${fld("Relevante Märkte",mk,{k:"relevante_maerkte",ty:"array",multi:["DE","AT","CH","IT","ES"]})}</div>
+  return `<div class="fgrp">Identität &amp; Einordnung</div><div class="fgrid">${fld("Name",f.name,{k:"name",req:1})}${fld("Hersteller",f.hersteller,{k:"hersteller",req:1})}${fld("Hersteller-URL",f.hersteller_url,{k:"hersteller_url",req:1})}${fld("Kategorie",f.kategorie,{k:"kategorie",req:1,opts:KATS})}${fld("Unterkategorie",f.unterkategorie,{k:"unterkategorie"})}${fld("Ziel-Keyword",f.ziel_schluesselwort,{k:"ziel_schluesselwort"})}${fld("Relevante Märkte",mk,{k:"relevante_maerkte",ty:"array",multi:["DE","AT","CH","IT","ES"]})}</div>
   <div class="fgrp">Beschreibung &amp; Positionierung</div><div class="fgrid one">${fld("Kurzbeschreibung",f.kurzbeschreibung,{k:"kurzbeschreibung",ta:1,rows:3})}${fld("Lange Beschreibung",f.lange_beschreibung,{k:"lange_beschreibung",ta:1,rows:9})}</div><div class="fgrid">${fld("Zielgruppe",f.zielgruppe,{k:"zielgruppe"})}${fld("Hauptnutzen",f.hauptnutzen,{k:"hauptnutzen"})}${fld("Kern-Aussage",f.kern_aussage,{k:"kern_aussage",miss:!f.kern_aussage,missT:"empfohlen"})}${fld("Charakt. Anwendungsfall",f.charakteristischer_anwendungsfall,{k:"charakteristischer_anwendungsfall",miss:!f.charakteristischer_anwendungsfall,missT:"empfohlen"})}${fld("Vergleichs-Pointe",f.vergleichs_pointe,{k:"vergleichs_pointe",miss:!f.vergleichs_pointe,missT:"empfohlen"})}</div>
   <div class="fgrp">Unternehmen</div><div class="fgrid">${fld("Land",f.land_hauptsitz,{k:"land_hauptsitz",opts:["Deutschland","Österreich","Schweiz","Italien","Spanien"]})}${fld("Gegründet",f.gegruendet,{k:"gegruendet",ty:"int"})}${fld("Mitarbeiterzahl",f.mitarbeiterzahl_bereich,{k:"mitarbeiterzahl_bereich",opts:["1-10","11-50","51-250","251-1000","mehr als 1000"]})}${fld("Sitz / Stadt","",{neu:1,miss:1,missT:"noch nicht im Schema"})}</div>
   <div class="fgrp">Technik &amp; Compliance</div><div class="fgrid">${fld("Bereitstellung",f.bereitstellungs_art,{k:"bereitstellungs_art",opts:["cloud","on_premise","hybrid"]})}${fld("Serverstandort",f.server_standort,{k:"server_standort"})}${fld("DSGVO-konform",f.dsgvo_konform==null?"":(f.dsgvo_konform?"Ja":"Nein"),{k:"dsgvo_konform",ty:"bool",opts:["Ja","Nein"]})}${fld("Sprachen",f.sprachen,{k:"sprachen"})}</div>
@@ -1270,6 +1277,58 @@ function discCard(d,nm){const pot=nm?"":"★".repeat(d.pot)+"☆".repeat(3-d.pot
  return '<div class="disc-card" id="'+discId(d.n)+'"><div class="dc-main"><div class="dc-n">'+d.n+' <span class="dc-h">· '+d.hh+'</span></div><div class="dc-d">'+(d.desc||"")+'</div>'+(nm?'<span class="dc-nm"><i class="ti ti-ban"></i> '+d.grund+'</span>':'<span class="dc-aff"><i class="ti ti-coin"></i> '+d.aff+'</span> <span class="dc-pot" title="Monetarisierungs-Potenzial">'+pot+'</span>')+'</div><div class="dc-act"><button class="tb" onclick="discIgn(\''+d.n+'\')">Ignorieren</button><button class="tb '+(nm?"":"primary")+'" onclick="discAdd(\''+d.n+'\','+nm+')"><i class="ti ti-plus"></i> '+(nm?"Trotzdem anlegen":"Anlegen")+'</button></div></div>';}
 async function discAdd(n,nm){const cat=$("#discCat")?$("#discCat").value:"";const d=(DISCOVER[cat]||[]).concat(DISCOVER_NM[cat]||[]).find(x=>x.n===n)||{n:n,hh:""};const slug=n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");try{await dbW("create","software",null,{name:n,hersteller:d.hh||n,hersteller_url:"https://www."+slug.replace(/-/g,"")+".com",kategorie:cat,ziel_schluesselwort:slug});const c=document.getElementById(discId(n));if(c)c.style.display="none";toast("„"+n+"\" angelegt – Hersteller-URL bitte im Detail prüfen");await ladeSW();render();}catch(e){toast("Anlegen fehlgeschlagen: "+e.message);}}
 function discIgn(n){const c=document.getElementById(discId(n));if(c)c.style.display="none";toast(n+" ignoriert – kommt bei künftigen Scans nicht wieder");}
+function katEdit(id){
+  const row=id?VIEWS.kategorien.rows.find(function(r){return String(r.id)===String(id);}):null;
+  const name=row?row.name:'',slug=row?row.slug:'',icon=row?(row.icon||''):'',reih=row?row.reihenfolge:0,anz=row?row.anzahl:0;
+  var body='<div style="padding:6px 2px;display:flex;flex-direction:column;gap:12px;max-height:64vh;overflow:auto">'+
+    '<div class="fld"><label>Name</label><div class="v"><input id="katName" value="'+esc(name)+'"></div></div>'+
+    '<div class="fld"><label>Slug (URL-Basis)</label><div class="v"><input id="katSlug" value="'+esc(slug)+'" placeholder="z. B. buchhaltung"></div></div>'+
+    '<div class="fld"><label>Icon (optional, z. B. ti-calculator)</label><div class="v"><input id="katIcon" value="'+esc(icon)+'"></div></div>'+
+    '<div class="fld"><label>Reihenfolge</label><div class="v"><input id="katReih" type="number" value="'+(reih||0)+'"></div></div>'+
+    (id?'<div style="font-size:12px;color:var(--muted)"><b>'+anz+'</b> Programm'+(anz===1?'':'e')+' zugeordnet.'+(name?' Umbenennen zieht alle automatisch nach.':'')+'</div>':'')+
+  '</div>';
+  var foot=(id?'<span class="tb" style="color:#dc2626;border-color:#fecaca" onclick="katDelete(\''+id+'\')"><i class="ti ti-trash"></i> Löschen</span>':'')+
+    '<span class="tb" onclick="closeAov()">Abbrechen</span>'+
+    '<span class="tb primary" onclick="katSave('+(id?'\''+id+'\'':'null')+')"><i class="ti ti-check"></i> Speichern</span>';
+  aov(id?'Kategorie bearbeiten':'Neue Kategorie',id?name:'Kategorien',body,foot);
+}
+function katSlugify(s){return String(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+async function katSave(id){
+  const name=($("#katName").value||'').trim();if(!name){toast('Name fehlt');return;}
+  let slug=($("#katSlug").value||'').trim();slug=katSlugify(slug||name);
+  const icon=($("#katIcon").value||'').trim();
+  const reih=parseInt($("#katReih").value,10);const reihv=isNaN(reih)?0:reih;
+  try{
+    if(!id){
+      const dup=VIEWS.kategorien.rows.find(function(r){return r.name.toLowerCase()===name.toLowerCase();});
+      if(dup){alert('Kategorie „'+name+'" existiert bereits.');return;}
+      await dbW('create','kategorien',null,{name:name,slug_basis:slug,icon:icon||null,reihenfolge:reihv});
+      toast('Kategorie „'+name+'" angelegt ✓');
+    }else{
+      const row=VIEWS.kategorien.rows.find(function(r){return String(r.id)===String(id);});const oldName=row?row.name:'';
+      if(oldName&&oldName!==name){
+        const dup=VIEWS.kategorien.rows.find(function(r){return String(r.id)!==String(id)&&r.name.toLowerCase()===name.toLowerCase();});
+        if(dup){alert('Kategorie „'+name+'" existiert bereits.');return;}
+        await sb.from('software').update({kategorie:name}).eq('kategorie',oldName);
+      }
+      await dbW('update','kategorien',id,{name:name,slug_basis:slug,icon:icon||null,reihenfolge:reihv});
+      toast('Gespeichert ✓');
+    }
+    closeAov();await ladeKategorien();await ladeSW();render();
+  }catch(e){alert('Speichern fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function katDelete(id){
+  const row=VIEWS.kategorien.rows.find(function(r){return String(r.id)===String(id);});if(!row)return;
+  if(row.anzahl>0){alert('„'+row.name+'" hat noch '+row.anzahl+' zugeordnete(s) Programm(e). Bitte zuerst umkategorisieren.');return;}
+  if(!confirm('Kategorie „'+row.name+'" löschen?'))return;
+  try{await dbW('delete','kategorien',id);toast('„'+row.name+'" gelöscht');closeAov();await ladeKategorien();render();}catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function katBulkDelete(sel){const rows=sel.map(function(i){return VIEWS.kategorien.rows[i];}).filter(Boolean);if(!rows.length)return;
+  const blocked=rows.filter(function(r){return r.anzahl>0;});
+  if(blocked.length){alert('Nicht löschbar (noch Programme zugeordnet): '+blocked.map(function(r){return '„'+r.name+'" ('+r.anzahl+')';}).join(', '));return;}
+  if(!confirm(rows.length+' Kategorie(n) löschen?'))return;
+  try{for(var i=0;i<rows.length;i++){await dbW('delete','kategorien',rows[i].id);}toast(rows.length+' gelöscht');await ladeKategorien();render();}catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
 function aov(title,sub,body,foot){$("#aTitle").textContent=title;$("#aSub").textContent=sub||"";$("#aBody").innerHTML=body;$("#aFoot").innerHTML=foot||'<span class="tb" onclick="closeAov()">Schließen</span>';$("#aov").classList.add("show");}
 function closeAov(){$("#aov").classList.remove("show");}
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
@@ -1288,7 +1347,7 @@ function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
     if(f)f.innerHTML='<span class="tb" id="catFin" disabled onclick="toast(\'Kategorie gesetzt & Crawl abgeschlossen (Demo)\');closeAov()"><i class="ti ti-check"></i> Crawl abschließen</span>';
   }}
 function catPick(v){const b=$("#catFin");if(b){if(v)b.removeAttribute("disabled");else b.setAttribute("disabled","");}}
-let WBINBOX=[];let WB_WB=[];let WBSEL=new Set();let WBQ='';let WBFSW='';
+let WBINBOX=[];let WB_WB=[];let WBSEL=new Set();let WBQ='';let WBFSW='';let KATS=[];
 function wbNorm(s){return (s||"").toLowerCase().replace(/[^a-zäöüß0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2);}
 function wbScore(name,c){const a=new Set(wbNorm(name));const bb=new Set();wbNorm(c.canonical_name).forEach(w=>bb.add(w));(c.synonyme||[]).forEach(sy=>wbNorm(sy).forEach(w=>bb.add(w)));if(!a.size||!bb.size)return 0;let inter=0;a.forEach(w=>{if(bb.has(w))inter++;});return Math.round(inter/(a.size+bb.size-inter)*100);}
 async function wbLoad(){try{const r=await Promise.all([sb.from('funktionen').select('funktions_id,funktions_name,kategorie,software_id,herkunft,erstellt_am,software(name)').or('canonical_name.is.null,canonical_name.eq.').order('software_id'),sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name')]);const f=r[0].data||[];WB_WB=r[1].data||[];WBINBOX=f.map(function(x){const kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.funktions_name,c)};}).filter(k=>k.s>=12).sort((a,b)=>b.s-a.s).slice(0,3);const tage=x.erstellt_am?Math.floor((Date.now()-new Date(x.erstellt_am).getTime())/86400000):0;return {id:x.funktions_id,roh:x.funktions_name,sw:(x.software&&x.software.name)||"—",q:x.herkunft||"Crawl",art:"Funktion",kat:x.kategorie||"",tage:tage,kand:kand};});}catch(e){WBINBOX=[];}}
@@ -1556,7 +1615,7 @@ function vglResult(names){const c=$("#vglRes"),f=$("#aFoot");if(!c)return;
   if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb" onclick="toast(\'Als Entwurf gespeichert (Demo)\')"><i class="ti ti-device-floppy"></i> Als Entwurf</span> <span class="tb ok" onclick="vglPublish()"><i class="ti ti-rosette-discount-check"></i> Veröffentlichen</span>';
 }
 function vglPublish(){const names=vglLastNames;if(!names||names.length<2)return;VIEWS.vergleiche.rows.unshift({name:names.join(" vs. "),kat:vglCat,tools:names.length,markt:"DE",angelegt:"2026-06-22",pct:100,status:"live",geprueft:"2026-06-22",nw:80,_hue:HUE[VIEWS.vergleiche.rows.length%HUE.length]});vglSel=new Set();toast("Vergleichsartikel veröffentlicht & in Übersicht aufgenommen");closeAov();route("vergleiche");}
-async function startApp(){ await ladeSW(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); wbLoad().then(updateWbBadge); }
+async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); wbLoad().then(updateWbBadge); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
