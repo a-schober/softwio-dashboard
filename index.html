@@ -542,6 +542,84 @@ function colDrop(e,k){e.preventDefault();e.currentTarget.classList.remove("drago
 function swNameMap(){const m={};SW.forEach(function(s){m[s.id]=s.name;});return m;}
 async function ladeKategorien(){try{const r=await Promise.all([sb.from('kategorien').select('*').order('reihenfolge'),sb.from('software').select('kategorie')]);const k=r[0].data||[],sw=r[1].data||[];const cnt={};sw.forEach(function(s){if(s.kategorie)cnt[s.kategorie]=(cnt[s.kategorie]||0)+1;});VIEWS.kategorien.rows=k.map(function(x){return {id:x.id,name:x.name,slug:x.slug_basis||"",anzahl:cnt[x.name]||0,reihenfolge:x.reihenfolge||0,sichtbar:true};});}catch(e){}}
 async function ladeWoerterbuch(){try{const r=await Promise.all([sb.from('funktions_woerterbuch').select('*').order('canonical_name'),sb.from('funktionen').select('canonical_name')]);const w=r[0].data||[],f=r[1].data||[];const cnt={};f.forEach(function(x){if(x.canonical_name)cnt[x.canonical_name]=(cnt[x.canonical_name]||0)+1;});VIEWS.woerterbuch.rows=w.map(function(x){return {id:x.id,canonical:x.canonical_name,kat:x.kategorie||"",synonyme:(x.synonyme||[]).join(" · "),tools:cnt[x.canonical_name]||0};});}catch(e){}}
+function wbwEdit(id){
+  const row=id?VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(id);}):null;
+  const name=row?row.canonical:'',kat=row?row.kat:'',syn=row?row.synonyme:'',tools=row?row.tools:0;
+  const synLines=syn?syn.split(' · ').join('\n'):'';
+  const others=VIEWS.woerterbuch.rows.filter(function(r){return String(r.id)!==String(id);}).slice().sort(function(a,b){return String(a.canonical).localeCompare(String(b.canonical),'de');});
+  const mergeOpts=others.map(function(r){return '<option value="'+r.id+'">'+esc(r.canonical)+'</option>';}).join('');
+  var body='<div style="padding:6px 2px;display:flex;flex-direction:column;gap:12px;max-height:64vh;overflow:auto">'+
+    '<div class="fld"><label>Canonical-Name</label><div class="v"><input id="wbwName" value="'+esc(name)+'"></div></div>'+
+    '<div class="fld"><label>Kategorie</label><div class="v"><input id="wbwKat" value="'+esc(kat)+'"></div></div>'+
+    '<div class="fld"><label>Synonyme (eine pro Zeile)</label><div class="v"><textarea id="wbwSyn" rows="5" style="width:100%;font:inherit;resize:vertical;border:1px solid var(--line);border-radius:7px;padding:8px;background:var(--panel);color:var(--ink)">'+esc(synLines)+'</textarea></div></div>'+
+    (id?'<div style="font-size:12px;color:var(--muted)"><b>'+tools+'</b> Feature'+(tools===1?'':'s')+' zugeordnet.'+(name?' Beim Umbenennen werden alle automatisch nachgezogen.':'')+'</div>':'')+
+    (id&&others.length?'<div class="fld"><label>Zusammenführen mit (dieser Begriff wird aufgelöst)</label><div class="v"><select id="wbwMergeSel" onchange="if(this.value)wbwMerge(\''+id+'\',this.value)"><option value="">↪ auswählen …</option>'+mergeOpts+'</select></div></div>':'')+
+  '</div>';
+  var foot=(id?'<span class="tb" style="color:#dc2626;border-color:#fecaca" onclick="wbwDelete(\''+id+'\')"><i class="ti ti-trash"></i> Löschen</span>':'')+
+    '<span class="tb" onclick="closeAov()">Abbrechen</span>'+
+    '<span class="tb primary" onclick="wbwSave('+(id?'\''+id+'\'':'null')+')"><i class="ti ti-check"></i> Speichern</span>';
+  aov(id?'Canonical bearbeiten':'Neuer Canonical',id?name:'Feature-Wörterbuch',body,foot);
+}
+async function wbwSave(id){
+  const name=($("#wbwName").value||'').trim();if(!name){toast('Name fehlt');return;}
+  const kat=($("#wbwKat").value||'').trim();
+  const synp=($("#wbwSyn").value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
+  try{
+    if(!id){
+      const dup=VIEWS.woerterbuch.rows.find(function(r){return wbCanonKey(r.canonical)===wbCanonKey(name);});
+      if(dup){alert('„'+name+'" existiert bereits.');return;}
+      await dbW('create','funktions_woerterbuch',null,{canonical_name:name,kategorie:kat||'Sonstige',synonyme:synp.length?synp:[name]});
+      toast('Canonical „'+name+'" angelegt ✓');
+    }else{
+      const row=VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(id);});const oldName=row?row.canonical:'';
+      if(oldName&&oldName!==name){
+        const dup=VIEWS.woerterbuch.rows.find(function(r){return String(r.id)!==String(id)&&wbCanonKey(r.canonical)===wbCanonKey(name);});
+        if(dup){alert('„'+name+'" existiert bereits – nutze „Zusammenführen".');return;}
+        await sb.from('funktionen').update({canonical_name:name,geaendert_am:new Date().toISOString()}).eq('canonical_name',oldName);
+      }
+      await dbW('update','funktions_woerterbuch',id,{canonical_name:name,kategorie:kat,synonyme:synp});
+      toast('Gespeichert ✓');
+    }
+    closeAov();await ladeWoerterbuch();await wbRefreshWBOnly();render();
+  }catch(e){alert('Speichern fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function wbwMerge(id,targetId){
+  if(!targetId)return;
+  const src=VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(id);});
+  const tgt=VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(targetId);});
+  if(!src||!tgt)return;
+  if(!confirm('„'+src.canonical+'" in „'+tgt.canonical+'" zusammenführen?\nAlle zugeordneten Features werden umgehängt, „'+src.canonical+'" wird gelöscht.')){const s=$("#wbwMergeSel");if(s)s.value='';return;}
+  try{
+    await sb.from('funktionen').update({canonical_name:tgt.canonical,geaendert_am:new Date().toISOString()}).eq('canonical_name',src.canonical);
+    const fresh=await sb.from('funktions_woerterbuch').select('id,canonical_name,synonyme').in('id',[id,targetId]);
+    const data=fresh.data||[];const s=data.find(function(r){return String(r.id)===String(id);})||{};const t=data.find(function(r){return String(r.id)===String(targetId);})||{};
+    const set=new Set([].concat(t.synonyme||[]).concat(s.synonyme||[]).concat([src.canonical]).map(function(x){return String(x);}).filter(Boolean));
+    await dbW('update','funktions_woerterbuch',targetId,{synonyme:Array.from(set)});
+    await dbW('delete','funktions_woerterbuch',id);
+    toast('„'+src.canonical+'" → „'+tgt.canonical+'" zusammengeführt ✓');
+    closeAov();await ladeWoerterbuch();await wbRefreshWBOnly();render();
+  }catch(e){alert('Zusammenführen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function wbwDelete(id){
+  const row=VIEWS.woerterbuch.rows.find(function(r){return String(r.id)===String(id);});if(!row)return;
+  if(!confirm('Canonical „'+row.canonical+'" löschen?\n'+row.tools+' zugeordnete Feature(s) wandern zurück in die Zuordnungs-Inbox.'))return;
+  try{
+    await sb.from('funktionen').update({canonical_name:null,geaendert_am:new Date().toISOString()}).eq('canonical_name',row.canonical);
+    await dbW('delete','funktions_woerterbuch',id);
+    toast('„'+row.canonical+'" gelöscht – '+row.tools+' Feature(s) zurück in Inbox');
+    closeAov();await ladeWoerterbuch();await wbRefreshWBOnly();render();
+    if(typeof wbLoad==='function'){await wbLoad();updateWbBadge();}
+  }catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function wbwBulkDelete(sel){const rows=sel.map(function(i){return VIEWS.woerterbuch.rows[i];}).filter(Boolean);if(!rows.length)return;
+  const tot=rows.reduce(function(a,r){return a+(r.tools||0);},0);
+  if(!confirm(rows.length+' Canonical(s) löschen?\n'+tot+' zugeordnete Feature(s) wandern zurück in die Zuordnungs-Inbox.'))return;
+  try{
+    for(var i=0;i<rows.length;i++){const r=rows[i];await sb.from('funktionen').update({canonical_name:null,geaendert_am:new Date().toISOString()}).eq('canonical_name',r.canonical);await dbW('delete','funktions_woerterbuch',r.id);}
+    toast(rows.length+' gelöscht – '+tot+' Feature(s) zurück in Inbox');
+    await ladeWoerterbuch();await wbRefreshWBOnly();render();if(typeof wbLoad==='function'){await wbLoad();updateWbBadge();}
+  }catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
 async function ladeYoutubeView(){try{const res=await sb.from('video_warteschlange').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();VIEWS.youtube.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",video:x.video_titel||x.video_id,relevanz:x.relevanz!=null?x.relevanz+" / 10":"—",status:x.status||"offen"};});}catch(e){}}
 async function ladeFreigabenView(){try{const res=await sb.from('freigaben').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();window._freigaben={};(res.data||[]).forEach(function(x){window._freigaben[x.id]=x;});VIEWS.freigaben.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",art:x.art||"—",beschreibung:x.beschreibung||x.grund||"",quelle:x.ref||x.ziel_collection||"—",status:x.status||"offen"};});}catch(e){}}
 function freigabeOeffnen(i){const row=VIEWS.freigaben.rows[i];if(!row)return;const f=(window._freigaben||{})[row.id];if(!f)return;
@@ -859,14 +937,14 @@ function onRow(i){if(CUR==="software")openDlg(i);else if(CUR==="freigaben")freig
 function onNew(){if(CUR==="software"){openNewSoftware();}else if(CUR==="vergleiche"){openVglGen();}else if(CUR==="portalbuild"){runBuild("de");}else openEdit(-1);}
 function onEdit(){const i=selectedIdx();if(i<0)return;onRow(i);}
 async function onDel(){const sel=[...document.querySelectorAll("#tbody tr.sel")].map(tr=>+tr.dataset.i);if(!sel.length)return;
-  if(CUR!=="software"){const _dv=DBVIEW[CUR];if(_dv){if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const rows=sel.map(i=>VIEWS[CUR].rows[i]);delEditDB(_dv,rows);return;}if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const v=VIEWS[CUR];v.rows=v.rows.filter((r,i)=>!sel.includes(i));render();return;}
+  if(CUR!=="software"){if(CUR==='woerterbuch'){wbwBulkDelete(sel);return;}const _dv=DBVIEW[CUR];if(_dv){if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const rows=sel.map(i=>VIEWS[CUR].rows[i]);delEditDB(_dv,rows);return;}if(!confirm(sel.length+" Eintrag/Einträge löschen?"))return;const v=VIEWS[CUR];v.rows=v.rows.filter((r,i)=>!sel.includes(i));render();return;}
   const v=VIEWS.software;const ids=sel.map(i=>v.rows[i]&&v.rows[i].id).filter(Boolean);
   if(!ids.length)return;if(!confirm(ids.length+" Software endgültig löschen? (inkl. zugehöriger Daten per Cascade)"))return;
   try{for(const id of ids){await dbW("delete","software",id);}toast(ids.length+" gelöscht");await ladeSW();render();}catch(e){toast("Löschen fehlgeschlagen: "+e.message);}}
 
 // generischer Edit-Dialog
 let eIdx=-1;
-function openEdit(i){const v=VIEWS[CUR];eIdx=i;const r=i>=0?v.rows[i]:{};
+function openEdit(i){if(CUR==='woerterbuch'){const _r=(i>=0?VIEWS.woerterbuch.rows[i]:null);wbwEdit(_r?_r.id:null);return;}const v=VIEWS[CUR];eIdx=i;const r=i>=0?v.rows[i]:{};
   $("#eTitle").textContent=(i>=0?"Bearbeiten":(v.newL||"Neu anlegen"))+" · "+v.t;$("#eSub").textContent=i>=0?"":"Neuer Eintrag";
   $("#eForm").innerHTML=`<div class="fgrid one">`+v.cols.map(c=>{const val=r[c.k];let inp;if(c.ty==="bool")inp=`<select data-k="${c.k}"><option ${val?"selected":""}>Ja</option><option ${!val?"selected":""}>Nein</option></select>`;else if(c.ty==="status")inp=`<select data-k="${c.k}">${Object.keys(ST).map(s=>`<option ${val===s?"selected":""}>${s}</option>`).join("")}</select>`;else inp=`<input data-k="${c.k}" value="${val==null?"":val}">`;return `<div class="fld"><label>${c.t}</label><div class="v">${inp}</div></div>`;}).join("")+`</div>`;
   $("#eov").classList.add("show");}
