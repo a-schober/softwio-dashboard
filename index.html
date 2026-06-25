@@ -77,6 +77,13 @@
   .pws-subtab:hover{color:var(--ink)}
   .pws-subtab.on{background:#eef2ff;border-color:#c7d2fe;color:#4338ca;font-weight:600}
   .pws-form{margin-top:4px}
+  .resume-card{display:flex;align-items:center;gap:14px;border:1px solid #c7d2fe;background:#eef2ff;border-radius:12px;padding:12px 16px;margin:0 0 14px;cursor:pointer}
+  .resume-card:hover{border-color:#6366f1}
+  .rc-l{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#4338ca;flex:none}
+  .rc-m{flex:1;display:flex;flex-direction:column;min-width:0}
+  .rc-m b{font-size:14.5px}
+  .rc-m span{font-size:12px;color:var(--muted)}
+  .rc-go{font-size:13px;font-weight:600;color:#4338ca;display:inline-flex;align-items:center;gap:4px;flex:none}
   @media(max-width:760px){.pws-body{grid-template-columns:1fr}.pws-rail{flex-direction:row;overflow:auto}}.tb.ok{border-color:var(--ok);color:var(--ok)}.tb.ok i{color:var(--ok)}
   .tb[disabled]{opacity:.45;pointer-events:none}.sep{width:1px;height:22px;background:var(--line);margin:0 6px}
   body.gen .ctx{display:none}
@@ -129,6 +136,16 @@
     #aov>div{max-width:96vw!important;width:96vw!important}
     #eov{padding:8px!important}
     #eov>div{max-width:96vw!important;width:96vw!important}
+    .pws-body{grid-template-columns:1fr}
+    .pws-rail{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+    .pws-step{flex:none}
+    .pws-head{gap:10px}
+    .pws-h-prog{min-width:120px;flex:1}
+    .pws-panel{padding:14px}
+    .view-search{max-width:none}
+    .kat-icgrid{grid-template-columns:repeat(6,1fr)}
+    .resume-card{flex-wrap:wrap}
+    .pws-subtabs{overflow-x:auto;flex-wrap:nowrap}
   }
 
   .crumb{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--line2);font-size:12.5px;color:var(--muted)}.crumb b{color:var(--ink);font-weight:500}.crumb .sp{color:var(--faint)}
@@ -401,23 +418,22 @@
   </div>
   <div class="body">
     <aside class="sidebar" id="side">
-      <div class="grp">Stammdaten</div>
-      <div class="nav active" data-v="software"><i class="ti ti-apps"></i> Software <span class="cnt" id="navCount">16</span></div>
+      <div class="grp">Arbeitsbereich</div>
+      <div class="nav active" data-v="software"><i class="ti ti-stack-2"></i> Produkte <span class="cnt" id="navCount">16</span></div>
+      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg">3</span></div>
+      <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge">6</span></div>
+      <div class="grp">Inhalte &amp; Portal</div>
+      <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
+      <div class="nav" data-v="portalbuild"><i class="ti ti-hammer"></i> Portal bauen</div>
+      <div class="nav" data-v="infoseiten"><i class="ti ti-file-text"></i> Infoseiten</div>
+      <div class="nav" data-v="redirects"><i class="ti ti-arrow-guide"></i> Redirects</div>
+      <div class="grp">Stammdaten &amp; Werkzeuge</div>
       <div class="nav" data-v="kategorien"><i class="ti ti-category"></i> Kategorien</div>
       <div class="nav" data-v="maerkte"><i class="ti ti-world-pin"></i> Märkte &amp; Länder</div>
       <div class="nav" data-v="logos"><i class="ti ti-photo"></i> Logos</div>
-      <div class="grp">Anreicherung</div>
-      <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
-      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg">3</span></div>
-      <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge">6</span></div>
       <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch</div>
-      <div class="grp">Content</div>
-      <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
-      <div class="grp">Portal</div>
-      <div class="nav" data-v="portalbuild"><i class="ti ti-hammer"></i> Portal bauen</div>
+      <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
-      <div class="nav" data-v="infoseiten"><i class="ti ti-file-text"></i> Infoseiten</div>
-      <div class="nav" data-v="redirects"><i class="ti ti-arrow-guide"></i> Redirects</div>
       <div class="grp">System</div>
       <div class="nav" data-v="einstellungen"><i class="ti ti-settings"></i> Einstellungen</div>
     </aside>
@@ -922,7 +938,7 @@ function render(){
   const v=VIEWS[CUR];const cols=v.cols.filter(c=>c.vis);
   const _se=document.getElementById('tbSearch');if(_se&&_se.value!==(v._q||''))_se.value=v._q||'';
   $("#crumb").innerHTML=`<i class="ti ${v.ic}"></i> <b>${v.t}</b> <span class="sp">›</span> Übersicht`+(CUR==="software"?' <span class="sp">·</span> <span style="color:var(--faint)">Spaltenkopf = sortieren &amp; filtern · Zeile = Details</span>':"")+`<span class="clr ${Object.keys(v._filt).length?"on":""}" onclick="clearAll()"><i class="ti ti-filter-off"></i> Alle Filter löschen</span>`;
-  $("#introSlot").innerHTML=v.d?`<div class="intro"><div class="ic"><i class="ti ${v.ic}"></i></div><div><h2>${v.t}</h2><p>${v.d}</p></div></div>`:"";
+  $("#introSlot").innerHTML=(CUR==="software"?pwsResume():"")+(v.d?`<div class="intro"><div class="ic"><i class="ti ${v.ic}"></i></div><div><h2>${v.t}</h2><p>${v.d}</p></div></div>`:"");
   $("#thead").innerHTML='<th class="nosort" style="width:28px"><span class="th-in"><input type="checkbox" onclick="event.stopPropagation();toggleAllRows(this.checked)"></span></th>'+
     cols.map(c=>`<th data-k="${c.k}" draggable="true" ondragstart="colDragStart(event,'${c.k}')" ondragover="colDragOver(event)" ondragleave="colDragLeave(event)" ondrop="colDrop(event,'${c.k}')" class="${v._filt[c.k]?"filtered":""} ${v._sort.k===c.k?"sorted":""}" ${c.w?`style="width:${c.w}px"`:""}><span class="th-in" onclick="openFilter('${c.k}',this)">${c.t} ${v._sort.k===c.k?`<span class="so">${v._sort.d>0?"▲":"▼"}</span>`:""}<i class="ti ti-circle-x clrf" onclick="clearFilter(event,'${c.k}')"></i><i class="ti ${v._filt[c.k]?"ti-filter":"ti-chevron-down"} fi"></i></span></th>`).join("");
   let rows=v.rows.filter(r=>(!v._q||rowMatchesQ(v,r,v._q))&&cols.every(c=>!v._filt[c.k]||v._filt[c.k].has(disp(v,r,c))));
@@ -1454,6 +1470,7 @@ function pwsStages(P){
     return {n:m.n,t:m.t,info:m.info,done:!!done[m.n],state:state,cur:cur,offeneFunk:offeneFunk,offeneFrei:offeneFrei};
   });
 }
+function pwsResume(){try{const id=localStorage.getItem('pws_last');if(!id)return '';const r=VIEWS.software.rows.find(function(x){return String(x.id)===String(id);});if(!r)return '';return '<div class="resume-card" onclick="pwsOpen(\''+id+'\')"><span class="rc-l"><i class="ti ti-player-play-filled"></i> Weiterarbeiten</span><span class="rc-m"><b>'+esc(r.name)+'</b><span>'+esc(r.kat||'')+' · zuletzt geöffnet</span></span><span class="rc-go">Workflow öffnen <i class="ti ti-arrow-right"></i></span></div>';}catch(e){return '';}}
 function pwsRow(ok,label,info,btn){return '<div class="pws-crit"><span class="pws-c-ic '+(ok?'ok':'no')+'">'+(ok?'✔':'●')+'</span><span class="pws-c-l">'+label+(info?infoH(info):'')+'</span>'+(btn||'')+'</div>';}
 function pwsBtn(label,onclick,icon,primary){return '<button class="pws-act'+(primary?' primary':'')+'" onclick="'+onclick+'"><i class="ti '+(icon||'ti-arrow-right')+'"></i> '+label+'</button>';}
 function pwsEditor(tab){if(!PWS)return;const i=VIEWS.software.rows.findIndex(function(r){return String(r.id)===String(PWS.id);});if(i<0){toast('Produkt nicht in der Liste – bitte „Alle Produkte" aktualisieren');return;}openDlg(i);if(tab)setTab(tab);}
