@@ -941,7 +941,7 @@ async function neueSoftwareSave(){
   const name=g("nsName"),her=g("nsHersteller"),url=g("nsUrl"),kat=g("nsKat");
   let kw=g("nsKw")||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
   if(!name||!her||!url||!kat){toast("Bitte Name, Hersteller, URL und Kategorie ausfüllen.");return;}
-  if(KATS&&KATS.length&&KATS.indexOf(kat)<0){toast("Bitte eine vorhandene Kategorie wählen – im Menü „Kategorien" anlegen.");return;}
+  if(KATS&&KATS.length&&KATS.indexOf(kat)<0){toast('Bitte eine vorhandene Kategorie wählen – im Menü Kategorien anlegen.');return;}
   try{ await dbW("create","software",null,{name,hersteller:her,hersteller_url:url,kategorie:kat,ziel_schluesselwort:kw}); toast("„"+name+"\" angelegt"); closeAov(); await ladeSW(); render(); }
   catch(e){ alert("Anlegen fehlgeschlagen: "+(e&&e.message?e.message:e)); }
 }
