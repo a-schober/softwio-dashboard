@@ -158,6 +158,10 @@
   .wb-ai-btn{margin-top:8px;display:inline-flex;align-items:center;gap:5px;border:0;background:#4f46e5;color:#fff;font-weight:600;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer}
   .wb-ai-btn:hover{background:#4338ca}
   .wb-ai-dup{font-size:11.5px;color:#7c3aed;background:#f5f3ff;border:1px dashed #c4b5fd;border-radius:6px;padding:5px 8px;margin-top:7px;display:flex;gap:5px;align-items:center;line-height:1.4}
+  .wb-chk{width:16px;height:16px;cursor:pointer;accent-color:#4f46e5;flex:none}
+  .wb-card.sel{border-color:#4f46e5;box-shadow:0 0 0 2px #c7d2fe inset}
+  .wb-bulkbar{position:sticky;bottom:10px;z-index:6;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid #c7d2fe;box-shadow:0 -2px 16px rgba(79,70,229,.20);border-radius:10px;padding:10px 14px;margin-top:12px}
+  .wb-bulk-n{font-size:13px;color:var(--ink)}.wb-bulk-n b{font-size:15px;color:#4338ca}
   .wb-kibar{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:-4px 0 14px}
   .yt-card.done{opacity:.6;cursor:default}
   .yt-card.done .yt-thumb{filter:grayscale(.4)}
@@ -1201,19 +1205,20 @@ function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
     if(f)f.innerHTML='<span class="tb" id="catFin" disabled onclick="toast(\'Kategorie gesetzt & Crawl abgeschlossen (Demo)\');closeAov()"><i class="ti ti-check"></i> Crawl abschließen</span>';
   }}
 function catPick(v){const b=$("#catFin");if(b){if(v)b.removeAttribute("disabled");else b.setAttribute("disabled","");}}
-let WBINBOX=[];let WB_WB=[];
+let WBINBOX=[];let WB_WB=[];let WBSEL=new Set();
 function wbNorm(s){return (s||"").toLowerCase().replace(/[^a-zäöüß0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2);}
 function wbScore(name,c){const a=new Set(wbNorm(name));const bb=new Set();wbNorm(c.canonical_name).forEach(w=>bb.add(w));(c.synonyme||[]).forEach(sy=>wbNorm(sy).forEach(w=>bb.add(w)));if(!a.size||!bb.size)return 0;let inter=0;a.forEach(w=>{if(bb.has(w))inter++;});return Math.round(inter/(a.size+bb.size-inter)*100);}
 async function wbLoad(){try{const r=await Promise.all([sb.from('funktionen').select('funktions_id,funktions_name,kategorie,software_id,herkunft,erstellt_am,software(name)').or('canonical_name.is.null,canonical_name.eq.').order('software_id'),sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name')]);const f=r[0].data||[];WB_WB=r[1].data||[];WBINBOX=f.map(function(x){const kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.funktions_name,c)};}).filter(k=>k.s>=12).sort((a,b)=>b.s-a.s).slice(0,3);const tage=x.erstellt_am?Math.floor((Date.now()-new Date(x.erstellt_am).getTime())/86400000):0;return {id:x.funktions_id,roh:x.funktions_name,sw:(x.software&&x.software.name)||"—",q:x.herkunft||"Crawl",art:"Funktion",kat:x.kategorie||"",tage:tage,kand:kand};});}catch(e){WBINBOX=[];}}
 function wbAmpel(t){return t<7?"g":t<14?"a":"r";}
-async function wbView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Feature-Inbox …</div>';await wbLoad();updateWbBadge();wbRender();}
+async function wbView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Feature-Inbox …</div>';await wbLoad();WBSEL=new Set();updateWbBadge();wbRender();}
 function wbRender(){const cv=$("#customview");if(!cv)return;
   if(!WBINBOX.length){cv.innerHTML='<div class="empty-tab" style="padding:64px 0"><i class="ti ti-circle-check" style="color:var(--ok);font-size:34px"></i><b>Inbox leer</b><div style="color:var(--muted);font-size:12.5px">Alle Feature-Begriffe sind zugeordnet.</div></div>';return;}
   const groups={};WBINBOX.forEach(x=>{(groups[x.sw]=groups[x.sw]||[]).push(x);});
   let html='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-inbox"></i></div><div><h2>Zuordnungs-Inbox</h2><p>Offene Feature-Begriffe aus Crawls &amp; Videos – sicher geparkt, <b>kein Begriff wird still angelegt</b>. Ein Tool wird erst <b>100 % &amp; vergleichbar</b>, wenn seine Begriffe zugeordnet sind. Passenden Vorschlag anklicken, zusammenführen, neu anlegen oder verwerfen.</p></div></div>';
-  html+='<div class="wb-kibar"><span style="font-size:11.5px;color:var(--muted)">KI prüft jeden Begriff gegen das Wörterbuch und empfiehlt Zuordnung oder Neuanlage.</span><button class="tb" title="Stattdessen über Claude Max (kein API) erledigen – Befehl für Claude Code kopieren" onclick="wbCopyCmd()"><i class="ti ti-info-circle"></i> Über Claude Max</button><button id="wbKiBtn" class="tb primary" onclick="wbKiLoad()"><i class="ti ti-sparkles"></i> KI-Empfehlungen laden</button></div>';
+  html+='<div class="wb-kibar"><span style="font-size:11.5px;color:var(--muted)">KI prüft jeden Begriff gegen das Wörterbuch und empfiehlt Zuordnung oder Neuanlage.</span><button class="tb" onclick="wbSelAll()"><i class="ti ti-checkbox"></i> Alle auswählen</button><button class="tb" title="Stattdessen über Claude Max (kein API) erledigen – Befehl für Claude Code kopieren" onclick="wbCopyCmd()"><i class="ti ti-info-circle"></i> Über Claude Max</button><button id="wbKiBtn" class="tb primary" onclick="wbKiLoad()"><i class="ti ti-sparkles"></i> KI-Empfehlungen laden</button></div>';
   Object.keys(groups).forEach(function(sw){const g=groups[sw];html+='<div class="wbg"><div class="wbg-h"><i class="ti ti-lock"></i> '+g.length+' offen — hält <b>'+esc(sw)+'</b> von 100 % ab</div>'+g.map(wbCard).join("")+'</div>';});
-  cv.innerHTML=html;
+  html+='<div id="wbBulkBar" class="wb-bulkbar" style="display:none"></div>';
+  cv.innerHTML=html;wbUpdateBar();
 }
 function wbCard(x){const ac=wbAmpel(x.tage);
   const chips=x.kand.map(function(k){return '<span class="wb-cand '+(k.s>=70?"":"weak")+'" onclick="wbAct(\''+x.id+'\',\'merge\',\''+String(k.id)+'\')"><b>'+esc(k.c)+'</b><span class="wb-sc '+(k.s>=70?"hi":"lo")+'">'+k.s+'%</span> <i class="ti ti-plus"></i></span>';}).join("");
@@ -1226,8 +1231,8 @@ function wbCard(x){const ac=wbAmpel(x.tage);
       (dupN>0?'<div class="wb-ai-dup"><i class="ti ti-arrow-merge"></i> Auch für '+dupN+' weitere'+(dupN>1?' Begriffe':'n Begriff')+' empfohlen – einmal anlegen, der Rest wird danach automatisch als Zusammenführen erkannt.</div>':'')+
       '<button class="wb-ai-btn" onclick="wbAiApply(\''+x.id+'\')"><i class="ti ti-check"></i> '+(ex?'Übernehmen':'Anlegen')+'</button></div>';}
   const opts=WB_WB.map(function(r){return '<option value="'+r.id+'">'+esc(r.canonical_name)+'</option>';}).join("");
-  return '<div class="wb-card">'+
-    '<div class="wb-top"><span class="age-b '+ac+'"><i class="ti ti-circle-filled" style="font-size:7px"></i> '+x.tage+' T</span><span class="wb-roh">'+esc(x.roh)+'</span><span class="pill">'+esc(x.art)+'</span><span class="wb-src"><i class="ti '+(x.q==="Video"?"ti-brand-youtube":"ti-spider")+'"></i> '+esc(x.q)+'</span></div>'+
+  return '<div class="wb-card'+(WBSEL.has(x.id)?' sel':'')+'">'+
+    '<div class="wb-top"><input type="checkbox" class="wb-chk"'+(WBSEL.has(x.id)?' checked':'')+' onclick="wbToggleSel(\''+x.id+'\',event)"><span class="age-b '+ac+'"><i class="ti ti-circle-filled" style="font-size:7px"></i> '+x.tage+' T</span><span class="wb-roh">'+esc(x.roh)+'</span><span class="pill">'+esc(x.art)+'</span><span class="wb-src"><i class="ti '+(x.q==="Video"?"ti-brand-youtube":"ti-spider")+'"></i> '+esc(x.q)+'</span></div>'+
     aiBox+
     '<div class="wb-cands"><span class="wb-lab">Vorschläge</span>'+(chips||'<span class="wb-none" style="color:var(--faint);font-size:12px">keine ähnlichen – neu anlegen</span>')+'</div>'+
     '<div class="wb-acts"><select class="wb-msel" onchange="if(this.value){wbAct(\''+x.id+'\',\'merge\',this.value)}"><option value="">↪ Zusammenführen mit …</option>'+opts+'</select>'+
@@ -1280,22 +1285,43 @@ async function wbKiLoad(){if(!WBINBOX.length){toast('Inbox leer');return;}
     wbRender();toast('KI-Empfehlungen geladen ('+n+') ✓');
   }catch(e){alert('KI-Empfehlung fehlgeschlagen: '+(e&&e.message?e.message:e));const b=$("#wbKiBtn");if(b){b.disabled=false;b.innerHTML='<i class="ti ti-sparkles"></i> KI-Empfehlungen laden';}}
 }
-async function wbAiApply(id){const x=WBINBOX.find(z=>z.id===id);if(!x||!x.ai||!x.ai.canonical){toast('Keine Empfehlung');return;}
+async function wbApplyOne(x){if(!x||!x.ai||!x.ai.canonical)return null;
   const canon=String(x.ai.canonical).trim();const ex=WB_WB.find(function(w){return wbCanonKey(w.canonical_name)===wbCanonKey(canon);});
-  try{
-    if(ex){
-      await dbW('update','funktionen',id,{canonical_name:ex.canonical_name,geaendert_am:new Date().toISOString()},'funktions_id');
-      const syn=ex.synonyme||[];if(!syn.some(s=>String(s).toLowerCase()===x.roh.toLowerCase())){await dbW('update','funktions_woerterbuch',ex.id,{synonyme:syn.concat([x.roh]),geaendert_am:new Date().toISOString()});}
-      toast('„'+x.roh+'" → '+ex.canonical_name+' ✓');
-    }else{
-      await dbW('create','funktions_woerterbuch',null,{canonical_name:canon,kategorie:x.kat||'Sonstige',synonyme:[x.roh]});
-      await dbW('update','funktionen',id,{canonical_name:canon,geaendert_am:new Date().toISOString()},'funktions_id');
-      toast('Neuer Canonical „'+canon+'" angelegt ✓');
-    }
-    if(!ex){await wbRefreshWBOnly();wbRecompKand();}
-    WBINBOX=WBINBOX.filter(function(z){return z.id!==id;});
+  if(ex){
+    await dbW('update','funktionen',x.id,{canonical_name:ex.canonical_name,geaendert_am:new Date().toISOString()},'funktions_id');
+    const syn=ex.synonyme||[];if(!syn.some(function(s){return String(s).toLowerCase()===x.roh.toLowerCase();})){await dbW('update','funktions_woerterbuch',ex.id,{synonyme:syn.concat([x.roh]),geaendert_am:new Date().toISOString()});}
+    return {merged:true,name:ex.canonical_name};
+  }
+  await dbW('create','funktions_woerterbuch',null,{canonical_name:canon,kategorie:x.kat||'Sonstige',synonyme:[x.roh]});
+  await dbW('update','funktionen',x.id,{canonical_name:canon,geaendert_am:new Date().toISOString()},'funktions_id');
+  await wbRefreshWBOnly();
+  return {merged:false,name:canon};
+}
+async function wbAiApply(id){const x=WBINBOX.find(function(z){return z.id===id;});if(!x){return;}if(!x.ai||!x.ai.canonical){toast('Keine Empfehlung');return;}
+  try{const r=await wbApplyOne(x);if(!r){toast('Keine Empfehlung');return;}
+    toast(r.merged?('„'+x.roh+'" → '+r.name+' ✓'):('Neuer Canonical „'+r.name+'" angelegt ✓'));
+    wbRecompKand();WBINBOX=WBINBOX.filter(function(z){return z.id!==id;});WBSEL.delete(id);
     wbRender();updateWbBadge();
   }catch(e){alert('Übernehmen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+function wbToggleSel(id,ev){const chk=ev&&ev.target;const on=chk?chk.checked:!WBSEL.has(id);if(on)WBSEL.add(id);else WBSEL.delete(id);if(chk){const card=chk.closest('.wb-card');if(card)card.classList.toggle('sel',on);}wbUpdateBar();}
+function wbSelAll(){const allSel=WBINBOX.length&&WBINBOX.every(function(x){return WBSEL.has(x.id);});WBSEL=new Set(allSel?[]:WBINBOX.map(function(x){return x.id;}));wbRender();}
+function wbSelClear(){WBSEL=new Set();wbRender();}
+function wbUpdateBar(){const bar=$("#wbBulkBar");if(!bar)return;const n=WBSEL.size;if(!n){bar.style.display='none';bar.innerHTML='';return;}
+  const withAi=WBINBOX.filter(function(x){return WBSEL.has(x.id)&&x.ai&&x.ai.canonical;}).length;
+  bar.style.display='';
+  bar.innerHTML='<span class="wb-bulk-n"><b>'+n+'</b> ausgewählt</span><button class="wb-ai-btn" '+(withAi?'':'disabled')+' onclick="wbBulkApply()"><i class="ti ti-check"></i> KI-Empfehlung übernehmen ('+withAi+')</button><button class="tb" onclick="wbBulkVerwerfen()"><i class="ti ti-trash"></i> Verwerfen</button><button class="tb" onclick="wbSelClear()">Auswahl aufheben</button>';
+}
+async function wbBulkApply(){const sel=WBINBOX.filter(function(x){return WBSEL.has(x.id)&&x.ai&&x.ai.canonical;});if(!sel.length){toast('Keine Auswahl mit KI-Empfehlung');return;}
+  if(!confirm('KI-Empfehlung für '+sel.length+' Begriffe übernehmen?\n(sequenziell – gleiche Begriffe werden automatisch zusammengeführt)'))return;
+  const bar=$("#wbBulkBar");let done=0,fail=0;
+  for(var i=0;i<sel.length;i++){const x=sel[i];try{const r=await wbApplyOne(x);if(r){WBINBOX=WBINBOX.filter(function(z){return z.id!==x.id;});WBSEL.delete(x.id);done++;}else{fail++;}}catch(e){fail++;}if(bar)bar.innerHTML='<span class="wb-bulk-n">Übernehme … '+(done+fail)+'/'+sel.length+'</span>';}
+  wbRecompKand();wbRender();updateWbBadge();toast(done+' übernommen'+(fail?(', '+fail+' fehlgeschlagen'):'')+' ✓');
+}
+async function wbBulkVerwerfen(){const sel=WBINBOX.filter(function(x){return WBSEL.has(x.id);});if(!sel.length)return;
+  if(!confirm(sel.length+' Begriffe verwerfen (löschen)?\nNur für echte Nicht-Features (Marketing-Floskeln o. Ä.).'))return;
+  let done=0;for(var i=0;i<sel.length;i++){const x=sel[i];try{await dbW('delete','funktionen',x.id,null,'funktions_id');WBINBOX=WBINBOX.filter(function(z){return z.id!==x.id;});WBSEL.delete(x.id);done++;}catch(e){}}
+  wbRecompKand();wbRender();updateWbBadge();toast(done+' verworfen');
 }
 function updateWbBadge(){const b=$("#wbBadge");if(b){if(WBINBOX.length){b.textContent=WBINBOX.length;b.style.display="";}else{b.style.display="none";}}}
 
