@@ -581,7 +581,8 @@ async function delEditDB(dv,rows){try{for(const r of rows){if(r&&r._id!=null)awa
 const LOADERS={kategorien:ladeKategorien,woerterbuch:ladeWoerterbuch,youtube:ladeYoutubeView,freigaben:ladeFreigabenView,crawl:ladeCrawlView,bewertungen:ladeBewertungenView,vergleiche:ladeVergleicheView,maerkte:ladeMaerkteView,infoseiten:ladeInfoseitenView,redirects:ladeRedirectsView,einstellungen:ladeEinstellungenView,portalbuild:ladePortalbuildView};
 function toggleSidebar(open){const sb=document.getElementById("side");const bd=document.getElementById("sideBackdrop");if(!sb)return;const willOpen=(open===undefined)?!sb.classList.contains("open"):open;sb.classList.toggle("open",willOpen);if(bd)bd.classList.toggle("show",willOpen);}
 function automationenView(){const cv=$("#customview");if(!cv)return;
-  const wf=[{ic:'ti-discount-2',t:'Abgleich mit AppSumo Software-Produkte',d:'Prüft ALLE im Dashboard angelegten Software-Produkte (auch ohne gesetztes „AppSumo-Produkt"-Flag) per Websuche gegen AppSumo: aktive Lifetime-Deals, Preise und Tier-Tabellen werden abgeglichen und auf den Detailseiten eingefügt, aktualisiert oder entfernt. Läuft über deinen Claude-Max-Plan – keine API-Kosten. Nach einem manuellen Lauf pausiert der automatische API-Check für das 6-Stunden-Fenster (keine Doppelprüfung).',cmd:'Gleiche ALLE Software-Produkte im Dashboard mit AppSumo ab (bestehende Logik, inkl. Produkte ohne gesetztes Flag): aktive Lifetime-Deals prüfen, Preise und Tier-Tabellen aktualisieren, abgelaufene Deals entfernen. Setze bei JEDEM auf AppSumo gefundenen Produkt (aktiv oder ausgelaufen) das Flag „AppSumo-Produkt" automatisch auf Ja. Danach Portal neu bauen.'}];
+  const wf=[{ic:'ti-discount-2',t:'Abgleich mit AppSumo Software-Produkte',d:'Prüft ALLE im Dashboard angelegten Software-Produkte (auch ohne gesetztes „AppSumo-Produkt"-Flag) per Websuche gegen AppSumo: aktive Lifetime-Deals, Preise und Tier-Tabellen werden abgeglichen und auf den Detailseiten eingefügt, aktualisiert oder entfernt. Läuft über deinen Claude-Max-Plan – keine API-Kosten. Nach einem manuellen Lauf pausiert der automatische API-Check für das 6-Stunden-Fenster (keine Doppelprüfung).',cmd:'Gleiche ALLE Software-Produkte im Dashboard mit AppSumo ab (bestehende Logik, inkl. Produkte ohne gesetztes Flag): aktive Lifetime-Deals prüfen, Preise und Tier-Tabellen aktualisieren, abgelaufene Deals entfernen. Setze bei JEDEM auf AppSumo gefundenen Produkt (aktiv oder ausgelaufen) das Flag „AppSumo-Produkt" automatisch auf Ja. Danach Portal neu bauen.'},
+    {ic:'ti-book',t:'Feature-Zuordnung (Wörterbuch-Inbox)',d:'Ordnet die offenen Feature-Begriffe aus Crawls & Videos dem Canonical-Wörterbuch zu – passende zusammenführen oder saubere neue Canonicals anlegen. Läuft über Claude Max (keine API-Kosten); Grenzfälle werden dir vorgelegt.',cmd:'Ordne die offenen Feature-Begriffe in der Zuordnungs-Inbox (Cockpit) dem Canonical-Wörterbuch zu – bestehende canonical-mapping-Logik: je Begriff passenden Canonical zusammenführen (Rohname als Synonym ergänzen) oder einen sauberen, tool-neutralen neuen Canonical anlegen; je Entscheidung Konfidenz + kurze Begründung; Grenzfälle mir vorlegen.'}];
   cv.innerHTML='<div style="max-width:920px;margin:0 auto;padding:8px 4px 48px">'+
     '<div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px;color:var(--muted);margin-bottom:18px;line-height:1.55"><i class="ti ti-robot"></i> Diese Workflows führst du <b style="color:var(--ink)">manuell über den Claude-Max-Plan</b> aus (kostenfrei, keine API-Nutzung): <b>Befehl kopieren</b> und in deine Claude-Code-Sitzung einfügen – Claude erledigt den Rest.</div>'+
     wf.map(function(w,i){return '<div style="border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;background:var(--panel)">'+
@@ -1209,7 +1210,7 @@ function wbRender(){const cv=$("#customview");if(!cv)return;
   if(!WBINBOX.length){cv.innerHTML='<div class="empty-tab" style="padding:64px 0"><i class="ti ti-circle-check" style="color:var(--ok);font-size:34px"></i><b>Inbox leer</b><div style="color:var(--muted);font-size:12.5px">Alle Feature-Begriffe sind zugeordnet.</div></div>';return;}
   const groups={};WBINBOX.forEach(x=>{(groups[x.sw]=groups[x.sw]||[]).push(x);});
   let html='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-inbox"></i></div><div><h2>Zuordnungs-Inbox</h2><p>Offene Feature-Begriffe aus Crawls &amp; Videos – sicher geparkt, <b>kein Begriff wird still angelegt</b>. Ein Tool wird erst <b>100 % &amp; vergleichbar</b>, wenn seine Begriffe zugeordnet sind. Passenden Vorschlag anklicken, zusammenführen, neu anlegen oder verwerfen.</p></div></div>';
-  html+='<div class="wb-kibar"><span style="font-size:11.5px;color:var(--muted)">KI prüft jeden Begriff gegen das Wörterbuch und empfiehlt Zuordnung oder Neuanlage.</span><button id="wbKiBtn" class="tb primary" onclick="wbKiLoad()"><i class="ti ti-sparkles"></i> KI-Empfehlungen laden</button></div>';
+  html+='<div class="wb-kibar"><span style="font-size:11.5px;color:var(--muted)">KI prüft jeden Begriff gegen das Wörterbuch und empfiehlt Zuordnung oder Neuanlage.</span><button class="tb" title="Stattdessen über Claude Max (kein API) erledigen – Befehl für Claude Code kopieren" onclick="wbCopyCmd()"><i class="ti ti-info-circle"></i> Über Claude Max</button><button id="wbKiBtn" class="tb primary" onclick="wbKiLoad()"><i class="ti ti-sparkles"></i> KI-Empfehlungen laden</button></div>';
   Object.keys(groups).forEach(function(sw){const g=groups[sw];html+='<div class="wbg"><div class="wbg-h"><i class="ti ti-lock"></i> '+g.length+' offen — hält <b>'+esc(sw)+'</b> von 100 % ab</div>'+g.map(wbCard).join("")+'</div>';});
   cv.innerHTML=html;
 }
@@ -1245,9 +1246,13 @@ async function wbAct(id,mode,val){const x=WBINBOX.find(z=>z.id===id);if(!x)retur
       await dbW('delete','funktionen',id,null,'funktions_id');
       toast('„'+x.roh+'" verworfen');
     }
-    await wbView();
+    if(mode==="neu")await wbRefreshWBOnly();
+    WBINBOX=WBINBOX.filter(function(z){return z.id!==id;});
+    wbRender();updateWbBadge();
   }catch(e){alert('Aktion fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
+async function wbRefreshWBOnly(){try{const r=await sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name');WB_WB=r.data||[];}catch(e){}}
+function wbCopyCmd(){const t='Ordne die offenen Feature-Begriffe in der Zuordnungs-Inbox (Cockpit) dem Canonical-Wörterbuch zu – bestehende canonical-mapping-Logik: je Begriff passenden Canonical zusammenführen (Rohname als Synonym ergänzen) oder einen sauberen, tool-neutralen neuen Canonical anlegen; je Entscheidung Konfidenz + kurze Begründung; Grenzfälle mir vorlegen.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('Befehl für Claude Code kopiert ✓');},function(){toast('Kopieren nicht möglich');});}else{toast('Kopieren nicht möglich');}}
 async function wbKiLoad(){if(!WBINBOX.length){toast('Inbox leer');return;}
   const btn=$("#wbKiBtn");if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> KI denkt …';}
   try{
@@ -1275,7 +1280,9 @@ async function wbAiApply(id){const x=WBINBOX.find(z=>z.id===id);if(!x||!x.ai||!x
       await dbW('update','funktionen',id,{canonical_name:canon,geaendert_am:new Date().toISOString()},'funktions_id');
       toast('Neuer Canonical „'+canon+'" angelegt ✓');
     }
-    await wbView();
+    if(!ex)await wbRefreshWBOnly();
+    WBINBOX=WBINBOX.filter(function(z){return z.id!==id;});
+    wbRender();updateWbBadge();
   }catch(e){alert('Übernehmen fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 function updateWbBadge(){const b=$("#wbBadge");if(b){if(WBINBOX.length){b.textContent=WBINBOX.length;b.style.display="";}else{b.style.display="none";}}}
