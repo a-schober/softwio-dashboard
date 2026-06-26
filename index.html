@@ -41,7 +41,7 @@
   .pws-bar{height:8px;border-radius:6px;background:var(--panel2);overflow:hidden}
   .pws-bar span{display:block;height:100%;background:linear-gradient(90deg,#6366f1,#22c55e)}
   .pws-body{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start}
-  .pws-rail{display:flex;flex-direction:column;gap:4px}
+  .pws-rail{display:flex;flex-direction:column;gap:4px;position:sticky;top:12px;align-self:start;max-height:calc(100vh - 90px);overflow:auto}
   .pws-step{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid transparent;border-radius:9px;padding:9px 11px;background:transparent;color:var(--ink);cursor:pointer;font:inherit;font-size:13px}
   .pws-step:hover{background:var(--panel2)}
   .pws-step.sel{background:var(--panel2);border-color:var(--line)}
@@ -142,7 +142,7 @@
     #eov{padding:8px!important}
     #eov>div{max-width:96vw!important;width:96vw!important}
     .pws-body{grid-template-columns:1fr}
-    .pws-rail{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+    .pws-rail{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px;position:static;max-height:none}
     .pws-step{flex:none}
     .pws-head{gap:10px}
     .pws-h-prog{min-width:120px;flex:1}
@@ -1445,6 +1445,9 @@ async function pwsOpen(id){
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
     dlgRow._d={full:PWS.full,funk:PWS.funk,preise:PWS.preise,integ:PWS.integ,faelle:PWS.faelle,lade:false};
+    PWS.bilderN=0;PWS.videoN=0;
+    try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
+    try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,freigaben:[],artikel:null};}
   if(CUR!=='produkt')return;
   pwsRender();
@@ -1454,32 +1457,34 @@ function pwsStages(P){
   const funkA=dd.funk||P.funk||[];const preiseA=dd.preise||P.preise||[];
   const offeneFunk=funkA.filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
   const offeneFrei=(P.freigaben||[]).filter(function(x){return x.status!=='entschieden';}).length;
-  const done={};
-  done[1]=!!(f.name&&f.hersteller&&f.hersteller_url&&f.kategorie);
-  done[2]=funkA.length>0||preiseA.length>0;
-  done[3]=offeneFunk===0&&funkA.length>0&&preiseA.length>0;
-  done[4]=(P.quellen||[]).length>0&&P.synthese&&!!f.logo_pfad;
-  done[5]=offeneFrei===0;
-  done[6]=done[1]&&done[2]&&done[3]&&done[4]&&done[5];
-  done[7]=!!(P.artikel&&P.artikel.id);
-  let cur=8;for(var i=1;i<=7;i++){if(!done[i]){cur=i;break;}}
-  const meta=[
-    {n:1,t:'Anlegen',kind:'todo',todo:'Dein ToDo: Stammdaten ausfüllen und speichern.',info:'Was tun: Name, Hersteller, URL, Kategorie & Markt erfassen. Ziel: Produkt ist angelegt und einsortiert.'},
-    {n:2,t:'Daten sammeln',kind:'info',todo:'Nur Status – der Crawl läuft automatisch in der Pipeline. Sobald Roh-Daten vorliegen, gilt die Stufe als erledigt.',info:'Was tun: nichts manuell – Website wird automatisch ausgelesen. Ziel: Roh-Funktionen, Tarife & Fakten als Basis.'},
-    {n:3,t:'Ordnen & ergänzen',kind:'todo',todo:'Dein ToDo: offene Funktionen zuordnen und Tarife (optional Limits) ergänzen.',info:'Was tun: Roh-Funktionen dem Wörterbuch zuordnen, Tarife/Limits ergänzen. Ziel: tool-übergreifend vergleichbar.'},
-    {n:4,t:'Belegen',kind:'todo',todo:'Dein ToDo: Bewertungen einpflegen, Bilder & Videos ergänzen, Logo setzen.',info:'Was tun: Bewertungen, Bilder/Videos, Logo & ggf. AppSumo ergänzen. Ziel: Jede Aussage ist belegt.'},
-    {n:5,t:'Prüfen & freigeben',kind:'todo',todo:'Dein ToDo: offene Freigaben/Grenzfälle entscheiden.',info:'Was tun: Validieren und Grenzfälle entscheiden. Ziel: keine offenen Unklarheiten.'},
-    {n:6,t:'Schlusscheck',kind:'info',todo:'Nur Status – zeigt, ob alle Pflichtstufen erledigt sind.',info:'Was tun: Vollständigkeit prüfen. Ziel: 100 Prozent – bereit zur Veröffentlichung.'},
-    {n:7,t:'Veröffentlichen',kind:'todo',todo:'Dein ToDo: Content erzeugen und Portal bauen.',info:'Was tun: Content erzeugen und Portal bauen. Ziel: Die perfekte Seite ist live.'},
-    {n:8,t:'Pflege',kind:'info',todo:'Nur Info – Aktualität wird laufend automatisch gesichert.',info:'Was tun: nichts – Auto-Checks halten die Daten frisch. Ziel: dauerhaft korrekte Daten.'}
+  const defs=[
+    {key:'anlegen',t:'Anlegen',kind:'todo',todo:'Dein ToDo: Stammdaten ausfüllen und speichern.',info:'Was tun: Name, Hersteller, URL, Kategorie & Markt erfassen. Ziel: Produkt ist angelegt und einsortiert.',tabs:['stammdaten']},
+    {key:'medien',t:'Bilder & Videos',kind:'todo',todo:'Dein ToDo: Screenshots/Produktbilder hochladen und passende Videos hinterlegen (optional, aber empfohlen).',info:'Was tun: Bilder & Videos für die Detailseite pflegen. Ziel: anschauliche, vertrauenswürdige Seite.',tabs:['bilder','videos']},
+    {key:'sammeln',t:'Daten sammeln',kind:'info',todo:'Nur Status – der Crawl läuft automatisch in der Pipeline. Sobald Roh-Daten vorliegen, gilt die Stufe als erledigt.',info:'Was tun: nichts manuell – Website wird automatisch ausgelesen. Ziel: Roh-Funktionen, Tarife & Fakten als Basis.',tabs:[]},
+    {key:'ordnen',t:'Ordnen & ergänzen',kind:'todo',todo:'Dein ToDo: offene Funktionen zuordnen und Tarife (optional Limits) ergänzen.',info:'Was tun: Roh-Funktionen dem Wörterbuch zuordnen, Tarife/Limits ergänzen. Ziel: tool-übergreifend vergleichbar.',tabs:['funktionen','preise','integrationen','faelle']},
+    {key:'belegen',t:'Belegen (Bewertungen)',kind:'todo',todo:'Dein ToDo: Bewertungen einpflegen und Logo setzen.',info:'Was tun: Bewertungen, Quellen & Logo ergänzen. Ziel: Jede Aussage ist belegt.',tabs:['bewertungen']},
+    {key:'pruefen',t:'Prüfen & freigeben',kind:'todo',todo:'Dein ToDo: offene Freigaben/Grenzfälle entscheiden.',info:'Was tun: Validieren und Grenzfälle entscheiden. Ziel: keine offenen Unklarheiten.',tabs:[]},
+    {key:'schluss',t:'Schlusscheck',kind:'info',todo:'Nur Status – zeigt, ob alle Pflichtstufen erledigt sind.',info:'Was tun: Vollständigkeit prüfen. Ziel: 100 Prozent – bereit zur Veröffentlichung.',tabs:[]},
+    {key:'veroeffentlichen',t:'Veröffentlichen',kind:'todo',todo:'Dein ToDo: Content erzeugen und Portal bauen.',info:'Was tun: Content erzeugen und Portal bauen. Ziel: Die perfekte Seite ist live.',tabs:['content']},
+    {key:'pflege',t:'Pflege',kind:'info',todo:'Nur Info – Aktualität wird laufend automatisch gesichert.',info:'Was tun: nichts – Auto-Checks halten die Daten frisch. Ziel: dauerhaft korrekte Daten.',tabs:[]}
   ];
-  return meta.map(function(m){
-    var state;
-    if(m.n===8)state=done[7]?'pflege':'gesperrt';
-    else if(done[m.n])state='done';
-    else if(m.n===cur)state='current';
+  const done={};
+  done.anlegen=!!(f.name&&f.hersteller&&f.hersteller_url&&f.kategorie);
+  done.medien=((P.bilderN||0)>0)||((P.videoN||0)>0);
+  done.sammeln=funkA.length>0||preiseA.length>0;
+  done.ordnen=offeneFunk===0&&funkA.length>0&&preiseA.length>0;
+  done.belegen=(P.quellen||[]).length>0&&P.synthese&&!!f.logo_pfad;
+  done.pruefen=offeneFrei===0;
+  done.schluss=done.anlegen&&done.sammeln&&done.ordnen&&done.belegen&&done.pruefen;
+  done.veroeffentlichen=!!(P.artikel&&P.artikel.id);
+  const total=defs.length;
+  let cur=total;for(var i=0;i<total-1;i++){if(!done[defs[i].key]){cur=i+1;break;}}
+  return defs.map(function(m,idx){var n=idx+1;var state;
+    if(m.key==='pflege')state=done.veroeffentlichen?'pflege':'gesperrt';
+    else if(done[m.key])state='done';
+    else if(n===cur)state='current';
     else state='open';
-    return {n:m.n,t:m.t,info:m.info,kind:m.kind,todo:m.todo,done:!!done[m.n],state:state,cur:cur,offeneFunk:offeneFunk,offeneFrei:offeneFrei};
+    return {n:n,key:m.key,t:m.t,info:m.info,kind:m.kind,todo:m.todo,tabs:m.tabs,done:!!done[m.key],state:state,cur:cur,total:total,offeneFunk:offeneFunk,offeneFrei:offeneFrei};
   });
 }
 function pwsResume(){try{const id=localStorage.getItem('pws_last');if(!id)return '';const r=VIEWS.software.rows.find(function(x){return String(x.id)===String(id);});if(!r)return '';return '<div class="resume-card" onclick="pwsOpen(\''+id+'\')"><span class="rc-l"><i class="ti ti-player-play-filled"></i> Weiterarbeiten</span><span class="rc-m"><b>'+esc(r.name)+'</b><span>'+esc(r.kat||'')+' · zuletzt geöffnet</span></span><span class="rc-go">Workflow öffnen <i class="ti ti-arrow-right"></i></span></div>';}catch(e){return '';}}
@@ -1490,32 +1495,35 @@ function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise
 const PWS_TABLBL={stammdaten:'Stammdaten',funktionen:'Funktionen',preise:'Tarife',integrationen:'Integrationen',faelle:'Anwendungsfälle',bewertungen:'Bewertungen',bilder:'Bilder',videos:'Videos',content:'Content'};
 function pwsTab(tab){dlgTab=tab;DLGFORM='pwsForm';renderTab();document.querySelectorAll('.pws-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.t===tab);});}
 function pwsPanel(P,st){
-  const f=P.full||{};const n=st.n;const tabs=pwsStageTabs(n);
-  let h='<div class="pws-p-head"><span class="pws-p-n">Stufe '+n+'</span><h2>'+esc(st.t)+infoH(st.info)+'</h2></div><div class="pws-kind"><span class="pk-b '+(st.kind||'todo')+'">'+(st.kind==='info'?'Info':'ToDo')+'</span><span>'+esc(st.todo||'')+'</span></div>';
+  const f=P.full||{};const k=st.key;const tabs=st.tabs||[];
+  let h='<div class="pws-p-head"><span class="pws-p-n">Stufe '+st.n+'</span><h2>'+esc(st.t)+infoH(st.info)+'</h2></div><div class="pws-kind"><span class="pk-b '+(st.kind||'todo')+'">'+(st.kind==='info'?'Info':'ToDo')+'</span><span>'+esc(st.todo||'')+'</span></div>';
   let body='';
-  if(n===1){
+  if(k==='anlegen'){
     body='';
-  }else if(n===2){
+  }else if(k==='medien'){
+    body=pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')
+      +pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt');
+  }else if(k==='sammeln'){
     body=pwsRow((P.funk||[]).length>0,(P.funk||[]).length+' Roh-Funktionen erfasst')
       +pwsRow((P.preise||[]).length>0,(P.preise||[]).length+' Tarife erfasst')
-      +'<div class="pws-acts">'+pwsBtn('Crawl-Monitor öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
-  }else if(n===3){
+      +'<div class="pws-acts">'+pwsBtn('Crawl-Status öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
+  }else if(k==='ordnen'){
     body=pwsRow(st.offeneFunk===0&&(P.funk||[]).length>0,'Funktionen zugeordnet – '+st.offeneFunk+' offen','Was tun: jeden Roh-Begriff einem Canonical zuordnen. Ziel: 0 offene Funktionen.')
       +pwsRow((P.preise||[]).length>0,'Tarife erfasst')
       +pwsRow(false,'Limits je Tarif (empfohlen, optional)','Optional: Kontingente je Tarif. Blockiert „Weiter" nicht – nicht jedes Tool veröffentlicht Limits.');
-  }else if(n===4){
+  }else if(k==='belegen'){
     body=pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')
       +pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')
       +pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))
       +pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft');
-  }else if(n===5){
+  }else if(k==='pruefen'){
     body=pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))
-      +pwsRow(true,'Crawl-Monitor / Validierung','',pwsBtn('Crawl-Monitor','route(\'crawl\')','ti-spider'));
-  }else if(n===6){
-    const ss=pwsStages(P);const need=ss.filter(function(s){return s.n<=5&&!s.done;});
-    body=ss.filter(function(s){return s.n<=5;}).map(function(s){return pwsRow(s.done,'Stufe '+s.n+': '+esc(s.t));}).join('')
+      +pwsRow(true,'Crawl-Status / Validierung','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));
+  }else if(k==='schluss'){
+    const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});
+    body=ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')
       +(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');
-  }else if(n===7){
+  }else if(k==='veroeffentlichen'){
     body=pwsRow(!!P.artikel,'Content erzeugt')
       +'<div class="pws-acts">'+pwsBtn('Portal bauen','runBuild(\'de\')','ti-hammer',1)+'</div>';
   }else{
@@ -1526,17 +1534,17 @@ function pwsPanel(P,st){
   if(tabs.length){
     editor=(tabs.length>1?('<div class="pws-subtabs">'+tabs.map(function(t){return '<button class="pws-subtab" data-t="'+t+'" onclick="pwsTab(\''+t+'\')">'+esc(PWS_TABLBL[t]||t)+'</button>';}).join('')+'</div>'):'')
       +'<div id="pwsForm" class="pws-form"></div>'
-      +(n===1?'<div class="pws-acts" style="margin-top:12px"><button class="pws-act primary" onclick="saveStamm()"><i class="ti ti-check"></i> Stammdaten speichern</button></div>':'');
+      +(k==='anlegen'?'<div class="pws-acts" style="margin-top:12px"><button class="pws-act primary" onclick="saveStamm()"><i class="ti ti-check"></i> Stammdaten speichern</button></div>':'');
   }
   let foot='';
-  if(n<8){var nx=n+1;foot='<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(n===3?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
+  if(st.n<st.total){var nx=st.n+1;foot='<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(k==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
   return h+'<div class="pws-p-body">'+body+editor+'</div>'+foot;
 }
 function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
   const P=PWS,f=P.full||{};const stages=pwsStages(P);
-  const cur=stages[0].cur;const view=P._view||cur;
-  const doneN=stages.filter(function(s){return s.n<=7&&s.done;}).length;const pct=Math.round(doneN/7*100);
+  const cur=stages[0].cur;const view=P._view||cur;const total=stages.length;
+  const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
   const viewStage=stages.find(function(s){return s.n===view;})||stages.find(function(s){return s.n===cur;});
   const mono=esc((f.name||'NN').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'NN');
   const rail=stages.map(function(s){var ic=s.state==='done'?'ti-circle-check':s.state==='current'?'ti-player-play-filled':s.state==='pflege'?'ti-refresh':'ti-circle';
@@ -1546,14 +1554,14 @@ function pwsRender(){
     '<span class="pws-logo">'+mono+'</span>'+
     '<div class="pws-h-main"><div class="pws-h-name">'+esc(f.name||'—')+'</div><div class="pws-h-sub">'+esc(f.hersteller||'')+(f.kategorie?(' · '+esc(f.kategorie)):'')+'</div></div>'+
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
-    '<div class="pws-h-prog"><div class="pws-h-pct">Stufe '+cur+'/8 · '+pct+'%</div><div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'+
+    '<div class="pws-h-prog"><div class="pws-h-pct">Stufe '+cur+'/'+total+' · '+pct+'%</div><div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'+
     '</div><div class="pws-body"><div class="pws-rail">'+rail+'</div><div class="pws-panel" id="pwsPanel">'+pwsPanel(P,viewStage)+'</div></div></div>';
-  var _vt=pwsStageTabs(view);if(_vt.length){pwsTab(_vt[0]);}
+  var _vt=(viewStage&&viewStage.tabs)||[];if(_vt.length){pwsTab(_vt[0]);}
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
-function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const doneN=stages.filter(function(s){return s.n<=7&&s.done;}).length;const pct=Math.round(doneN/7*100);
+function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const total=stages.length;const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
   const railEl=document.querySelector('.pws-rail');if(railEl)railEl.innerHTML=stages.map(function(s){var ic=s.state==='done'?'ti-circle-check':s.state==='current'?'ti-player-play-filled':s.state==='pflege'?'ti-refresh':'ti-circle';return '<button class="pws-step '+s.state+(s.n===view?' sel':'')+'" onclick="pwsGoto('+s.n+')"><span class="pws-st-ic"><i class="ti '+ic+'"></i></span><span class="pws-st-n">'+s.n+'</span><span class="pws-st-t">'+esc(s.t)+'</span></button>';}).join('');
-  const pe=document.querySelector('.pws-h-pct');if(pe)pe.textContent='Stufe '+cur+'/8 · '+pct+'%';
+  const pe=document.querySelector('.pws-h-pct');if(pe)pe.textContent='Stufe '+cur+'/'+total+' · '+pct+'%';
   const be=document.querySelector('.pws-bar span');if(be)be.style.width=pct+'%';}
 function aov(title,sub,body,foot){$("#aTitle").textContent=title;$("#aSub").textContent=sub||"";$("#aBody").innerHTML=body;$("#aFoot").innerHTML=foot||'<span class="tb" onclick="closeAov()">Schließen</span>';$("#aov").classList.add("show");}
 function closeAov(){$("#aov").classList.remove("show");}
