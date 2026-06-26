@@ -590,7 +590,7 @@ async function ladeSW(){
       sb.from('quellen').select('software_id'),
       sb.from('bewertungs_synthesen').select('software_id'),
       sb.from('freigaben').select('software_id,status'),
-      sb.from('inhalts_artikel').select('software_id'),
+      sb.from('inhalts_artikel').select('software_id,inhalts_status'),
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id')
     ]);
@@ -600,7 +600,7 @@ async function ladeSW(){
     (qs[3].data||[]).forEach(function(x){_g(x.software_id).quellen++;});
     (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
     (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
-    (qs[6].data||[]).forEach(function(x){_g(x.software_id).artikel=true;});
+    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live')_g(x.software_id).artikel=true;});
     (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
   }catch(e){}
@@ -1502,7 +1502,7 @@ async function pwsOpen(id){
       sb.from('quellen').select('id').eq('software_id',id),
       sb.from('bewertungs_synthesen').select('id').eq('software_id',id).limit(1),
       sb.from('freigaben').select('id,status').eq('software_id',id),
-      sb.from('inhalts_artikel').select('id,status').eq('software_id',id).limit(1)
+      sb.from('inhalts_artikel').select('id,inhalts_status').eq('software_id',id).limit(1)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
@@ -1539,7 +1539,7 @@ function pwsStages(P){
   done.belegen=(P.quellen||[]).length>0&&P.synthese&&!!f.logo_pfad;
   done.pruefen=offeneFrei===0;
   done.schluss=done.anlegen&&done.sammeln&&done.ordnen&&done.belegen&&done.pruefen;
-  done.veroeffentlichen=!!(P.artikel&&P.artikel.id);
+  done.veroeffentlichen=!!(P.artikel&&P.artikel.inhalts_status==='live');
   const total=defs.length;
   let cur=total;for(var i=0;i<total-1;i++){if(!done[defs[i].key]){cur=i+1;break;}}
   return defs.map(function(m,idx){var n=idx+1;var state;
@@ -1580,7 +1580,7 @@ function pwsBody(P,st){
   if(k==='belegen')return pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')+pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')+pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))+pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft')+'<div class="pws-acts">'+pwsBtn('Externe Bewertungen holen (G2/Capterra/Trustpilot)','pwsBewExtern(this)','ti-star',1)+'</div>';
   if(k==='pruefen')return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+pwsRow(true,'Crawl-Status / Validierung','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));
   if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
-  if(k==='veroeffentlichen')return pwsRow(!!P.artikel,'Content erzeugt')+'<div class="pws-acts">'+pwsBtn('Portal bauen','runBuild(\'de\')','ti-hammer',1)+'</div>';
+  if(k==='veroeffentlichen')return pwsRow(!!P.artikel,'Content erzeugt')+pwsRow(!!(P.artikel&&P.artikel.inhalts_status==='live'),'Live veröffentlicht'+(P.artikel&&P.artikel.inhalts_status&&P.artikel.inhalts_status!=='live'?' (Status: '+esc(P.artikel.inhalts_status)+')':''))+'<div class="pws-acts">'+pwsBtn('Inhalt bearbeiten & veröffentlichen','pwsTab(\'content\')','ti-file-text')+pwsBtn('Portal bauen','runBuild(\'de\')','ti-hammer',1)+'</div>';
   return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
 }
 function pwsFoot(P,st){if(st.n>=st.total)return '';var nx=st.n+1;return '<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(st.key==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
