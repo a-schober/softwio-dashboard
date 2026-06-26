@@ -30,7 +30,7 @@
   .kat-ic:hover{border-color:var(--accent);color:var(--ink)}
   .kat-ic.on{border-color:#4f46e5;color:#4338ca;background:#eef2ff;box-shadow:0 0 0 1px #c7d2fe inset}
   .kat-chip{display:inline-block;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:3px 10px;margin:0 5px 5px 0;color:var(--ink)}
-  .pws-wrap{max-width:1100px;margin:0 auto}
+  .pws-wrap{max-width:1480px;margin:0 auto}
   .pws-head{display:flex;align-items:center;gap:14px;padding:4px 2px 16px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
   .pws-logo{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-weight:800;font-size:15px;overflow:hidden;flex:none}
   .pws-h-main{flex:1;min-width:150px}
@@ -77,6 +77,11 @@
   .pws-subtab:hover{color:var(--ink)}
   .pws-subtab.on{background:#eef2ff;border-color:#c7d2fe;color:#4338ca;font-weight:600}
   .pws-form{margin-top:4px}
+  .pws-kind{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:12.5px;color:var(--muted)}
+  .pk-b{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:5px;padding:2px 7px;flex:none}
+  .pk-b.todo{background:#fef3c7;color:#92400e}
+  .pk-b.info{background:#e0e7ff;color:#4338ca}
+  @media(min-width:1080px){#pwsForm .fgrid{grid-template-columns:1fr 1fr 1fr}#pwsForm .fgrid.one{grid-template-columns:1fr}#pwsForm .fgrid .fld:has(textarea){grid-column:1/-1}#pwsForm .fgrid .fld:has(.chipsel){grid-column:1/-1}}
   .resume-card{display:flex;align-items:center;gap:14px;border:1px solid #c7d2fe;background:#eef2ff;border-radius:12px;padding:12px 16px;margin:0 0 14px;cursor:pointer}
   .resume-card:hover{border-color:#6366f1}
   .rc-l{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#4338ca;flex:none}
@@ -269,6 +274,10 @@
   .dlg-form{flex:1;overflow:auto;padding:16px 20px}
   .fgrp{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line2)}.fgrp:not(:first-child){margin-top:22px}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 22px}.fgrid.one{grid-template-columns:1fr}
+  .segsel{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .segbtn{border:0;background:var(--panel);color:var(--muted);font:inherit;font-size:13px;padding:7px 20px;cursor:pointer;border-right:1px solid var(--line)}
+  .segbtn:last-of-type{border-right:0}
+  .segbtn.on{background:#4f46e5;color:#fff;font-weight:600}
   .fld{display:flex;align-items:center;gap:10px}.fld label{width:124px;flex:none;color:var(--muted);font-size:12px}.fld .v{flex:1;min-width:0}
   .fld input,.fld select{width:100%;height:30px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px}
   .fld textarea{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;line-height:1.55;resize:vertical}
@@ -1041,10 +1050,12 @@ function fld(label,val,o){o=o||{};const lab=label+(o.req?' <span style="color:va
   let inp;
   if(o.multi){const sel=String(val||"").split(/[,;]\s*/).filter(Boolean).map(x=>x.toUpperCase());inp='<div class="chipsel"'+dk+'>'+o.multi.map(x=>`<span class="chsel ${sel.indexOf(x)>=0?"on":""}" onclick="this.classList.toggle('on')">${x}</span>`).join("")+'</div>';}
   else if(o.opts){const sv=val==null?"":String(val);const has=o.opts.map(String).indexOf(sv)>=0;inp=`<select ${o.ro?"disabled":""}${dk}>${(sv&&!has)?`<option selected>${esc(val)}</option>`:`<option value="" ${sv?"":"selected"}>— bitte wählen —</option>`}${o.opts.map(x=>`<option ${String(x)===sv?"selected":""}>${esc(x)}</option>`).join("")}</select>`;}
+  else if(o.seg){const sv=val==null?'':String(val);inp='<div class="segsel">'+o.seg.map(function(x){return '<button type="button" class="segbtn'+(String(x)===sv?' on':'')+'" onclick="segPick(this,\''+esc(x)+'\')">'+esc(x)+'</button>';}).join('')+'<input type="hidden"'+dk+' value="'+esc(sv)+'"></div>';}
   else if(o.ta){inp=`<textarea ${o.ro?"readonly":""}${dk} rows="${o.rows||4}">${esc(val==null?"":val)}</textarea>`;}
   else if(o.sel){inp=`<select ${o.ro?"disabled":""}><option>${esc(val||"— bitte wählen —")}</option></select>`;}
   else{inp=`<input value="${esc(val==null?"":val)}" ${o.ro?"readonly":""}${dk} ${o.miss?'class="miss" placeholder="'+(o.ph||"fehlt")+'"':""}>`;}
   return `<div class="fld"><label>${lab}</label><div class="v">${inp}${o.miss?'<div class="miss-t">'+(o.missT||"Pflichtfeld leer")+'</div>':""}</div></div>`;}
+function segPick(btn,val){const box=btn.parentNode;if(!box)return;box.querySelectorAll('.segbtn').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');const inp=box.querySelector('input[type=hidden]');if(inp)inp.value=val;}
 let dlgRow=null,dlgTab="stammdaten",DLGFORM="dForm";
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
 async function openDlg(i){DLGFORM="dForm";const neu=i<0;dlgRow=neu?{name:"",hersteller:"",kat:"Buchhaltung",markt:"DE",angelegt:"",funk:0,pct:0,status:"neu",geprueft:"",_hue:"#64748b"}:VIEWS.software.rows[i];const r=dlgRow,s=ST[r.status];
@@ -1092,11 +1103,11 @@ async function saveStamm(){
 function tabStamm(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","Lädt …","");const f=d.full||{};const mk=(f.relevante_maerkte||[]).join(", ");const dat=f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):"—";
   return `<div class="fgrp">Identität &amp; Einordnung</div><div class="fgrid">${fld("Name",f.name,{k:"name",req:1})}${fld("Hersteller",f.hersteller,{k:"hersteller",req:1})}${fld("Hersteller-URL",f.hersteller_url,{k:"hersteller_url",req:1})}${fld("Kategorie",f.kategorie,{k:"kategorie",req:1,opts:KATS})}${fld("Unterkategorie",f.unterkategorie,{k:"unterkategorie"})}${fld("Ziel-Keyword",f.ziel_schluesselwort,{k:"ziel_schluesselwort"})}${fld("Relevante Märkte",mk,{k:"relevante_maerkte",ty:"array",multi:["DE","AT","CH","IT","ES"]})}</div>
   <div class="fgrp">Beschreibung &amp; Positionierung</div><div class="fgrid one">${fld("Kurzbeschreibung",f.kurzbeschreibung,{k:"kurzbeschreibung",ta:1,rows:3})}${fld("Lange Beschreibung",f.lange_beschreibung,{k:"lange_beschreibung",ta:1,rows:9})}</div><div class="fgrid">${fld("Zielgruppe",f.zielgruppe,{k:"zielgruppe"})}${fld("Hauptnutzen",f.hauptnutzen,{k:"hauptnutzen"})}${fld("Kern-Aussage",f.kern_aussage,{k:"kern_aussage",miss:!f.kern_aussage,missT:"empfohlen"})}${fld("Charakt. Anwendungsfall",f.charakteristischer_anwendungsfall,{k:"charakteristischer_anwendungsfall",miss:!f.charakteristischer_anwendungsfall,missT:"empfohlen"})}${fld("Vergleichs-Pointe",f.vergleichs_pointe,{k:"vergleichs_pointe",miss:!f.vergleichs_pointe,missT:"empfohlen"})}</div>
-  <div class="fgrp">Unternehmen</div><div class="fgrid">${fld("Land",f.land_hauptsitz,{k:"land_hauptsitz",opts:["Deutschland","Österreich","Schweiz","Italien","Spanien"]})}${fld("Gegründet",f.gegruendet,{k:"gegruendet",ty:"int"})}${fld("Mitarbeiterzahl",f.mitarbeiterzahl_bereich,{k:"mitarbeiterzahl_bereich",opts:["1-10","11-50","51-250","251-1000","mehr als 1000"]})}${fld("Sitz / Stadt","",{neu:1,miss:1,missT:"noch nicht im Schema"})}</div>
+  <div class="fgrp">Unternehmen</div><div class="fgrid">${fld("Land",f.land_hauptsitz,{k:"land_hauptsitz",opts:["Deutschland","Österreich","Schweiz","Italien","Spanien"]})}${fld("Gegründet",f.gegruendet,{k:"gegruendet",ty:"int"})}${fld("Mitarbeiterzahl",f.mitarbeiterzahl_bereich,{k:"mitarbeiterzahl_bereich",opts:["1-10","11-50","51-250","251-1000","mehr als 1000"]})}${fld("Sitz / Stadt",f.sitz_stadt,{k:"sitz_stadt"})}</div>
   <div class="fgrp">Technik &amp; Compliance</div><div class="fgrid">${fld("Bereitstellung",f.bereitstellungs_art,{k:"bereitstellungs_art",opts:["cloud","on_premise","hybrid"]})}${fld("Serverstandort",f.server_standort,{k:"server_standort"})}${fld("DSGVO-konform",f.dsgvo_konform==null?"":(f.dsgvo_konform?"Ja":"Nein"),{k:"dsgvo_konform",ty:"bool",opts:["Ja","Nein"]})}${fld("Sprachen",f.sprachen,{k:"sprachen"})}</div>
   <div class="fgrp">Preise &amp; Konditionen</div><div class="fgrid">${fld("Einstiegspreis",f.einstiegspreis,{k:"einstiegspreis",ty:"num"})}${fld("Währung",f.waehrung,{k:"waehrung",opts:["EUR","CHF","USD"]})}${fld("Gratis-Tarif",f.free_plan==null?"":(f.free_plan?"Ja":"Nein"),{k:"free_plan",ty:"bool",opts:["Ja","Nein"]})}${fld("Testphase",f.free_trial==null?"":(f.free_trial?"Ja":"Nein"),{k:"free_trial",ty:"bool",opts:["Ja","Nein"]})}${fld("Testphase (Tage)",f.free_trial_tage,{k:"free_trial_tage",ty:"int"})}</div>
   <div class="fgrp">Externe Bewertungen</div><div class="fgrid">${fld("G2",f.rating_g2,{k:"rating_g2",ty:"num"})}${fld("Capterra",f.rating_capterra,{k:"rating_capterra",ty:"num"})}${fld("Trustpilot",f.rating_trustpilot,{k:"rating_trustpilot",ty:"num"})}${fld("Anzahl extern",f.anzahl_bewertungen_extern,{k:"anzahl_bewertungen_extern",ty:"int"})}</div>
-  <div class="fgrp">Monetarisierung</div><div class="fgrid">${fld("Affiliate-URL",f.affiliate_url,{k:"affiliate_url"})}${fld("AppSumo-Produkt? (für Auto-Check)",f.appsumo_relevant==null?"":(f.appsumo_relevant?"Ja":"Nein"),{k:"appsumo_relevant",ty:"bool",opts:["Ja","Nein"]})}</div><div class="fgrid one">${appsumoBox(f)}</div>
+  <div class="fgrp">Monetarisierung</div><div class="fgrid">${fld("Affiliate-URL",f.affiliate_url,{k:"affiliate_url"})}${fld("AppSumo-Produkt? (für Auto-Check)",f.appsumo_relevant==null?"":(f.appsumo_relevant?"Ja":"Nein"),{k:"appsumo_relevant",ty:"bool",seg:["Ja","Nein"]})}</div><div class="fgrid one">${appsumoBox(f)}</div>
   <div class="fgrp">Pipeline <span style="text-transform:none;font-weight:400;color:var(--faint)">· automatisch befüllt</span></div><div class="fgrid">${fld("Reifegrad",f.daten_reifegrad,{ro:1})}${fld("Veröffentlichungs-Status",f.veroeffentlichungs_status,{ro:1})}${fld("Fortschritt",(r.pct||0)+" %",{ro:1})}${fld("Zuletzt geprüft",dat,{ro:1})}</div>`;}
 function appsumoBox(f){f=f||{};const deal=!!f.appsumo_deal;const st=f.appsumo_status||'unbekannt';const man=!!f.appsumo_manuell;const id=f.id||'';const stamp=f.appsumo_geprueft_am?String(f.appsumo_geprueft_am).slice(0,16).replace('T',' '):'noch nie';const badge=deal?'<span class="ltd-b"><i class="ti ti-discount-2"></i> Aktiver AppSumo-LTD</span>':(st==='ended'?'<span class="pa">ausgelaufen</span>':(st==='none'?'<span class="pn">kein Deal</span>':'<span class="pn">noch nicht geprüft</span>'));const prc=(deal&&f.appsumo_preis!=null)?(Number(f.appsumo_preis).toFixed(2).replace('.',',').replace(/,00$/,'')+' '+((f.appsumo_waehrung||'USD')==='EUR'?'€':'$')):'';const ntier=(deal&&f.appsumo_tiers&&Array.isArray(f.appsumo_tiers.tiers))?f.appsumo_tiers.tiers.length:0;const manTag=man?' <span class="pa" style="font-size:10px">manuell</span>':'';const url=f.appsumo_url?' · <a href="'+esc(f.appsumo_url)+'" target="_blank" rel="noopener" style="color:var(--accent-ink)">Deal-Seite ↗</a>':'';const hint=f.appsumo_hinweis?'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+esc(f.appsumo_hinweis)+'</div>':'';const btns='<button class="tb" style="height:30px" onclick="appsumoManuellAn(\''+id+'\')"><i class="ti ti-toggle-right"></i> Deal AN (manuell)</button><button class="tb" style="height:30px" onclick="appsumoManuellAus(\''+id+'\')"><i class="ti ti-toggle-left"></i> Deal AUS (manuell)</button>'+(man?'<button class="tb" style="height:30px" onclick="appsumoAuto(\''+id+'\')"><i class="ti ti-robot"></i> KI-Auto übernehmen</button>':'<button class="tb" style="height:30px" onclick="appsumoPruefen(\''+id+'\')"><i class="ti ti-refresh"></i> KI jetzt prüfen</button>');const note=man?'<div style="font-size:11.5px;color:var(--faint);margin-top:6px"><i class="ti ti-hand-stop"></i> Manuell übersteuert – der automatische 2×/Tag-Check lässt dieses Produkt unangetastet.</div>':'<div style="font-size:11.5px;color:var(--faint);margin-top:6px">Auto-Check 4×/Tag – nur wenn oben „AppSumo-Produkt? = Ja" · Änderungen ~1–2 Min später live (Auto-Rebuild).</div>';return '<div class="fld" id="appsumoBox" style="grid-column:1/-1"><label>AppSumo Lifetime-Deal</label><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 0">'+badge+manTag+(prc?' · <b style="color:var(--ink)">ab '+prc+'</b>':'')+(ntier?' · <span style="color:var(--muted)">'+ntier+' Tiers</span>':'')+url+'<span style="font-size:11.5px;color:var(--faint)">geprüft: '+esc(stamp)+'</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+btns+'</div>'+hint+note+'</div>';}
 async function appsumoPruefen(sid){if(!sid){toast("Keine ID");return;}const box=document.getElementById('appsumoBox');if(box)box.innerHTML='<label>AppSumo Lifetime-Deal</label><div style="padding:6px 0;color:var(--muted);font-size:13px"><i class="ti ti-loader spin"></i> AppSumo wird per Websuche geprüft … (~20–40 Sek.)</div>';try{const r=await sb.functions.invoke('appsumo-check',{body:{software_id:sid}});if(r&&r.error)throw new Error(r.error.message||'Fehler');const d=r.data||{};if(d.error)throw new Error(d.error);let full=(dlgRow&&dlgRow._d&&dlgRow._d.full)||{};try{const fr=await sb.from('software').select('id,appsumo_deal,appsumo_status,appsumo_url,appsumo_preis,appsumo_waehrung,appsumo_tiers,appsumo_hinweis,appsumo_manuell,appsumo_geprueft_am').eq('id',sid).single();if(fr.data){full=Object.assign({},full,fr.data);if(dlgRow&&dlgRow._d)dlgRow._d.full=full;}}catch(_){}const nb=document.getElementById('appsumoBox');if(nb)nb.outerHTML=appsumoBox(full);toast(full.appsumo_deal?'Aktiver AppSumo-Deal ✓':'Kein aktiver Deal');if(d.portal_build)toast('Änderung erkannt – Portal wird neu gebaut (~1–2 Min)');try{await ladeSW();render();}catch(_){}}catch(e){const nb=document.getElementById('appsumoBox');if(nb)nb.outerHTML=appsumoBox((dlgRow&&dlgRow._d&&dlgRow._d.full)||{});toast("Prüfung fehlgeschlagen: "+(e&&e.message?e.message:e));}}
@@ -1453,14 +1464,14 @@ function pwsStages(P){
   done[7]=!!(P.artikel&&P.artikel.id);
   let cur=8;for(var i=1;i<=7;i++){if(!done[i]){cur=i;break;}}
   const meta=[
-    {n:1,t:'Anlegen',info:'Was tun: Name, Hersteller, URL, Kategorie & Markt erfassen. Ziel: Produkt ist angelegt und einsortiert.'},
-    {n:2,t:'Daten sammeln',info:'Was tun: Crawl starten – Website automatisch auslesen. Ziel: Roh-Funktionen, Tarife & Fakten als Basis.'},
-    {n:3,t:'Ordnen & ergänzen',info:'Was tun: Roh-Funktionen dem Wörterbuch zuordnen, Tarife/Limits ergänzen. Ziel: tool-übergreifend vergleichbar.'},
-    {n:4,t:'Belegen',info:'Was tun: Quellen, Bewertungen, Logo & ggf. AppSumo ergänzen. Ziel: Jede Aussage ist belegt.'},
-    {n:5,t:'Prüfen & freigeben',info:'Was tun: Validieren und Grenzfälle entscheiden. Ziel: keine offenen Unklarheiten.'},
-    {n:6,t:'Schlusscheck',info:'Was tun: Vollständigkeit prüfen. Ziel: 100 Prozent – bereit zur Veröffentlichung.'},
-    {n:7,t:'Veröffentlichen',info:'Was tun: Content erzeugen und Portal bauen. Ziel: Die perfekte Seite ist live.'},
-    {n:8,t:'Pflege',info:'Was tun: Aktualität sichern – regelmäßig prüfen lassen. Ziel: dauerhaft korrekte Daten.'}
+    {n:1,t:'Anlegen',kind:'todo',todo:'Dein ToDo: Stammdaten ausfüllen und speichern.',info:'Was tun: Name, Hersteller, URL, Kategorie & Markt erfassen. Ziel: Produkt ist angelegt und einsortiert.'},
+    {n:2,t:'Daten sammeln',kind:'info',todo:'Nur Status – der Crawl läuft automatisch in der Pipeline. Sobald Roh-Daten vorliegen, gilt die Stufe als erledigt.',info:'Was tun: nichts manuell – Website wird automatisch ausgelesen. Ziel: Roh-Funktionen, Tarife & Fakten als Basis.'},
+    {n:3,t:'Ordnen & ergänzen',kind:'todo',todo:'Dein ToDo: offene Funktionen zuordnen und Tarife (optional Limits) ergänzen.',info:'Was tun: Roh-Funktionen dem Wörterbuch zuordnen, Tarife/Limits ergänzen. Ziel: tool-übergreifend vergleichbar.'},
+    {n:4,t:'Belegen',kind:'todo',todo:'Dein ToDo: Bewertungen einpflegen, Bilder & Videos ergänzen, Logo setzen.',info:'Was tun: Bewertungen, Bilder/Videos, Logo & ggf. AppSumo ergänzen. Ziel: Jede Aussage ist belegt.'},
+    {n:5,t:'Prüfen & freigeben',kind:'todo',todo:'Dein ToDo: offene Freigaben/Grenzfälle entscheiden.',info:'Was tun: Validieren und Grenzfälle entscheiden. Ziel: keine offenen Unklarheiten.'},
+    {n:6,t:'Schlusscheck',kind:'info',todo:'Nur Status – zeigt, ob alle Pflichtstufen erledigt sind.',info:'Was tun: Vollständigkeit prüfen. Ziel: 100 Prozent – bereit zur Veröffentlichung.'},
+    {n:7,t:'Veröffentlichen',kind:'todo',todo:'Dein ToDo: Content erzeugen und Portal bauen.',info:'Was tun: Content erzeugen und Portal bauen. Ziel: Die perfekte Seite ist live.'},
+    {n:8,t:'Pflege',kind:'info',todo:'Nur Info – Aktualität wird laufend automatisch gesichert.',info:'Was tun: nichts – Auto-Checks halten die Daten frisch. Ziel: dauerhaft korrekte Daten.'}
   ];
   return meta.map(function(m){
     var state;
@@ -1468,19 +1479,19 @@ function pwsStages(P){
     else if(done[m.n])state='done';
     else if(m.n===cur)state='current';
     else state='open';
-    return {n:m.n,t:m.t,info:m.info,done:!!done[m.n],state:state,cur:cur,offeneFunk:offeneFunk,offeneFrei:offeneFrei};
+    return {n:m.n,t:m.t,info:m.info,kind:m.kind,todo:m.todo,done:!!done[m.n],state:state,cur:cur,offeneFunk:offeneFunk,offeneFrei:offeneFrei};
   });
 }
 function pwsResume(){try{const id=localStorage.getItem('pws_last');if(!id)return '';const r=VIEWS.software.rows.find(function(x){return String(x.id)===String(id);});if(!r)return '';return '<div class="resume-card" onclick="pwsOpen(\''+id+'\')"><span class="rc-l"><i class="ti ti-player-play-filled"></i> Weiterarbeiten</span><span class="rc-m"><b>'+esc(r.name)+'</b><span>'+esc(r.kat||'')+' · zuletzt geöffnet</span></span><span class="rc-go">Workflow öffnen <i class="ti ti-arrow-right"></i></span></div>';}catch(e){return '';}}
 function pwsRow(ok,label,info,btn){return '<div class="pws-crit"><span class="pws-c-ic '+(ok?'ok':'no')+'">'+(ok?'✔':'●')+'</span><span class="pws-c-l">'+label+(info?infoH(info):'')+'</span>'+(btn||'')+'</div>';}
 function pwsBtn(label,onclick,icon,primary){return '<button class="pws-act'+(primary?' primary':'')+'" onclick="'+onclick+'"><i class="ti '+(icon||'ti-arrow-right')+'"></i> '+label+'</button>';}
 function pwsEditor(tab){if(!PWS)return;const i=VIEWS.software.rows.findIndex(function(r){return String(r.id)===String(PWS.id);});if(i<0){toast('Produkt nicht in der Liste – bitte „Alle Produkte" aktualisieren');return;}openDlg(i);if(tab)setTab(tab);}
-function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise','integrationen','faelle']:n===4?['bewertungen']:n===7?['content']:[];}
-const PWS_TABLBL={stammdaten:'Stammdaten',funktionen:'Funktionen',preise:'Tarife',integrationen:'Integrationen',faelle:'Anwendungsfälle',bewertungen:'Bewertungen',content:'Content'};
+function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise','integrationen','faelle']:n===4?['bewertungen','bilder','videos']:n===7?['content']:[];}
+const PWS_TABLBL={stammdaten:'Stammdaten',funktionen:'Funktionen',preise:'Tarife',integrationen:'Integrationen',faelle:'Anwendungsfälle',bewertungen:'Bewertungen',bilder:'Bilder',videos:'Videos',content:'Content'};
 function pwsTab(tab){dlgTab=tab;DLGFORM='pwsForm';renderTab();document.querySelectorAll('.pws-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.t===tab);});}
 function pwsPanel(P,st){
   const f=P.full||{};const n=st.n;const tabs=pwsStageTabs(n);
-  let h='<div class="pws-p-head"><span class="pws-p-n">Stufe '+n+'</span><h2>'+esc(st.t)+infoH(st.info)+'</h2></div>';
+  let h='<div class="pws-p-head"><span class="pws-p-n">Stufe '+n+'</span><h2>'+esc(st.t)+infoH(st.info)+'</h2></div><div class="pws-kind"><span class="pk-b '+(st.kind||'todo')+'">'+(st.kind==='info'?'Info':'ToDo')+'</span><span>'+esc(st.todo||'')+'</span></div>';
   let body='';
   if(n===1){
     body='';
