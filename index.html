@@ -581,6 +581,7 @@ async function ladeSW(){
   let asMap={};
   const sig={};
   const swMeta={};
+  const belegMap={};
   const _g=function(id){return sig[id]||(sig[id]={funkTotal:0,funkOffen:0,preise:0,quellen:0,synthese:false,freiOffen:0,artikel:false,bilder:0,videos:0});};
   try{
     const qs=await Promise.all([
@@ -592,7 +593,8 @@ async function ladeSW(){
       sb.from('freigaben').select('software_id,status'),
       sb.from('inhalts_artikel').select('software_id,inhalts_status'),
       sb.from('software_bilder').select('software_id'),
-      sb.from('hersteller_videos').select('software_id')
+      sb.from('hersteller_videos').select('software_id'),
+      sb.from('ssot_verifikation').select('software_id,status')
     ]);
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
     (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
@@ -603,8 +605,9 @@ async function ladeSW(){
     (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live')_g(x.software_id).artikel=true;});
     (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
+    (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
@@ -612,7 +615,7 @@ function ageOf(r){if(!r.geprueft)return{t:null,lab:"Neu",c:"n"};const t=Math.rou
 
 const VIEWS={
  software:{ic:"ti-apps",t:"Software",d:"",newL:"Neue Software",detail:"rich",ctx:true,
-   cols:[{k:"name",t:"Software",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"hersteller",t:"Hersteller",ty:"text"},{k:"markt",t:"Markt",ty:"text",w:64},{k:"ltd",t:"AppSumo",ty:"ltd",w:92},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"funk",t:"Fkt.",ty:"num",w:64},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Aktualität",ty:"age",w:140},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
+   cols:[{k:"name",t:"Software",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"hersteller",t:"Hersteller",ty:"text"},{k:"markt",t:"Markt",ty:"text",w:64},{k:"ltd",t:"AppSumo",ty:"ltd",w:92},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"funk",t:"Fkt.",ty:"num",w:64},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"beleg",t:"Belege",ty:"beleg",w:118},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Aktualität",ty:"age",w:140},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
    rows:SW},
  kategorien:{ic:"ti-category",t:"Kategorien",d:"Kategorien steuern Portal-Navigation, Hub-Seiten und URL-Slugs. Umbenennen wirkt auf alle zugeordneten Programme.",newL:"Neue Kategorie",
    cols:[{k:"name",t:"Kategorie",ty:"text"},{k:"slug",t:"Slug",ty:"text"},{k:"anzahl",t:"Software",ty:"num",w:80},{k:"reihenfolge",t:"Reihenfolge",ty:"num",w:96},{k:"sichtbar",t:"Sichtbar",ty:"bool",w:90}],
@@ -656,9 +659,10 @@ VIEWS.software._sort={k:"pct",d:-1};
 
 let CUR="software";const $=s=>document.querySelector(s);const dec=decodeURIComponent;
 const fmtD=s=>s?(s.split("-")[2]+"."+s.split("-")[1]+"."+s.split("-")[0]):"—";
-function disp(v,r,c){const x=r[c.k];if(c.ty==="age")return ageOf(r).lab;if(c.ty==="nw")return nwOf(r).lab;if(c.ty==="date")return fmtD(x);if(c.ty==="num")return (x===""||x==null)?"—":String(x);if(c.ty==="pct")return x+"%";if(c.ty==="status")return ST[x].l;if(c.ty==="ltd"||c.ty==="bool")return x?"Ja":"Nein";return x==null?"":String(x);}
+function disp(v,r,c){const x=r[c.k];if(c.ty==="beleg")return r.belegHat?(r.belegOffen>0?(r.belegOffen+' offen'):'belegt'):'ungeprüft';if(c.ty==="age")return ageOf(r).lab;if(c.ty==="nw")return nwOf(r).lab;if(c.ty==="date")return fmtD(x);if(c.ty==="num")return (x===""||x==null)?"—":String(x);if(c.ty==="pct")return x+"%";if(c.ty==="status")return ST[x].l;if(c.ty==="ltd"||c.ty==="bool")return x?"Ja":"Nein";return x==null?"":String(x);}
 function pillCls(t){t=(t||"").toLowerCase();if(["aktiv","live","erfolgreich","ja","ausgewertet","fertig","erledigt"].includes(t))return"pg";if(["läuft","offen","wartet","vorbereitet","in arbeit","gerade eben"].includes(t))return"pa";if(["fehler","konflikt"].includes(t))return"pr";return"pn";}
 function cellHtml(v,r,c){const x=r[c.k];
+  if(c.ty==="beleg"){if(!r.belegHat)return '<span class="pn">ungeprüft</span>';return r.belegOffen>0?'<span class="age-b r"><i class="ti ti-alert-triangle" style="font-size:9px"></i> '+r.belegOffen+' offen</span>':'<span class="age-b g"><i class="ti ti-shield-check" style="font-size:9px"></i> belegt</span>';}
   if(c.ty==="age"){const a=ageOf(r);return a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';}
   if(c.ty==="nw"){const a=nwOf(r);return a.v==null?'<span class="pn">—</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>';}
   if(c.ty==="name"){const h=r._hue||"#64748b";const ini=String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase();const lg=r._logo?`<span class="logo" style="background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="${r._logo}" alt="" style="width:100%;height:100%;object-fit:contain"></span>`:`<span class="logo" style="background:${h}">${ini}</span>`;return `<div class="nm">${lg}${x}</div>`;}
@@ -1584,7 +1588,7 @@ async function pwsBewExtern(btn){if(!PWS)return;const sid=PWS.id;if(btn){btn.dis
 function pwsBelegAus(rows){if(!rows||!rows.length)return null;var c=function(s){return rows.filter(function(x){return x.status===s;}).length;};return {belegt:c('belegt'),synthese:c('synthese'),mensch:c('mensch_bestaetigt'),unbelegt:c('unbelegt'),offen:rows.filter(function(x){return x.status==='unbelegt';}).map(function(x){return {tabelle:x.tabelle,ref:x.ref,grund:x.grund};})};}
 async function pwsLadeBeleg(){if(!PWS)return;try{const r=await sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',PWS.id);PWS.beleg=pwsBelegAus((r&&r.data)||[]);}catch(e){}}
 async function pwsBelegCheck(btn){if(!PWS)return;if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Prüfe Belege gegen Quellen … (~1 Min)';}
-  try{const r=await sb.functions.invoke('beleg-extrahieren',{body:{software_id:PWS.id}});if(r&&r.error)throw r.error;await pwsLadeBeleg();try{pwsSyncRail();}catch(e){}var b=PWS.beleg||{};toast('Beleg-Prüfung fertig: '+(b.belegt||0)+' belegt · '+(b.unbelegt||0)+' offen');}
+  try{const r=await sb.functions.invoke('beleg-extrahieren',{body:{software_id:PWS.id}});if(r&&r.error)throw r.error;await pwsLadeBeleg();try{const ar=await sb.functions.invoke('ssot-audit',{body:{software_id:PWS.id}});PWS.audit=(ar&&!ar.error)?ar.data:null;}catch(e){PWS.audit=null;}try{pwsSyncRail();}catch(e){}var b=PWS.beleg||{};toast('Beleg-Prüfung fertig: '+(b.belegt||0)+' belegt · '+(b.unbelegt||0)+' offen');}
   catch(e){alert('Beleg-Prüfung fehlgeschlagen: '+(e&&e.message?e.message:e));if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-shield-check"></i> Belege jetzt prüfen';}}}
 async function pwsBelegAck(oi){if(!PWS||!PWS.beleg||!PWS.beleg.offen||!PWS.beleg.offen[oi])return;var o=PWS.beleg.offen[oi];
   if(!confirm('„'+o.ref+'" als manuell GEPRÜFT markieren?\nNur bestätigen, wenn die Aussage nachweislich korrekt ist – sonst korrigieren oder entfernen.'))return;
@@ -1603,7 +1607,8 @@ function pwsBody(P,st){
       if(b.unbelegt>0){bodyH='<div style="font-size:12.5px;color:#b91c1c;margin:8px 0">⚠️ Diese Aussagen haben <b>kein belegbares Quell-Zitat</b> (potenzielle Halluzination). Bitte korrigieren – oder, wenn nachweislich korrekt, „Geprüft" setzen. <b>Veröffentlichen ist gesperrt, solange hier etwas offen ist.</b></div>'+b.offen.map(function(o,oi){return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:8px;padding:7px 11px;margin:5px 0;background:#fff"><span style="min-width:0;overflow:hidden"><b style="font-size:13px">'+esc(o.ref)+'</b> <span style="font-size:11px;color:var(--muted)">'+esc(o.tabelle)+'</span></span><button class="pws-act" style="flex:none" onclick="pwsBelegAck('+oi+')"><i class="ti ti-check"></i> Geprüft</button></div>';}).join('');}
       else{bodyH='<div style="font-size:12.5px;color:#15803d;margin:8px 0">✓ Alle Fakten sind durch echte Quellen belegt – du kannst bedenkenlos veröffentlichen.</div>';}
       bb='<div style="border:1px solid var(--line);border-left:4px solid '+col+';border-radius:12px;padding:14px 16px;margin:12px 0;background:var(--soft,#f8fafc)"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:14px">🛡️ Beleg-Prüfung</b><span style="font-size:12px;font-weight:700;color:#fff;background:'+col+';border-radius:999px;padding:2px 10px">'+(b.unbelegt>0?(b.unbelegt+' offen'):'alles belegt ✓')+'</span></div><div style="font-size:12.5px;color:var(--muted);margin:5px 0 0">'+b.belegt+' belegt · '+b.synthese+' Synthese'+(b.mensch?' · '+b.mensch+' manuell ok':'')+'</div>'+bodyH+'<div class="pws-acts" style="margin-top:10px">'+pwsBtn('Erneut prüfen','pwsBelegCheck(this)','ti-refresh')+'</div></div>';}
-    return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+bb+pwsRow(true,'Crawl-Status','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));}
+    var ab='';if(P.audit&&P.audit.befunde&&P.audit.befunde.length){ab='<div style="border:1px solid var(--line);border-left:4px solid #f59e0b;border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--soft,#f8fafc)"><b style="font-size:13px">🔎 Kategorisierungs-Check</b><div style="font-size:11.5px;color:var(--muted);margin:4px 0 8px">Hinweise zu Fehlkategorisierung/Widersprüchen (beratend, blockiert nicht).</div>'+P.audit.befunde.slice(0,6).map(function(x){return '<div style="font-size:12px;margin:4px 0;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(x.bereich||'')+':</b> '+esc(x.fund||'')+'</div>';}).join('')+'</div>';}
+    return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+bb+ab+pwsRow(true,'Crawl-Status','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));}
   if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
   if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var acts='<div class="pws-acts">'+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';return pwsRow(hasArt,'Content erzeugt')+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+(hasArt?'':'<div class="pws-hint">Noch kein Artikel erzeugt – der Content wird in der Pipeline generiert, dann hier prüfen & veröffentlichen.</div>');}
   return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
