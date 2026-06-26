@@ -442,7 +442,7 @@
     <aside class="sidebar" id="side">
       <div class="grp">Arbeitsbereich</div>
       <div class="nav active" data-v="software"><i class="ti ti-stack-2"></i> Produkte <span class="cnt" id="navCount">16</span></div>
-      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg">3</span></div>
+      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg" id="freiBadge">3</span></div>
       <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge">6</span></div>
       <div class="grp">Inhalte &amp; Portal</div>
       <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
@@ -722,7 +722,7 @@ async function wbwBulkDelete(sel){const rows=sel.map(function(i){return VIEWS.wo
   }catch(e){alert('Löschen fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 async function ladeYoutubeView(){try{const res=await sb.from('video_warteschlange').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();VIEWS.youtube.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",video:x.video_titel||x.video_id,relevanz:x.relevanz!=null?x.relevanz+" / 10":"—",status:x.status||"offen"};});}catch(e){}}
-async function ladeFreigabenView(){try{const res=await sb.from('freigaben').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();window._freigaben={};(res.data||[]).forEach(function(x){window._freigaben[x.id]=x;});VIEWS.freigaben.rows=(res.data||[]).map(function(x){return {id:x.id,software:m[x.software_id]||"—",art:x.art||"—",beschreibung:x.beschreibung||x.grund||"",quelle:x.ref||x.ziel_collection||"—",status:x.status||"offen"};});}catch(e){}}
+async function ladeFreigabenView(){try{const res=await sb.from('freigaben').select('*').order('erstellt_am',{ascending:false});const m=swNameMap();window._freigaben={};(res.data||[]).forEach(function(x){window._freigaben[x.id]=x;});VIEWS.freigaben.rows=(res.data||[]).filter(function(x){return (x.status||'offen')!=='entschieden';}).map(function(x){return {id:x.id,software:m[x.software_id]||"—",art:x.art||"—",beschreibung:x.beschreibung||x.grund||"",quelle:x.ref||x.ziel_collection||"—",status:x.status||"offen"};});var _fb=document.getElementById('freiBadge');if(_fb){_fb.textContent=VIEWS.freigaben.rows.length;_fb.style.display=VIEWS.freigaben.rows.length?'':'none';}}catch(e){}}
 function freigabeOeffnen(i){const row=VIEWS.freigaben.rows[i];if(!row)return;const f=(window._freigaben||{})[row.id];if(!f)return;
   if(f.status==='entschieden'){aov("Bereits entschieden",row.software,'<div style="padding:18px;font-size:13px;color:var(--muted)">Diese Erkenntnis wurde bereits entschieden'+(f.entscheidung?' (Option '+esc(f.entscheidung)+')':'')+'.</div>','<span class="tb" onclick="closeAov()">Schließen</span>');return;}
   var opts=Array.isArray(f.optionen)?f.optionen:[];
