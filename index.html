@@ -408,7 +408,7 @@
 </div>
 <div class="app"><div id="sideBackdrop" onclick="toggleSidebar(false)"></div>
   <div class="menubar">
-    <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand"><i class="ti ti-database-cog"></i> Softwarefinder24 · Cockpit</span>
+    <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand" onclick="route('software')" style="cursor:pointer" title="Zur Startseite (Produkte)"><i class="ti ti-database-cog"></i> Softwarefinder24 · Cockpit</span>
     <span class="m" onclick="openMenu('Datei',this)">Datei</span><span class="m" onclick="openMenu('Pipeline',this)">Pipeline</span><span class="m" onclick="openMenu('Portal',this)">Portal</span><span class="m" onclick="openMenu('Ansicht',this)">Ansicht</span><span class="m" onclick="openMenu('Extras',this)">Extras</span><span class="m" onclick="openMenu('Hilfe',this)">Hilfe</span>
     <span class="right"><span class="tg" onclick="document.body.classList.toggle('dark')"><i class="ti ti-contrast-2"></i> Hell/Dunkel</span><span>Markt: DE</span><span>Admin</span></span>
   </div>
@@ -806,6 +806,7 @@ function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){y
     <div class="yt-step"><span class="n">4</span><div><b>Ergebnis</b><span class="d">Fakten in SSoT / Freigaben</span></div></div>
   </div>
   <div id="ytStatBox" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px"></div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="tb primary" onclick="ytDoneShow()"><i class="ti ti-list-check"></i> Ausgewertete Videos</button><button class="tb" onclick="ytQueueShow()"><i class="ti ti-clock"></i> Warteschlange</button></div>
   <div class="yt-top">
     <select class="s" style="max-width:120px" onchange="ytTyp=this.value"><option value="video,channel">Alles</option><option value="video">Videos</option><option value="channel">Kanäle</option></select>
     <input class="s" id="ytQ" placeholder="YouTube durchsuchen …" value="${esc(r.name||"")}" onkeydown="if(event.key==='Enter')ytSucheStart()">
