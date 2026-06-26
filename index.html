@@ -1558,6 +1558,12 @@ function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise
 const PWS_TABLBL={stammdaten:'Stammdaten',funktionen:'Funktionen',preise:'Tarife',integrationen:'Integrationen',faelle:'Anwendungsfälle',bewertungen:'Bewertungen',bilder:'Bilder',videos:'Videos',content:'Content'};
 function pwsTab(tab){dlgTab=tab;DLGFORM='pwsForm';renderTab();document.querySelectorAll('.pws-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.t===tab);});}
 async function pwsPublish(){if(!PWS||!PWS.artikel||!PWS.artikel.id){toast('Kein Artikel vorhanden – erst Content erzeugen.');return;}
+  let gate=null;
+  try{toast('Anti-Halluzinations-Check läuft … (Belege gegen Quellen)');const gr=await sb.functions.invoke('beleg-extrahieren',{body:{software_id:PWS.id}});if(gr&&!gr.error)gate=gr.data;}catch(e){}
+  if(gate&&gate.unbelegt>0){
+    const liste=(gate.offen||[]).slice(0,10).map(function(o){return '• '+o.tabelle+': '+o.ref;}).join('\n');
+    if(!confirm('⚠️ Anti-Halluzinations-Check: '+gate.unbelegt+' Fakt(en) OHNE belegbares Quell-Zitat (potenzielle Halluzination oder fehlende Quelle):\n\n'+liste+((gate.offen&&gate.offen.length>10)?'\n…':'')+'\n\nEmpfehlung: erst prüfen/korrigieren. Trotzdem JETZT veröffentlichen?'))return;
+  }else if(gate){toast('Beleg-Check bestanden: '+gate.belegt+' belegt, '+gate.synthese+' Synthese ✓');}
   if(!confirm('Artikel jetzt live schalten und veröffentlichen?\nStelle sicher, dass du den Inhalt im Tab „Content" geprüft hast.'))return;
   try{const now=new Date().toISOString();await dbW('update','inhalts_artikel',PWS.artikel.id,{inhalts_status:'live',geaendert_am:now});try{await dbW('update','software',PWS.id,{letzte_pruefung_am:now});}catch(e){}PWS.artikel.inhalts_status='live';if(PWS.full)PWS.full.letzte_pruefung_am=now;toast('Veröffentlicht ✓ – Artikel ist live');try{pwsSyncRail();}catch(e){}try{await ladeSW();}catch(e){}runBuild('de');}catch(e){alert('Veröffentlichen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 async function pwsFirmendaten(btn){if(!PWS)return;const sid=PWS.id;if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Suche Impressum …';}
