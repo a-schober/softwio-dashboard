@@ -1534,52 +1534,29 @@ async function pwsBewExtern(btn){if(!PWS)return;const sid=PWS.id;if(btn){btn.dis
     await pwsOpen(sid);
   }catch(e){alert('Bewertungs-Abruf fehlgeschlagen: '+(e&&e.message?e.message:e));if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-star"></i> Externe Bewertungen holen (G2/Capterra/Trustpilot)';}}
 }
+function pwsBody(P,st){
+  const f=P.full||{};const k=st.key;
+  if(k==='anlegen')return '';
+  if(k==='medien')return pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')+pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt');
+  if(k==='sammeln')return pwsRow((P.funk||[]).length>0,(P.funk||[]).length+' Roh-Funktionen erfasst')+pwsRow((P.preise||[]).length>0,(P.preise||[]).length+' Tarife erfasst')+'<div class="pws-acts">'+pwsBtn('Crawl-Status öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
+  if(k==='ordnen')return pwsRow(st.offeneFunk===0&&(P.funk||[]).length>0,'Funktionen zugeordnet – '+st.offeneFunk+' offen','Was tun: jeden Roh-Begriff einem Canonical zuordnen. Ziel: 0 offene Funktionen.')+pwsRow((P.preise||[]).length>0,'Tarife erfasst')+pwsRow(false,'Limits je Tarif (empfohlen, optional)','Optional: Kontingente je Tarif. Blockiert „Weiter" nicht – nicht jedes Tool veröffentlicht Limits.');
+  if(k==='belegen')return pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')+pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')+pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))+pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft')+'<div class="pws-acts">'+pwsBtn('Externe Bewertungen holen (G2/Capterra/Trustpilot)','pwsBewExtern(this)','ti-star',1)+'</div>';
+  if(k==='pruefen')return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+pwsRow(true,'Crawl-Status / Validierung','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));
+  if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
+  if(k==='veroeffentlichen')return pwsRow(!!P.artikel,'Content erzeugt')+'<div class="pws-acts">'+pwsBtn('Portal bauen','runBuild(\'de\')','ti-hammer',1)+'</div>';
+  return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
+}
+function pwsFoot(P,st){if(st.n>=st.total)return '';var nx=st.n+1;return '<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(st.key==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
 function pwsPanel(P,st){
-  const f=P.full||{};const k=st.key;const tabs=st.tabs||[];
+  const tabs=st.tabs||[];
   let h='<div class="pws-p-head"><span class="pws-p-n">Stufe '+st.n+'</span><h2>'+esc(st.t)+infoH(st.info)+'</h2></div><div class="pws-kind"><span class="pk-b '+(st.kind||'todo')+'">'+(st.kind==='info'?'Info':'ToDo')+'</span><span>'+esc(st.todo||'')+'</span></div>';
-  let body='';
-  if(k==='anlegen'){
-    body='';
-  }else if(k==='medien'){
-    body=pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')
-      +pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt');
-  }else if(k==='sammeln'){
-    body=pwsRow((P.funk||[]).length>0,(P.funk||[]).length+' Roh-Funktionen erfasst')
-      +pwsRow((P.preise||[]).length>0,(P.preise||[]).length+' Tarife erfasst')
-      +'<div class="pws-acts">'+pwsBtn('Crawl-Status öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
-  }else if(k==='ordnen'){
-    body=pwsRow(st.offeneFunk===0&&(P.funk||[]).length>0,'Funktionen zugeordnet – '+st.offeneFunk+' offen','Was tun: jeden Roh-Begriff einem Canonical zuordnen. Ziel: 0 offene Funktionen.')
-      +pwsRow((P.preise||[]).length>0,'Tarife erfasst')
-      +pwsRow(false,'Limits je Tarif (empfohlen, optional)','Optional: Kontingente je Tarif. Blockiert „Weiter" nicht – nicht jedes Tool veröffentlicht Limits.');
-  }else if(k==='belegen'){
-    body=pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')
-      +pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')
-      +pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))
-      +pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft')
-      +'<div class="pws-acts">'+pwsBtn('Externe Bewertungen holen (G2/Capterra/Trustpilot)','pwsBewExtern(this)','ti-star',1)+'</div>';
-  }else if(k==='pruefen'){
-    body=pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))
-      +pwsRow(true,'Crawl-Status / Validierung','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));
-  }else if(k==='schluss'){
-    const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});
-    body=ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')
-      +(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');
-  }else if(k==='veroeffentlichen'){
-    body=pwsRow(!!P.artikel,'Content erzeugt')
-      +'<div class="pws-acts">'+pwsBtn('Portal bauen','runBuild(\'de\')','ti-hammer',1)+'</div>';
-  }else{
-    body=pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))
-      +'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
-  }
   let editor='';
   if(tabs.length){
     editor=(tabs.length>1?('<div class="pws-subtabs">'+tabs.map(function(t){return '<button class="pws-subtab" data-t="'+t+'" onclick="pwsTab(\''+t+'\')">'+esc(PWS_TABLBL[t]||t)+'</button>';}).join('')+'</div>'):'')
       +'<div id="pwsForm" class="pws-form"></div>'
-      +(k==='anlegen'?'<div class="pws-acts" style="margin-top:12px"><button class="pws-act primary" onclick="saveStamm()"><i class="ti ti-check"></i> Stammdaten speichern</button><button class="pws-act" onclick="pwsFirmendaten(this)"><i class="ti ti-building-skyscraper"></i> Firmendaten aus Impressum holen</button></div>':'');
+      +(st.key==='anlegen'?'<div class="pws-acts" style="margin-top:12px"><button class="pws-act primary" onclick="saveStamm()"><i class="ti ti-check"></i> Stammdaten speichern</button><button class="pws-act" onclick="pwsFirmendaten(this)"><i class="ti ti-building-skyscraper"></i> Firmendaten aus Impressum holen</button></div>':'');
   }
-  let foot='';
-  if(st.n<st.total){var nx=st.n+1;foot='<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(k==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
-  return h+'<div class="pws-p-body">'+body+editor+'</div>'+foot;
+  return h+'<div class="pws-p-body"><div id="pwsStatus">'+pwsBody(P,st)+'</div>'+editor+'</div><div id="pwsFootWrap">'+pwsFoot(P,st)+'</div>';
 }
 function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
@@ -1603,7 +1580,8 @@ function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
 function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const total=stages.length;const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
   const railEl=document.querySelector('.pws-rail');if(railEl)railEl.innerHTML=stages.map(function(s){var ic=s.state==='done'?'ti-circle-check':s.state==='current'?'ti-player-play-filled':s.state==='pflege'?'ti-refresh':'ti-circle';return '<button class="pws-step '+s.state+(s.n===view?' sel':'')+'" onclick="pwsGoto('+s.n+')"><span class="pws-st-ic"><i class="ti '+ic+'"></i></span><span class="pws-st-n">'+s.n+'</span><span class="pws-st-t">'+esc(s.t)+'</span></button>';}).join('');
   const pe=document.querySelector('.pws-h-pct');if(pe)pe.textContent='Stufe '+cur+'/'+total+' · '+pct+'%';
-  const be=document.querySelector('.pws-bar span');if(be)be.style.width=pct+'%';}
+  const be=document.querySelector('.pws-bar span');if(be)be.style.width=pct+'%';
+  const vs=stages.find(function(s){return s.n===view;});if(vs){const sbx=document.getElementById('pwsStatus');if(sbx)sbx.innerHTML=pwsBody(PWS,vs);const fwx=document.getElementById('pwsFootWrap');if(fwx)fwx.innerHTML=pwsFoot(PWS,vs);}}
 function aov(title,sub,body,foot){$("#aTitle").textContent=title;$("#aSub").textContent=sub||"";$("#aBody").innerHTML=body;$("#aFoot").innerHTML=foot||'<span class="tb" onclick="closeAov()">Schließen</span>';$("#aov").classList.add("show");}
 function closeAov(){$("#aov").classList.remove("show");}
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
