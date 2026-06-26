@@ -53,7 +53,7 @@
   .pws-step.current .pws-st-n{background:#e0e7ff;color:#4338ca}
   .pws-st-t{flex:1}
   .pws-step.gesperrt{opacity:.5}
-  .pws-panel{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:var(--panel);min-height:240px}
+  .pws-panel{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:var(--panel);min-height:240px;min-width:0;overflow-x:hidden}
   .pws-p-head h2{font-size:16.5px;margin:2px 0;display:flex;align-items:center}
   .pws-p-n{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6366f1}
   .pws-p-body{margin-top:12px;display:flex;flex-direction:column;gap:8px}
@@ -76,7 +76,7 @@
   .pws-subtab{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:7px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer}
   .pws-subtab:hover{color:var(--ink)}
   .pws-subtab.on{background:#eef2ff;border-color:#c7d2fe;color:#4338ca;font-weight:600}
-  .pws-form{margin-top:4px}
+  .pws-form{margin-top:4px;min-width:0;overflow-x:auto}
   .pws-kind{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:12.5px;color:var(--muted)}
   .pk-b{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:5px;padding:2px 7px;flex:none}
   .pk-b.todo{background:#fef3c7;color:#92400e}
@@ -1151,7 +1151,7 @@ function tabFunk(r){const d=r._d||{};if(d.lade)return emptyTab("ti-loader-2","L�
   const gem=rows.filter(function(x){return x.canonical_name&&String(x.canonical_name).trim();}).length;
   return `<div class="tabhint"><i class="ti ti-info-circle"></i> Roh-Funktion → Canonical-Begriff. Auf „zuordnen" klicken → KI-Vorschläge. ${rows.length} erfasst · ${gem} gemappt · <span class="pr">${rows.length-gem} offen</span>.</div>`
     +`<div style="display:flex;gap:8px;margin-bottom:10px"><input id="funkQ" value="${esc(funkQ)}" oninput="funkApply()" placeholder="Funktion / Canonical / Kategorie suchen …" style="flex:1;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:12.5px"><select id="funkFil" onchange="funkApply()" style="height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);padding:0 8px;font-size:12.5px"><option value="all"${funkFil==="all"?" selected":""}>Alle</option><option value="offen"${funkFil==="offen"?" selected":""}>Nur offene</option><option value="gemappt"${funkFil==="gemappt"?" selected":""}>Nur gemappte</option></select><button class="tb primary" onclick="funkAiAll()" style="white-space:nowrap"><i class="ti ti-sparkles"></i> KI: offene zuordnen</button>${infoI('funkPrompt()')}</div>`
-    +`<table class="dtbl"><thead><tr><th>Funktion (roh)</th><th>→ Canonical</th><th>Kategorie</th><th>ab Tarif</th><th style="text-align:right">Konf.</th><th>Status</th></tr></thead><tbody id="funkBody">${funkRowsHtml(rows)}</tbody></table>`;}
+    +`<table class="dtbl fix"><thead><tr><th>Funktion (roh)</th><th>→ Canonical</th><th style="width:120px">Kategorie</th><th style="width:96px">ab Tarif</th><th style="width:58px;text-align:right">Konf.</th><th style="width:96px">Status</th></tr></thead><tbody id="funkBody">${funkRowsHtml(rows)}</tbody></table>`;}
 async function funkAiAll(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!sid){toast("Keine Software-ID");return;}
   const offen=((dlgRow._d&&dlgRow._d.funk)||[]).filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());});
   if(!offen.length){toast("Keine offenen Funktionen – alles bereits zugeordnet");return;}
