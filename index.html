@@ -1372,6 +1372,7 @@ function tabBilder(r,s,isSev){const sid=r.id||(r._d&&r._d.full&&r._d.full.id);se
 function setBildCount(sid){if(!sid){const e=$("#dnBild");if(e)e.textContent="";return;}sb.from("software_bilder").select("id",{count:"exact",head:true}).eq("software_id",sid).then(function(res){const e=$("#dnBild");if(e)e.textContent=res.count||0;});}
 const BILD_ROLLEN=[["hauptbild","Hauptbild (Hero)"],["inhalt","Content-Bild"],["galerie","Galeriebild"],["logo","Logo"]];
 const BILD_ABSCHNITTE=[["","automatisch"],["einleitung","Einleitung/Überblick"],["funktionen","Funktionen & Oberfläche"],["preise","Preise"],["integrationen","Integrationen"],["anwendungsfaelle","Anwendungsfälle"],["fazit","Fazit"]];
+const ABSCHNITT_LABEL={einleitung:"Einleitung",einordnung:"Einordnung",funktionen:"Funktionen",preise:"Preise",alternativen:"Alternativen",integrationen:"Integrationen",anwendungsfaelle:"Anwendungsfälle",einschaetzung:"Einschätzung",fazit:"Fazit",video:"Video",nutzerstimmen:"Nutzerstimmen"};
 async function ladeBilder(sid){const box=$("#bilderBox");if(!box)return;if(!sid){box.innerHTML="";return;}
   try{const res=await sb.from('software_bilder').select('*').eq('software_id',sid).order('reihenfolge',{ascending:true});const imgs=res.data||[];window._bilder=imgs;const _dc=$("#dnBild");if(_dc)_dc.textContent=imgs.length;
     if(!imgs.length){box.innerHTML='<div class="empty-tab" style="padding:30px"><i class="ti ti-photo-off"></i><b>Noch keine Bilder</b><div class="d">Lade oben Screenshots/Produktbilder hoch.</div></div>';return;}
@@ -1397,6 +1398,7 @@ async function ladeBilder(sid){const box=$("#bilderBox");if(!box)return;if(!sid)
             +'<select title="Abschnitt-Hinweis" onchange="bildSetAbschnitt(\''+b.id+'\',this.value)" style="flex:1;'+inp+'">'+BILD_ABSCHNITTE.map(function(a){return '<option value="'+a[0]+'"'+((b.abschnitt_hinweis||"")===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join("")+'</select>'
             +'<label title="muss im Artikel platziert werden" style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;cursor:pointer"><input type="checkbox"'+(b.pflicht?' checked':'')+' onchange="bildSetPflicht(\''+b.id+'\',this.checked)"> Pflicht</label>'
            +'</div>'
+           +(b.platziert_abschnitt?'<div style="font-size:11px;color:#0a8a5f;margin-top:5px;font-weight:600">✓ platziert in: '+esc(ABSCHNITT_LABEL[b.platziert_abschnitt]||b.platziert_abschnitt)+'</div>':(b.pflicht?'<div style="font-size:11px;color:#c0392b;margin-top:5px">⚠ noch nicht im Artikel platziert</div>':''))
         ):'')
         +'</div>';}).join("")+'</div>'
       +'<div style="font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6"><b>Rollen:</b> <b>Content-Bild</b> = wird von Claude thematisch passend IN den Artikeltext platziert (Beschreibung + Abschnitt-Hinweis + „Pflicht“ steuern die Platzierung) · <b>Galeriebild</b> = erscheint im Screenshot-Galerie-Block (Reihenfolge per ↑↓, Beschreibung = Bildunterschrift) · <b>Hauptbild</b> = Hero in der Einleitung · <b>Logo</b> = Hersteller-Logo (nie im Text). <b>✨</b> = Beschreibung automatisch von Claude vorschlagen lassen.</div>';
