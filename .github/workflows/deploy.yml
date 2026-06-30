@@ -12,4 +12,4 @@ jobs:
         run: |
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${{ secrets.EASYPANEL_HOOK }}")
           echo "Easypanel deploy hook -> HTTP $code"
-          test "$code" = "200"
+          if [ "$code" != "200" ]; then echo "::warning::Easypanel-Hook lieferte HTTP $code — Secret EASYPANEL_HOOK evtl. veraltet (Service neu konfiguriert). Deploy bitte manuell ausloesen oder Hook-URL aktualisieren."; fi
