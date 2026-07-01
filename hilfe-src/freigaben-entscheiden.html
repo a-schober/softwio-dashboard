@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Freigaben entscheiden · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2733; font-size:10.2pt; line-height:1.46; margin:0; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  p { margin:0 0 6px; }
+  b,strong { color:#16202e; }
+
+  .head { display:flex; align-items:center; gap:14px; background:#3a404a; color:#fff; border-radius:12px; padding:15px 20px; margin-bottom:4px; }
+  .head .logo { font-size:25pt; font-weight:900; letter-spacing:-.03em; line-height:1; display:flex; align-items:baseline; }
+  .head .logo .o { position:relative; display:inline-block; width:.92em; height:.92em; margin:0 .01em; }
+  .head .logo .o svg { position:absolute; inset:0; width:100%; height:100%; }
+  .head .ht { flex:1; }
+  .head .claim { font-size:9pt; color:#9fb4cd; margin-top:2px; }
+  .head .doc { text-align:right; font-size:8.5pt; color:#c3cdda; }
+  .head .doc b { color:#fff; font-size:11pt; display:block; letter-spacing:-.01em; }
+
+  .lead { color:#4a5666; font-size:10.3pt; margin:11px 2px 12px; }
+  .lead b { color:#16202e; }
+
+  .principle { border:1px solid #cfe0ff; background:#f3f8ff; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:9.6pt; color:#23364d; }
+  .principle b { color:#123; }
+  .principle .t { font-weight:800; color:#1c4e8a; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+
+  .sec-h { font-size:8.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#8595a8; margin:15px 0 9px; padding-bottom:4px; border-bottom:1px solid #e6ebf1; }
+
+  /* Schritte */
+  .step { display:flex; gap:12px; margin:0 0 9px; break-inside:avoid; page-break-inside:avoid; }
+  .num { flex:none; width:25px; height:25px; border-radius:50%; background:#2f80ff; color:#fff; font-weight:800; font-size:10.5pt; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; padding-top:1px; min-width:0; }
+  .st-title { font-size:11pt; font-weight:800; color:#16202e; margin-bottom:2px; }
+  .st-do { margin:1px 0 3px; }
+  .cond { font-size:8.8pt; color:#1c6b40; background:#eefaf2; border-left:3px solid #27a567; padding:3px 9px; border-radius:0 6px 6px 0; }
+  .cond b { color:#145130; }
+
+  /* Optionen-Vergleich */
+  .opts { display:flex; gap:10px; margin:2px 0 0; }
+  .opt { flex:1; border-radius:9px; padding:9px 11px; font-size:9.2pt; }
+  .opt.yes { border:1px solid #b7e9cd; background:#eefaf2; }
+  .opt.no  { border:1px solid #dfe4ea; background:#f6f8fb; }
+  .opt .oh { font-weight:800; margin-bottom:2px; display:flex; align-items:center; gap:5px; }
+  .opt.yes .oh { color:#16a34a; }
+  .opt.no .oh { color:#6b7a8d; }
+
+  /* Pflichten */
+  .rules { border:1px solid #ffe0b8; background:#fff8ef; border-radius:10px; padding:10px 14px 7px; margin:14px 0 0; break-inside:avoid; }
+  .rules .t { font-weight:800; color:#9a5b00; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin:0; padding-left:17px; }
+  .rules li { margin-bottom:3px; font-size:9.4pt; }
+  .rules li b { color:#7a4a00; }
+
+  .gate { border:1px solid #ffc9c9; background:#fff5f5; border-radius:10px; padding:11px 14px 8px; margin:12px 0 0; break-inside:avoid; }
+  .gate .t { font-weight:800; color:#c1121f; margin-bottom:5px; display:flex; align-items:center; gap:6px; font-size:10.4pt; }
+  .gate p { font-size:9.4pt; margin:0; color:#3a2a2a; }
+  .gate b { color:#a01019; }
+
+  .done { background:#eafaf1; border:1px solid #b7e9cd; border-radius:10px; padding:10px 14px; margin:12px 0 0; font-size:9.6pt; color:#1c6b40; break-inside:avoid; }
+  .done b { color:#145130; }
+  .foot { margin-top:14px; padding-top:9px; border-top:1px solid #e6ebf1; font-size:8.3pt; color:#97a2b0; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht"><div class="claim">Software, die passt.</div></div>
+    <div class="doc"><b>Anleitung</b>Freigaben entscheiden · Cockpit</div>
+  </div>
+
+  <p class="lead">In den <b>Freigaben</b> triffst du die Entscheidungen, die das System nicht allein treffen darf. Diese Anleitung zeigt dir Schritt für Schritt, <b>was Freigaben sind</b>, <b>wie du eine sauber entscheidest</b> und <b>welche Pflichten</b> dabei gelten. Du bist hier die <b>letzte Kontrollinstanz</b> vor der Datenbasis (SSoT).</p>
+
+  <div class="principle">
+    <div class="t">★ Was sind Freigaben?</div>
+    Beim automatischen Auslesen (Crawl, Videos) findet das System laufend neue Erkenntnisse – z. B. eine Funktion, eine Integration oder einen Anwendungsfall. <b>Sichere Fälle</b> übernimmt es automatisch. <b>Grenzfälle</b>, bei denen es sich nicht sicher ist, hält der <b>Auto-Watcher</b> zurück und legt sie dir hier zur Entscheidung vor. So kommt <b>nichts Unsicheres</b> ungeprüft in die Datenbasis.
+  </div>
+
+  <div class="sec-h">So findest du offene Freigaben</div>
+  <p style="margin:0 0 12px;font-size:10pt">Im Menü links unter <b>Freigaben</b>. Die <b>rote Zahl</b> daneben zeigt, wie viele Grenzfälle noch offen sind. Ist keine Zahl da, ist alles entschieden. Ein Klick auf eine Zeile öffnet den Entscheidungs-Dialog.</p>
+
+  <div class="sec-h">In 5 Schritten sauber entscheiden</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Freigabe öffnen</div>
+      <div class="st-do">Auf die Zeile klicken. Oben siehst du die <b>Art</b> (Funktion / Integration / Anwendungsfall) und das <b>Ziel</b> (wohin die Erkenntnis gehören würde).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Erkenntnis lesen</div>
+      <div class="st-do">Die fett dargestellte <b>Beschreibung</b> ist die konkrete Erkenntnis, über die du entscheidest – z. B. „Funktion: Festschreibung (GoBD)".</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Beleg prüfen <span style="font-size:8pt;font-weight:800;color:#c1121f;border:1px solid #ffc9c9;border-radius:4px;padding:1px 6px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em">Kernschritt</span></div>
+      <div class="st-do">Der wichtigste Schritt. Lies:</div>
+      <div class="cond"><b>„Warum Grenzfall"</b> (warum das System unsicher war) · <b>„Beleg aus der Quelle"</b> (das echte Zitat aus Crawl/Video) · <b>„Ähnlich zu"</b> (ein evtl. schon vorhandener Eintrag). Frage dich: <b>Deckt der Beleg die Erkenntnis wirklich?</b></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="st-title">Entscheiden</div>
+      <div class="st-do">Wähle eine der angebotenen Optionen. Es gibt zwei Grundtypen:</div>
+      <div class="opts">
+        <div class="opt yes"><div class="oh">✔ Übernehmen</div>Die Erkenntnis wird <b>in die Datenbasis übernommen</b> (angelegt oder aktualisiert) – z. B. als Funktion beim Produkt. Nur wählen, wenn der Beleg sie <b>klar deckt</b>.</div>
+        <div class="opt no"><div class="oh">● Nicht übernehmen</div>Nur <b>als erledigt abhaken</b> – es wird <b>nichts gespeichert</b>. Für Unklares, Doppeltes oder Falsches. Im Zweifel diese Option.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="st-title">Ergebnis</div>
+      <div class="st-do">Nach der Entscheidung verschwindet der Fall aus der Liste, die <b>rote Zahl zählt herunter</b>. Übernommene Erkenntnisse erscheinen sofort beim Produkt (z. B. in den Funktionen).</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="t">⚠ Deine Pflichten beim Entscheiden</div>
+    <ul>
+      <li><b>Nur mit Beleg übernehmen:</b> Eine Erkenntnis nur dann „Übernehmen", wenn der <b>Beleg aus der Quelle</b> sie eindeutig stützt (100 % faktenbasiert).</li>
+      <li><b>Im Zweifel nicht übernehmen:</b> Lieber „nur abhaken" als etwas Unsicheres in die Datenbasis lassen. Weglassen ist immer sicherer als Raten.</li>
+      <li><b>Dubletten vermeiden:</b> Steht bei <b>„Ähnlich zu"</b> ein passender Eintrag, ist es meist dieselbe Sache – dann nicht doppelt anlegen (Option „aktualisieren" bevorzugen bzw. abhaken).</li>
+      <li><b>Nichts ergänzen, was nicht dasteht:</b> Du entscheidest nur über die vorliegende Erkenntnis – keine eigenen Vermutungen hinzufügen.</li>
+    </ul>
+  </div>
+
+  <div class="gate">
+    <div class="t">🛡️ Warum das wichtig ist</div>
+    <p>Solange auch nur <b>eine Freigabe offen</b> ist, bleibt im Produkt-Workflow die Stufe <b>„Prüfen &amp; freigeben"</b> offen – das Produkt erreicht <b>keine 100 %</b> und kann <b>nicht veröffentlicht</b> werden. Dieselbe Stufe verlangt zusätzlich <b>0 unbelegte Fakten</b> (der Anti-Halluzinations-Check beim Veröffentlichen). Deine Freigabe-Entscheidungen sind damit ein <b>Pflicht-Tor</b> auf dem Weg zum Live-Artikel.</p>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Sind alle Freigaben entschieden, ist die rote Zahl verschwunden und die Stufe „Prüfen &amp; freigeben" erledigt. Das Produkt ist bereit für den Schlusscheck und die Veröffentlichung.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · Freigaben entscheiden</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>
