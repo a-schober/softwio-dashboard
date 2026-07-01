@@ -448,19 +448,19 @@
   <div class="body">
     <aside class="sidebar" id="side">
       <div class="grp">Arbeitsbereich</div>
-      <div class="nav active" data-v="software"><i class="ti ti-stack-2"></i> Produkte <span class="cnt" id="navCount">16</span></div>
+      <div class="nav active" data-v="software"><i class="ti ti-stack-2"></i> Produkte <span class="cnt" id="navCount"></span></div>
       <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg" id="freiBadge" style="display:none"></span></div>
       <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge" style="display:none"></span></div>
       <div class="grp">Inhalte &amp; Portal</div>
-      <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
+      <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel <span class="cnt" id="cntVergleiche"></span></div>
       <div class="nav" data-v="portalbuild"><i class="ti ti-hammer"></i> Portal bauen</div>
-      <div class="nav" data-v="infoseiten"><i class="ti ti-file-text"></i> Infoseiten</div>
-      <div class="nav" data-v="redirects"><i class="ti ti-arrow-guide"></i> Redirects</div>
+      <div class="nav" data-v="infoseiten"><i class="ti ti-file-text"></i> Infoseiten <span class="cnt" id="cntInfoseiten"></span></div>
+      <div class="nav" data-v="redirects"><i class="ti ti-arrow-guide"></i> Redirects <span class="cnt" id="cntRedirects"></span></div>
       <div class="grp">Stammdaten &amp; Werkzeuge</div>
-      <div class="nav" data-v="kategorien"><i class="ti ti-category"></i> Kategorien</div>
-      <div class="nav" data-v="maerkte"><i class="ti ti-world-pin"></i> Märkte &amp; Länder</div>
-      <div class="nav" data-v="logos"><i class="ti ti-photo"></i> Logos</div>
-      <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch</div>
+      <div class="nav" data-v="kategorien"><i class="ti ti-category"></i> Kategorien <span class="cnt" id="cntKategorien"></span></div>
+      <div class="nav" data-v="maerkte"><i class="ti ti-world-pin"></i> Märkte &amp; Länder <span class="cnt" id="cntMaerkte"></span></div>
+      <div class="nav" data-v="logos"><i class="ti ti-photo"></i> Logos <span class="cnt" id="cntLogos"></span></div>
+      <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch <span class="cnt" id="cntWoerterbuch"></span></div>
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
       <div class="grp">System</div>
@@ -855,6 +855,20 @@ const LANDNAME={de:"Deutschland",at:"Österreich",ch:"Schweiz",it:"Italien",es:"
 async function ladeMaerkteView(){try{const res=await sb.from('maerkte').select('*').order('roll_out_phase',{ascending:true});VIEWS.maerkte.rows=(res.data||[]).map(function(x){const c=(x.markt_id||'').toLowerCase();return {code:(x.markt_id||'').toUpperCase(),land:LANDNAME[c]||x.domain||x.markt_id,sprache:x.sprache||'',waehrung:x.waehrung||'',status:x.status||''};});}catch(e){}}
 async function ladeInfoseitenView(){try{const res=await sb.from('seiten').select('*').order('reihenfolge',{ascending:true});VIEWS.infoseiten.rows=(res.data||[]).map(function(x){const lbl=(x.schluessel||'').replace(/[-_]/g,' ').replace(/w/g,function(m){return m.toUpperCase();});return {seite:lbl,slug:x.schluessel||'',footer:!!x.im_footer,status:'aktiv'};});}catch(e){}}
 async function ladeRedirectsView(){try{const res=await sb.from('cockpit_redirects').select('*').order('erstellt_am',{ascending:false});VIEWS.redirects.rows=(res.data||[]).map(function(x){return {_id:x.id,von:x.von,nach:x.nach,typ:x.typ,aktiv:!!x.aktiv};});}catch(e){}}
+async function updateNavCounts(){
+  var setC=function(id,n){var e=document.getElementById(id);if(e){e.textContent=n;e.style.display='';}};
+  try{
+    var cq=function(tbl){return sb.from(tbl).select('*',{count:'exact',head:true});};
+    var r=await Promise.all([
+      cq('kategorien'),cq('maerkte'),cq('seiten'),cq('cockpit_redirects'),cq('funktions_woerterbuch'),
+      sb.from('software_bilder').select('*',{count:'exact',head:true}).eq('rolle','logo'),
+      sb.from('inhalts_artikel').select('*',{count:'exact',head:true}).or('typ.eq.vergleich,beteiligte_software.not.is.null')
+    ]);
+    setC('cntKategorien',r[0].count||0);setC('cntMaerkte',r[1].count||0);setC('cntInfoseiten',r[2].count||0);
+    setC('cntRedirects',r[3].count||0);setC('cntWoerterbuch',r[4].count||0);setC('cntLogos',r[5].count||0);
+    setC('cntVergleiche',r[6].count||0);
+  }catch(e){}
+}
 async function ladeEinstellungenView(){try{const res=await sb.from('cockpit_einstellungen').select('*').order('label');VIEWS.einstellungen.rows=(res.data||[]).map(function(x){return {_id:x.schluessel,label:x.label,wert:x.wert};});}catch(e){}}
 async function ladePortalbuildView(){try{const res=await sb.from('cockpit_portal_builds').select('*').order('gebaut_am',{ascending:false});VIEWS.portalbuild.rows=(res.data||[]).map(function(x){return {markt:x.markt_id,build:x.gebaut_am?String(x.gebaut_am).replace('T',' ').slice(0,16):'',status:x.status,artikel:x.artikel_anzahl};});}catch(e){}}
 const DBVIEW={redirects:{coll:'cockpit_redirects',pk:'id',felder:['von','nach','typ','aktiv']},einstellungen:{coll:'cockpit_einstellungen',pk:'schluessel',felder:['label','wert']}};
@@ -2123,7 +2137,7 @@ function vglResult(names){const c=$("#vglRes"),f=$("#aFoot");if(!c)return;
   if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb" onclick="toast(\'Als Entwurf gespeichert (Demo)\')"><i class="ti ti-device-floppy"></i> Als Entwurf</span> <span class="tb ok" onclick="vglPublish()"><i class="ti ti-rosette-discount-check"></i> Veröffentlichen</span>';
 }
 function vglPublish(){const names=vglLastNames;if(!names||names.length<2)return;VIEWS.vergleiche.rows.unshift({name:names.join(" vs. "),kat:vglCat,tools:names.length,markt:"DE",angelegt:"2026-06-22",pct:100,status:"live",geprueft:"2026-06-22",nw:80,_hue:HUE[VIEWS.vergleiche.rows.length%HUE.length]});vglSel=new Set();toast("Vergleichsartikel veröffentlicht & in Übersicht aufgenommen");closeAov();route("vergleiche");}
-async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); }
+async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
