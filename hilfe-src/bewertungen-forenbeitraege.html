@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bewertungen & Forenbeiträge · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2733; font-size:10.2pt; line-height:1.46; margin:0; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  p { margin:0 0 6px; }
+  b,strong { color:#16202e; }
+
+  .head { display:flex; align-items:center; gap:14px; background:#3a404a; color:#fff; border-radius:12px; padding:15px 20px; margin-bottom:4px; }
+  .head .logo { font-size:25pt; font-weight:900; letter-spacing:-.03em; line-height:1; display:flex; align-items:baseline; }
+  .head .logo .o { position:relative; display:inline-block; width:.92em; height:.92em; margin:0 .01em; }
+  .head .logo .o svg { position:absolute; inset:0; width:100%; height:100%; }
+  .head .ht { flex:1; }
+  .head .claim { font-size:9pt; color:#9fb4cd; margin-top:2px; }
+  .head .doc { text-align:right; font-size:8.5pt; color:#c3cdda; }
+  .head .doc b { color:#fff; font-size:11pt; display:block; letter-spacing:-.01em; }
+
+  .lead { color:#4a5666; font-size:10.3pt; margin:11px 2px 12px; }
+  .lead b { color:#16202e; }
+
+  .principle { border:1px solid #cfe0ff; background:#f3f8ff; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:9.6pt; color:#23364d; }
+  .principle b { color:#123; }
+  .principle .t { font-weight:800; color:#1c4e8a; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+
+  .privacy { border:1px solid #cfe8d8; background:#f1faf4; border-radius:10px; padding:9px 13px; margin:0 0 14px; font-size:9.3pt; color:#1c5a3a; }
+  .privacy b { color:#12492e; }
+  .privacy .t { font-weight:800; color:#12492e; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+
+  .sec-h { font-size:8.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#8595a8; margin:15px 0 9px; padding-bottom:4px; border-bottom:1px solid #e6ebf1; }
+
+  .segs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 4px; }
+  .seg { border:1px solid #e6ebf1; border-radius:9px; padding:9px 12px; font-size:9.2pt; background:#fbfcfe; }
+  .seg b { display:block; color:#16202e; margin-bottom:1px; }
+  .seg .tag { font-size:7.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#2f80ff; }
+
+  .step { display:flex; gap:12px; margin:0 0 9px; break-inside:avoid; page-break-inside:avoid; }
+  .num { flex:none; width:25px; height:25px; border-radius:50%; background:#2f80ff; color:#fff; font-weight:800; font-size:10.5pt; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; padding-top:1px; min-width:0; }
+  .st-title { font-size:11pt; font-weight:800; color:#16202e; margin-bottom:2px; }
+  .st-do { margin:1px 0 3px; }
+  .cond { font-size:8.8pt; color:#1c6b40; background:#eefaf2; border-left:3px solid #27a567; padding:3px 9px; border-radius:0 6px 6px 0; }
+  .cond b { color:#145130; }
+
+  .ki { border:1px solid #d6ccff; background:#f7f4ff; border-radius:10px; padding:10px 14px 9px; margin:8px 0 0; break-inside:avoid; }
+  .ki .t { font-weight:800; color:#5b3fd6; display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:10.2pt; }
+  .ki p { font-size:9.4pt; margin:0 0 4px; }
+  .ki b { color:#4327b3; }
+  .max { background:#eef7f0; border:1px solid #bfe6cd; border-radius:7px; padding:6px 10px; font-size:9.1pt; color:#1c6b40; margin-top:6px; }
+  .max .mh { font-weight:800; color:#145130; display:flex; align-items:center; gap:5px; margin-bottom:1px; }
+  .max b { color:#145130; }
+
+  .rules { border:1px solid #ffe0b8; background:#fff8ef; border-radius:10px; padding:10px 14px 7px; margin:14px 0 0; break-inside:avoid; }
+  .rules .t { font-weight:800; color:#9a5b00; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin:0; padding-left:17px; }
+  .rules li { margin-bottom:3px; font-size:9.4pt; }
+  .rules li b { color:#7a4a00; }
+
+  .gate { border:1px solid #ffc9c9; background:#fff5f5; border-radius:10px; padding:11px 14px 8px; margin:12px 0 0; break-inside:avoid; }
+  .gate .t { font-weight:800; color:#c1121f; margin-bottom:5px; display:flex; align-items:center; gap:6px; font-size:10.4pt; }
+  .gate p { font-size:9.4pt; margin:0; color:#3a2a2a; }
+  .gate b { color:#a01019; }
+
+  .done { background:#eafaf1; border:1px solid #b7e9cd; border-radius:10px; padding:10px 14px; margin:12px 0 0; font-size:9.6pt; color:#1c6b40; break-inside:avoid; }
+  .done b { color:#145130; }
+  .foot { margin-top:14px; padding-top:9px; border-top:1px solid #e6ebf1; font-size:8.3pt; color:#97a2b0; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht"><div class="claim">Software, die passt.</div></div>
+    <div class="doc"><b>Anleitung</b>Bewertungen &amp; Forenbeiträge · Cockpit</div>
+  </div>
+
+  <p class="lead">Echte Nutzermeinungen machen eine Produktseite glaubwürdig. Diese Anleitung zeigt, wie du <b>Nutzerbewertungen</b> (G2, Trustpilot, Capterra …) und <b>Forenbeiträge</b> (Reddit, Foren) sammelst, von der <b>KI auswerten</b> lässt und daraus eine <b>Stärken-/Schwächen-Synthese</b> entsteht – inklusive des günstigen Wegs über <b>Claude Max</b>. Zu finden im Produkt unter dem Reiter <b>Bewertungen</b> (Stufe „Belegen").</p>
+
+  <div class="principle">
+    <div class="t">★ Was dabei entsteht</div>
+    Aus den eingefügten Meinungen erstellt die KI eine <b>Synthese</b>: Gesamtstimmung plus die <b>Top-Stärken und Top-Schwächen</b>. Diese fließt in den Artikel (Abschnitt „Nutzerstimmen") und in die redaktionelle Bewertung ein.
+  </div>
+
+  <div class="privacy">
+    <div class="t">🔒 Datenschutz – wichtig &amp; beruhigend</div>
+    Ausgewertet wird <b>ausschließlich der Inhalt</b> – <b>keine Zitate, Namen oder Daten</b>. Der Rohtext und die Screenshots werden <b>nicht gespeichert</b>. Doppelte Bewertungen (gleicher Inhalt) werden automatisch erkannt und übersprungen.
+  </div>
+
+  <div class="sec-h">Zwei Quellenarten (Dropdown „Quelle")</div>
+  <div class="segs">
+    <div class="seg"><span class="tag">Nutzerbewertungen</span><b>G2 · Trustpilot · Capterra · OMR</b>Klassische Sterne-Bewertungsportale.</div>
+    <div class="seg"><span class="tag">Community-Diskussionen</span><b>Reddit · Foren</b>Erfahrungsberichte aus Diskussionen (= Forenbeiträge).</div>
+  </div>
+  <p style="font-size:9pt;color:#5a6675;margin:6px 2px 0">Beide werden getrennt ausgewertet und ergeben jeweils eine eigene Synthese – wähle vor dem Einfügen die passende Quelle.</p>
+
+  <div class="sec-h">In 5 Schritten einpflegen</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Bewertungen finden</div>
+      <div class="st-do">Über die Buttons <b>Google · Trustpilot · G2 · Capterra · OMR</b> öffnet sich die Suche für das Produkt im neuen Tab. Für <b>Forenbeiträge</b> suchst du zusätzlich auf Reddit/Foren. Passende Meinungen markieren und kopieren – oder einen Screenshot machen.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Quelle wählen</div>
+      <div class="st-do">Im Dropdown <b>„Quelle"</b> festlegen, ob es <b>Nutzerbewertungen</b> oder <b>Community-Diskussionen (Foren)</b> sind. Das ist wichtig, damit beide getrennt und sauber ausgewertet werden.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Einfügen</div>
+      <div class="st-do">Den Text ins große Feld <b>einfügen (Strg+V)</b> – und/oder <b>Screenshots</b> in den Bereich darunter ziehen bzw. einfügen. Beides gleichzeitig ist möglich.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="st-title">Auswerten (Vorschau)</div>
+      <div class="st-do">Klick auf <b>„Auswerten (Vorschau)"</b>. Die KI liest <b>jede Bewertung einzeln</b> aus und zeigt eine Vorschau mit Tenor (👍 / ➖ / 👎), Stärken/Schwächen und einer Veröffentlichungs-Empfehlung.</div>
+      <div class="cond">Dubletten werden übersprungen. In der Vorschau ist <b>noch nichts gespeichert</b> – du kannst sie verwerfen.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="st-title">Übernehmen &amp; Synthese</div>
+      <div class="st-do"><b>„Übernehmen &amp; Synthese"</b> speichert die Bewertungen und erstellt bzw. aktualisiert die Gesamt-Synthese (Stimmung + Stärken/Schwächen Top 5). Neue Bewertungen kannst du <b>jederzeit ergänzen</b> – nur Neues wird hinzugefügt.</div>
+    </div>
+  </div>
+
+  <div class="ki">
+    <div class="t">✨ KI-Funktionen &amp; der Claude-Max-Weg</div>
+    <p>Zwei KI-Schritte arbeiten hier zusammen: <b>Auslesen</b> (<i>bewertungen-auslesen</i>) bewertet jede Meinung inhaltlich und erkennt Dubletten; <b>Synthese</b> (<i>bewertungen-synthese</i>) verdichtet alles zu Gesamtstimmung + Top-Stärken/-Schwächen. Verwandt: der Button <b>„Externe Bewertungen holen"</b> (<i>bewertungen-extern</i>) sucht per Websuche die <b>Stern-Werte</b> von G2/Capterra/Trustpilot.</p>
+    <div class="max">
+      <div class="mh">💶 Günstiger Weg über Claude Max (ohne API-Kosten)</div>
+      Neben „Auswerten" gibt es ein kleines <b>„i"-Symbol</b>. Es kopiert einen fertigen <b>Max-Plan-Prompt</b> – füge ihn mit den Bewertungen in deine <b>Claude-Code-Sitzung</b> ein. Claude wertet aus und schreibt die Synthese kostenfrei über den Max-Plan (du gibst frei).
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="t">⚠ Wichtige Punkte &amp; Pflichten</div>
+    <ul>
+      <li><b>Richtige Quelle wählen:</b> Nutzerbewertungen und Forenbeiträge nie vermischen – erst das Dropdown setzen, dann einfügen.</li>
+      <li><b>Nur echte Meinungen:</b> Werbetexte oder Anbieter-Eigenlob sind keine Bewertungen.</li>
+      <li><b>Datenschutz vertrauen:</b> Es wird nur der Inhalt ausgewertet – keine Namen/Zitate, kein Speichern von Rohtext/Screenshots. Trotzdem keine sensiblen Personendaten einfügen.</li>
+      <li><b>Ausgewogen sammeln:</b> Positive und negative Stimmen einbeziehen – die Synthese soll ehrlich sein, nicht geschönt.</li>
+      <li><b>Regelmäßig ergänzen:</b> Neue Bewertungen halten die Synthese aktuell (Dubletten werden automatisch übersprungen).</li>
+    </ul>
+  </div>
+
+  <div class="gate">
+    <div class="t">🛡️ Warum das wichtig ist</div>
+    <p>Die <b>Bewertungs-Synthese</b> ist Teil der Stufe <b>„Belegen" (Stufe 5)</b>: Ohne sie (neben Quellen und Logo) bleibt die Stufe offen, das Produkt erreicht <b>keine 100 %</b> und kann <b>nicht veröffentlicht</b> werden. Zudem speist sie den Artikel-Abschnitt „Nutzerstimmen" – erst dann erscheint er automatisch.</p>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Sind Nutzerbewertungen und/oder Forenbeiträge ausgewertet und übernommen, steht die Synthese mit Stärken &amp; Schwächen. Die Stufe „Belegen" kommt ihrem Ziel näher und die Produktseite wird glaubwürdiger.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · Bewertungen &amp; Forenbeiträge</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>
