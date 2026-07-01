@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <title>QuickStart: Content-Erstellung · softwio Cockpit</title>
 <style>
-  @page { size: A4; margin: 15mm 14mm 16mm; }
+  @page { size: A4; margin: 14mm 14mm 15mm; }
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body {
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    color: #1f2733; font-size: 10.3pt; line-height: 1.5; margin: 0;
+    color: #1f2733; font-size: 10.2pt; line-height: 1.46; margin: 0;
   }
   h1,h2,h3 { margin: 0; line-height: 1.2; }
   p { margin: 0 0 6px; }
@@ -20,9 +20,9 @@
   .head {
     display: flex; align-items: center; gap: 14px;
     background: #3a404a; color: #fff; border-radius: 12px;
-    padding: 16px 20px; margin-bottom: 4px;
+    padding: 15px 20px; margin-bottom: 4px;
   }
-  .head .logo { font-size: 26pt; font-weight: 900; letter-spacing: -.03em; line-height: 1; display: flex; align-items: baseline; }
+  .head .logo { font-size: 25pt; font-weight: 900; letter-spacing: -.03em; line-height: 1; display: flex; align-items: baseline; }
   .head .logo .o { position: relative; display: inline-block; width: .92em; height: .92em; margin: 0 .01em; }
   .head .logo .o svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .head .ht { flex: 1; }
@@ -30,56 +30,68 @@
   .head .doc { text-align: right; font-size: 8.5pt; color: #c3cdda; }
   .head .doc b { color: #fff; font-size: 11pt; display: block; letter-spacing: -.01em; }
 
-  .lead { color: #4a5666; font-size: 10.6pt; margin: 12px 2px 14px; }
+  .lead { color: #4a5666; font-size: 10.3pt; margin: 11px 2px 12px; }
   .lead b { color: #16202e; }
 
   /* Prinzip-Box */
   .principle {
     border: 1px solid #cfe0ff; background: #f3f8ff; border-radius: 10px;
-    padding: 11px 14px; margin: 0 0 16px; font-size: 9.6pt; color: #23364d;
+    padding: 10px 14px; margin: 0 0 14px; font-size: 9.5pt; color: #23364d;
   }
   .principle b { color: #123; }
   .principle .t { font-weight: 800; color: #1c4e8a; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
 
   /* Stufen */
-  .step { display: flex; gap: 12px; margin: 0 0 11px; break-inside: avoid; page-break-inside: avoid; }
+  .step { display: flex; gap: 12px; margin: 0 0 9px; break-inside: avoid; page-break-inside: avoid; }
   .num {
-    flex: none; width: 26px; height: 26px; border-radius: 50%;
-    background: #2f80ff; color: #fff; font-weight: 800; font-size: 11pt;
+    flex: none; width: 25px; height: 25px; border-radius: 50%;
+    background: #2f80ff; color: #fff; font-weight: 800; font-size: 10.5pt;
     display: flex; align-items: center; justify-content: center;
   }
   .step.info .num { background: #8595a8; }
-  .body { flex: 1; padding-top: 1px; }
-  .st-title { font-size: 11.2pt; font-weight: 800; color: #16202e; margin-bottom: 1px; }
-  .st-title .tag {
-    font-size: 7.3pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-    color: #2f80ff; border: 1px solid #bcd6ff; border-radius: 4px; padding: 1px 5px;
-    margin-left: 7px; vertical-align: middle;
+  .body { flex: 1; padding-top: 1px; min-width: 0; }
+  .st-title { font-size: 11pt; font-weight: 800; color: #16202e; margin-bottom: 2px; }
+  .req {
+    font-size: 7.2pt; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 4px; margin-left: 7px; vertical-align: middle;
   }
-  .step.info .st-title .tag { color: #6b7a8d; border-color: #d3dae2; }
-  .st-do { margin: 2px 0 3px; }
-  .st-key {
-    font-size: 9.2pt; color: #5a6675; background: #f6f8fb; border-left: 3px solid #2f80ff;
-    padding: 4px 9px; border-radius: 0 6px 6px 0;
+  .req.pf  { background: #2f80ff; color: #fff; }
+  .req.opt { background: #eef1f5; color: #6b7a8d; border: 1px solid #d3dae2; }
+  .req.stt { background: #f0f2f5; color: #8595a8; border: 1px solid #dfe4ea; }
+  .req.gt  { background: #c1121f; color: #fff; }
+  .st-do { margin: 1px 0 3px; }
+  .cond {
+    font-size: 8.8pt; color: #1c6b40; background: #eefaf2; border-left: 3px solid #27a567;
+    padding: 3px 9px; border-radius: 0 6px 6px 0;
   }
-  .step.info .st-key { border-left-color: #b3bfce; }
-  .st-key b { color: #2b3a4d; }
+  .cond b { color: #145130; }
+  .cond.optc { color: #7a6a3a; background: #fbf7ec; border-left-color: #d4b25a; }
+  .cond.optc b { color: #5c4e22; }
+  .cond.gtc { color: #a01019; background: #fff2f2; border-left-color: #e5484d; }
+  .cond.gtc b { color: #8a0f16; }
 
   .sec-h {
     font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
-    color: #8595a8; margin: 18px 0 9px; padding-bottom: 4px; border-bottom: 1px solid #e6ebf1;
+    color: #8595a8; margin: 15px 0 9px; padding-bottom: 4px; border-bottom: 1px solid #e6ebf1;
   }
 
+  /* Gate-Box */
+  .gate { border: 1px solid #ffc9c9; background: #fff5f5; border-radius: 10px; padding: 11px 14px 8px; margin: 6px 0 0; break-inside: avoid; }
+  .gate .t { font-weight: 800; color: #c1121f; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; font-size: 10.4pt; }
+  .gate ul { margin: 0; padding-left: 18px; }
+  .gate li { margin-bottom: 4px; font-size: 9.4pt; }
+  .gate li b { color: #a01019; }
+
   /* Regeln */
-  .rules { border: 1px solid #ffe0b8; background: #fff8ef; border-radius: 10px; padding: 11px 14px 8px; margin: 6px 0 0; break-inside: avoid; }
+  .rules { border: 1px solid #ffe0b8; background: #fff8ef; border-radius: 10px; padding: 10px 14px 7px; margin: 12px 0 0; break-inside: avoid; }
   .rules .t { font-weight: 800; color: #9a5b00; margin-bottom: 5px; display:flex; align-items:center; gap:6px; }
   .rules ul { margin: 0; padding-left: 17px; }
-  .rules li { margin-bottom: 3px; font-size: 9.5pt; }
+  .rules li { margin-bottom: 3px; font-size: 9.4pt; }
   .rules li b { color: #7a4a00; }
 
-  .foot { margin-top: 16px; padding-top: 9px; border-top: 1px solid #e6ebf1; font-size: 8.3pt; color: #97a2b0; display: flex; justify-content: space-between; }
-  .done { background: #eafaf1; border: 1px solid #b7e9cd; border-radius: 10px; padding: 11px 14px; margin: 14px 0 0; font-size: 9.7pt; color: #1c6b40; break-inside: avoid; }
+  .done { background: #eafaf1; border: 1px solid #b7e9cd; border-radius: 10px; padding: 10px 14px; margin: 12px 0 0; font-size: 9.6pt; color: #1c6b40; break-inside: avoid; }
   .done b { color: #145130; }
+  .foot { margin-top: 14px; padding-top: 9px; border-top: 1px solid #e6ebf1; font-size: 8.3pt; color: #97a2b0; display: flex; justify-content: space-between; }
 </style>
 </head>
 <body>
@@ -92,11 +104,11 @@
     <div class="doc"><b>QuickStart</b>Content-Erstellung · Cockpit</div>
   </div>
 
-  <p class="lead">Diese Kurzanleitung führt dich <b>Schritt für Schritt</b> von einer neuen Software bis zum fertigen, veröffentlichten Content im Frontend. Halte dich an die <b>Reihenfolge</b> – das Cockpit führt dich automatisch: Klick auf ein Produkt öffnet den <b>Arbeitsbereich</b> mit der <b>Stufenleiste</b> links, einem <b>Fortschrittsbalken</b> und einem <b>„Weiter"-Button</b>. Jede Stufe hat ein <b>ⓘ-Info</b> und eine Checkliste, die dir zeigt, was noch fehlt.</p>
+  <p class="lead">Diese Kurzanleitung führt dich <b>Schritt für Schritt</b> von einer neuen Software bis zum fertigen, veröffentlichten Content im Frontend. Halte dich an die <b>Reihenfolge</b> – das Cockpit führt dich: Klick auf ein Produkt öffnet den <b>Arbeitsbereich</b> mit der <b>Stufenleiste</b> links, einem <b>Fortschrittsbalken</b> und einem <b>„Weiter"-Button</b>. Achte auf die Badges: <span class="req pf">Pflicht</span> muss erfüllt sein, <span class="req opt">Empfohlen</span> ist freiwillig.</p>
 
   <div class="principle">
     <div class="t">★ Das oberste Prinzip: 100 % faktenbasiert</div>
-    Es wird <b>nie etwas erfunden oder vermutet</b>. Alle Inhalte stammen ausschließlich aus belegten Quellen (SSoT). Im Zweifel ein Feld lieber leer lassen als raten – das gilt für jede der folgenden Stufen.
+    Es wird <b>nie etwas erfunden oder vermutet</b>. Alle Inhalte stammen ausschließlich aus belegten Quellen (SSoT). Im Zweifel ein Feld lieber leer lassen als raten – das gilt für jede Stufe.
   </div>
 
   <div class="sec-h">Der Ablauf in 9 Stufen</div>
@@ -104,82 +116,91 @@
   <div class="step">
     <div class="num">1</div>
     <div class="body">
-      <div class="st-title">Anlegen <span class="tag">Basis</span></div>
-      <div class="st-do">Neues Produkt anlegen mit <b>Name</b>, <b>Hersteller</b>, <b>Hersteller-URL</b> und <b>Kategorie</b>. Danach springst du direkt in den Arbeitsbereich.</div>
-      <div class="st-key"><b>Wichtig:</b> Die Hersteller-URL muss stimmen – sie ist die Basis für Crawl und Firmendaten. Tipp: Button <b>„Firmendaten aus Impressum holen"</b> füllt Land, Sitz, Gründung &amp; Co. automatisch aus dem Impressum.</div>
+      <div class="st-title">Anlegen <span class="req pf">Pflicht</span></div>
+      <div class="st-do">Neues Produkt anlegen mit <b>Name</b>, <b>Hersteller</b>, <b>Hersteller-URL</b> und <b>Kategorie</b>. Tipp: Button <b>„Firmendaten aus Impressum holen"</b> füllt Land, Sitz, Gründung u. a. automatisch.</div>
+      <div class="cond">✓ <b>Fertig, wenn:</b> Name, Hersteller, Hersteller-URL und Kategorie gesetzt sind. (Speichern blockiert bei leerem Pflichtfeld.)</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">2</div>
     <div class="body">
-      <div class="st-title">Bilder &amp; Videos <span class="tag">Medien</span></div>
+      <div class="st-title">Bilder &amp; Videos <span class="req opt">Empfohlen</span></div>
       <div class="st-do">Das <b>Logo</b> setzen sowie ggf. <b>Screenshots</b> und passende <b>YouTube-Videos</b> hinterlegen.</div>
-      <div class="st-key"><b>Wichtig:</b> Ohne Logo wirkt die spätere Seite unfertig. Videos nur einbetten, wenn sie inhaltlich zur Software passen.</div>
+      <div class="cond optc">✓ <b>Fertig, wenn:</b> mind. 1 Bild oder 1 Video vorhanden ist. <b>Blockiert die Veröffentlichung nicht</b> – aber ohne Logo wirkt die Seite unfertig (das Logo selbst ist in Stufe 5 Pflicht).</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">3</div>
     <div class="body">
-      <div class="st-title">Daten sammeln <span class="tag">Crawl</span></div>
-      <div class="st-do"><b>Crawl starten</b>. Das System ermittelt die relevanten Seiten (Firecrawl Map), crawlt sie und lässt Claude <b>Funktionen, Preise &amp; Integrationen</b> extrahieren.</div>
-      <div class="st-key"><b>Wichtig:</b> Der Crawl läuft im Hintergrund – du musst nicht warten. Danach den Crawl-Monitor kurz prüfen: Wurden Funktionen und Preise erkannt?</div>
+      <div class="st-title">Daten sammeln <span class="req pf">Pflicht</span></div>
+      <div class="st-do"><b>Crawl starten</b>. Das System ermittelt die relevanten Seiten, crawlt sie und lässt Claude <b>Funktionen, Preise &amp; Integrationen</b> extrahieren. Läuft im Hintergrund.</div>
+      <div class="cond">✓ <b>Fertig, wenn:</b> der Crawl <b>Funktionen oder Preise</b> geliefert hat. Danach kurz den Crawl-Monitor prüfen.</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">4</div>
     <div class="body">
-      <div class="st-title">Ordnen &amp; ergänzen <span class="tag">Kernarbeit</span></div>
-      <div class="st-do"><b>Offene Funktionen zuordnen</b> (Canonical-Name über die Feature-Inbox / das Feature-Wörterbuch) und <b>Tarife &amp; Preise</b> prüfen und vervollständigen.</div>
-      <div class="st-key"><b>Wichtig:</b> Ziel sind <b>0 offene Funktionen</b>. Nur so sind Programme tool-übergreifend vergleichbar. Limits je Tarif sind <b>optional</b> – nie erfinden, wenn nicht belegt.</div>
+      <div class="st-title">Ordnen &amp; ergänzen <span class="req pf">Pflicht</span></div>
+      <div class="st-do"><b>Offene Funktionen zuordnen</b> (Canonical-Name über die Feature-Inbox) und <b>Tarife &amp; Preise</b> prüfen und vervollständigen.</div>
+      <div class="cond">✓ <b>Fertig, wenn:</b> <b>0 offene Funktionen</b> übrig sind und Funktionen + Tarife vorhanden sind. Limits je Tarif sind optional – nie erfinden.</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">5</div>
     <div class="body">
-      <div class="st-title">Belegen <span class="tag">Nachweise</span></div>
-      <div class="st-do"><b>Quellen</b> ergänzen, <b>Bewertungs-Synthese</b> erstellen, <b>externe Bewertungen</b> (G2 / Capterra / Trustpilot) per Button holen, <b>Logo</b> gegenprüfen und den <b>AppSumo-Deal</b> checken.</div>
-      <div class="st-key"><b>Wichtig:</b> Bewertungen immer nur <b>qualitativ</b> und belegt – keine erfundenen Sterne oder Zahlen. Der AppSumo-Check zeigt, ob es aktuell einen Lifetime-Deal gibt.</div>
+      <div class="st-title">Belegen <span class="req pf">Pflicht</span></div>
+      <div class="st-do"><b>Quellen</b> ergänzen, <b>Bewertungs-Synthese</b> erstellen, <b>externe Bewertungen</b> (G2 / Capterra / Trustpilot) per Button holen, <b>Logo</b> setzen und den <b>AppSumo-Deal</b> checken.</div>
+      <div class="cond">✓ <b>Fertig, wenn:</b> <b>Quellen &gt; 0</b> + <b>Bewertungs-Synthese</b> + <b>Logo</b> vorhanden sind. Bewertungen nur qualitativ &amp; belegt.</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">6</div>
     <div class="body">
-      <div class="st-title">Prüfen &amp; freigeben <span class="tag">Kontrolle</span></div>
-      <div class="st-do">Offene <b>Freigaben</b> abarbeiten: Grenzfälle, die der Auto-Watcher zurückgehalten hat (z. B. unklare Kategorie einer Funktion), einzeln entscheiden.</div>
-      <div class="st-key"><b>Wichtig:</b> Erst wenn <b>keine offene Freigabe</b> mehr übrig ist, gilt die Stufe als erledigt. Sichere Fälle laufen automatisch durch.</div>
+      <div class="st-title">Prüfen &amp; freigeben <span class="req pf">Pflicht</span></div>
+      <div class="st-do">Offene <b>Freigaben</b> abarbeiten: Grenzfälle, die der Auto-Watcher zurückgehalten hat, einzeln entscheiden.</div>
+      <div class="cond">✓ <b>Fertig, wenn:</b> <b>keine offene Freigabe</b> und <b>kein unbelegter Fakt</b> mehr übrig ist.</div>
     </div>
   </div>
 
   <div class="step info">
     <div class="num">7</div>
     <div class="body">
-      <div class="st-title">Schlusscheck <span class="tag">Status</span></div>
-      <div class="st-do">Kurzer Kontrollblick: Sind die Stufen 1–6 auf <b>100 %</b>? Der Fortschrittsbalken oben zeigt es an.</div>
-      <div class="st-key"><b>Wichtig:</b> Diese Stufe rechnet nur – hier gibst du nichts ein. Steht etwas auf „offen", gehst du kurz zurück zur betreffenden Stufe.</div>
+      <div class="st-title">Schlusscheck <span class="req stt">Status</span></div>
+      <div class="st-do">Kontrollblick: Sind alle Pflichtstufen erledigt? Der Fortschrittsbalken zeigt es an.</div>
+      <div class="cond"><b>100 %</b>, wenn die Stufen <b>1, 3, 4, 5 und 6</b> erledigt sind. Hier gibst du nichts ein – steht etwas auf „offen", kurz zurück zur Stufe.</div>
     </div>
   </div>
 
   <div class="step">
     <div class="num">8</div>
     <div class="body">
-      <div class="st-title">Veröffentlichen <span class="tag">Content live</span></div>
-      <div class="st-do"><b>Content generieren</b> (redaktioneller Artikel + Affiliate-Produkt), automatisch mit <b>NeuronWriter</b> optimiert und durch das <b>Fakten-Gate</b> geprüft. Dann <b>„Speichern &amp; veröffentlichen"</b> → Portal-Build → die Seite geht <b>live im Frontend</b>.</div>
-      <div class="st-key"><b>Wichtig:</b> Der Content zählt erst als veröffentlicht, wenn der Status <b>„live"</b> ist. Das Fakten-Gate blockiert automatisch alles, was nicht durch den SSoT gedeckt ist – es schützt dich vor Fehlern.</div>
+      <div class="st-title">Veröffentlichen <span class="req gt">Gate</span></div>
+      <div class="st-do"><b>Content generieren</b> (Artikel + Affiliate-Produkt), automatisch mit NeuronWriter optimiert. Dann <b>„Jetzt veröffentlichen"</b> → Beleg-Check → Status <b>live</b> → Portal-Build.</div>
+      <div class="cond gtc">🛡️ <b>Geht nur live, wenn:</b> der <b>Beleg-Check bestanden</b> ist – also <b>0 Fakten ohne Quell-Zitat</b>. Sonst: „Veröffentlichen gesperrt".</div>
     </div>
   </div>
 
   <div class="step info">
     <div class="num">9</div>
     <div class="body">
-      <div class="st-title">Pflege <span class="tag">Dauerstufe</span></div>
-      <div class="st-do">Nach dem Go-live bleibt das Produkt in Pflege: <b>zuletzt geprüft</b>-Datum, laufende <b>Auto-Checks</b> (z. B. AppSumo) und Aktualisieren bei Änderungen.</div>
-      <div class="st-key"><b>Wichtig:</b> Regelmäßige Aktualität ist ein echter Ranking-Faktor. Ändert der Hersteller Preise oder Funktionen, Stufe 3–4 kurz wiederholen.</div>
+      <div class="st-title">Pflege &amp; Distribution <span class="req stt">Status</span></div>
+      <div class="st-do">Nach dem Go-live: <b>zuletzt geprüft</b>-Datum, laufende <b>Auto-Checks</b> (z. B. AppSumo). Optional im Tab <b>Distribution</b> Social-Content erzeugen.</div>
+      <div class="cond">Keine Pflicht. Ändert der Hersteller Preise/Funktionen, Stufe 3–4 kurz wiederholen. Distribution wird erst bei <b>100 %</b> freigeschaltet.</div>
     </div>
+  </div>
+
+  <div class="gate">
+    <div class="t">🛡️ Was die Veröffentlichung blockiert</div>
+    <ul>
+      <li><b>Unter 100 %:</b> Ohne <b>Stammdaten</b>, <b>Crawl-Daten</b>, <b>geordnete Funktionen</b> (0 offen), <b>Quellen + Bewertungs-Synthese + Logo</b> oder mit <b>offenen Freigaben</b> bleibt das Produkt unter 100 % – der Schlusscheck ist dann nicht bestanden.</li>
+      <li><b>Der harte Gate:</b> Beim Klick auf „Jetzt veröffentlichen" prüft der <b>Anti-Halluzinations-Check</b> jeden Fakt gegen ein echtes Quell-Zitat. Schon <b>ein einziger unbelegter Fakt</b> → <b>„Veröffentlichen gesperrt"</b>. Erst mit <b>0 unbelegten Fakten</b> geht der Artikel live.</li>
+      <li><b>Nicht blockierend:</b> Bilder &amp; Videos sind empfohlen, aber freiwillig. (Einzelne Bilder lassen sich separat als „Pflicht" markieren, damit sie im Artikel platziert werden.)</li>
+    </ul>
   </div>
 
   <div class="rules">
@@ -193,7 +214,7 @@
   </div>
 
   <div class="done">
-    <b>✓ Fertig.</b> Sind alle Stufen erledigt und der Status steht auf „live", ist dein Produkt öffentlich im Frontend erreichbar. Zur Kontrolle die Seite direkt aufrufen und Darstellung, Preise und Bewertung gegenprüfen.
+    <b>✓ Fertig.</b> Sind alle Pflichtstufen erledigt, der Beleg-Check bestanden und der Status „live", ist dein Produkt öffentlich im Frontend erreichbar. Zur Kontrolle die Seite direkt aufrufen und Darstellung, Preise und Bewertung gegenprüfen.
   </div>
 
   <div class="foot">
