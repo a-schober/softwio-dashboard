@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Crawl starten & prüfen · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2733; font-size:10.2pt; line-height:1.46; margin:0; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  p { margin:0 0 6px; }
+  b,strong { color:#16202e; }
+
+  .head { display:flex; align-items:center; gap:14px; background:#3a404a; color:#fff; border-radius:12px; padding:15px 20px; margin-bottom:4px; }
+  .head .logo { font-size:25pt; font-weight:900; letter-spacing:-.03em; line-height:1; display:flex; align-items:baseline; }
+  .head .logo .o { position:relative; display:inline-block; width:.92em; height:.92em; margin:0 .01em; }
+  .head .logo .o svg { position:absolute; inset:0; width:100%; height:100%; }
+  .head .ht { flex:1; }
+  .head .claim { font-size:9pt; color:#9fb4cd; margin-top:2px; }
+  .head .doc { text-align:right; font-size:8.5pt; color:#c3cdda; }
+  .head .doc b { color:#fff; font-size:11pt; display:block; letter-spacing:-.01em; }
+
+  .lead { color:#4a5666; font-size:10.3pt; margin:11px 2px 12px; }
+  .lead b { color:#16202e; }
+
+  .principle { border:1px solid #cfe0ff; background:#f3f8ff; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:9.6pt; color:#23364d; }
+  .principle b { color:#123; }
+  .principle .t { font-weight:800; color:#1c4e8a; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+
+  .sec-h { font-size:8.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#8595a8; margin:15px 0 9px; padding-bottom:4px; border-bottom:1px solid #e6ebf1; }
+
+  .step { display:flex; gap:12px; margin:0 0 9px; break-inside:avoid; page-break-inside:avoid; }
+  .num { flex:none; width:25px; height:25px; border-radius:50%; background:#2f80ff; color:#fff; font-weight:800; font-size:10.5pt; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; padding-top:1px; min-width:0; }
+  .st-title { font-size:11pt; font-weight:800; color:#16202e; margin-bottom:2px; }
+  .st-do { margin:1px 0 3px; }
+  .cond { font-size:8.8pt; color:#1c6b40; background:#eefaf2; border-left:3px solid #27a567; padding:3px 9px; border-radius:0 6px 6px 0; }
+  .cond b { color:#145130; }
+
+  .pipe { border:1px solid #e6ebf1; background:#fbfcfe; border-radius:9px; padding:9px 13px; margin:2px 0 0; font-size:9.1pt; }
+  .pipe ol { margin:0; padding-left:19px; }
+  .pipe li { margin-bottom:2px; }
+  .pipe li b { color:#16202e; }
+
+  .ki { border:1px solid #d6ccff; background:#f7f4ff; border-radius:10px; padding:10px 14px 9px; margin:8px 0 0; break-inside:avoid; }
+  .ki .t { font-weight:800; color:#5b3fd6; display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:10.2pt; }
+  .ki p { font-size:9.4pt; margin:0 0 4px; }
+  .ki b { color:#4327b3; }
+  .max { background:#eef7f0; border:1px solid #bfe6cd; border-radius:7px; padding:6px 10px; font-size:9.1pt; color:#1c6b40; margin-top:6px; }
+  .max .mh { font-weight:800; color:#145130; display:flex; align-items:center; gap:5px; margin-bottom:1px; }
+  .max b { color:#145130; }
+
+  .rules { border:1px solid #ffe0b8; background:#fff8ef; border-radius:10px; padding:10px 14px 7px; margin:14px 0 0; break-inside:avoid; }
+  .rules .t { font-weight:800; color:#9a5b00; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin:0; padding-left:17px; }
+  .rules li { margin-bottom:3px; font-size:9.4pt; }
+  .rules li b { color:#7a4a00; }
+
+  .gate { border:1px solid #ffc9c9; background:#fff5f5; border-radius:10px; padding:11px 14px 8px; margin:12px 0 0; break-inside:avoid; }
+  .gate .t { font-weight:800; color:#c1121f; margin-bottom:5px; display:flex; align-items:center; gap:6px; font-size:10.4pt; }
+  .gate p { font-size:9.4pt; margin:0; color:#3a2a2a; }
+  .gate b { color:#a01019; }
+
+  .done { background:#eafaf1; border:1px solid #b7e9cd; border-radius:10px; padding:10px 14px; margin:12px 0 0; font-size:9.6pt; color:#1c6b40; break-inside:avoid; }
+  .done b { color:#145130; }
+  .foot { margin-top:14px; padding-top:9px; border-top:1px solid #e6ebf1; font-size:8.3pt; color:#97a2b0; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht"><div class="claim">Software, die passt.</div></div>
+    <div class="doc"><b>Anleitung</b>Crawl starten &amp; prüfen · Cockpit</div>
+  </div>
+
+  <p class="lead">Der <b>Crawl</b> liest die Hersteller-Website automatisch aus und bildet die <b>Faktenbasis</b> für alles Weitere. Diese Anleitung zeigt, wie du einen Crawl <b>startest</b>, was die Pipeline dabei macht und wie du das Ergebnis <b>prüfst</b> – inklusive der KI-Funktionen und des günstigen Wegs über <b>Claude Max</b>.</p>
+
+  <div class="principle">
+    <div class="t">★ Warum der Crawl so wichtig ist</div>
+    Der Crawl sammelt <b>Funktionen, Preise &amp; Integrationen</b> direkt von der Website – als belegte Rohdaten. Er ist der <b>Halluzinationsschutz</b>: Ohne gecrawlte Fakten darf später <b>nichts angereichert oder priorisiert</b> werden. Alles Weitere baut auf diesen Daten auf.
+  </div>
+
+  <div class="sec-h">Crawl starten</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Starten</div>
+      <div class="st-do">Im Produkt auf <b>„Crawl &amp; Anreichern"</b> (oder im <b>Crawl-Monitor</b> auf „Crawl starten"). Du bestätigst einmal – dann läuft die <b>echte Pipeline im Hintergrund</b> (Firecrawl + KI-Extraktion). Du kannst weiterarbeiten.</div>
+      <div class="cond">Hinweis: Der Crawl nutzt kostenpflichtige Dienste (Firecrawl + KI) – deshalb bewusst starten, nicht bei jeder Kleinigkeit neu.</div>
+    </div>
+  </div>
+
+  <div class="sec-h">Was die Pipeline automatisch macht</div>
+  <div class="pipe">
+    <ol>
+      <li><b>Relevante Seiten ermitteln</b> (Firecrawl Map)</li>
+      <li><b>Seiten crawlen</b> (die wichtigsten Unterseiten)</li>
+      <li><b>Inhalt bereinigen &amp; extrahieren</b> (Claude)</li>
+      <li><b>Kategorie zuordnen</b> (KI)</li>
+      <li><b>Funktionen · Preise · Integrationen erkennen</b></li>
+      <li><b>Canonical-Mapping</b> gegen das Feature-Wörterbuch</li>
+      <li><b>Validierung &amp; Reifegrad setzen</b></li>
+    </ol>
+  </div>
+
+  <div class="ki">
+    <div class="t">✨ KI-Funktionen &amp; der Claude-Max-Weg</div>
+    <p>Die KI übernimmt das <b>Extrahieren</b> der Fakten (Claude), die <b>Kategorie-Zuordnung</b> und das <b>Canonical-Mapping</b> der Funktionen. Sichere Zuordnungen (hohe Konfidenz) laufen automatisch, unsichere landen als Grenzfälle in der Feature-Inbox.</p>
+    <div class="max">
+      <div class="mh">💶 Günstiger Weg</div>
+      Der Crawl selbst nutzt die kostenpflichtige Pipeline. Die <b>Nachbearbeitung</b> – das Zuordnen offener Begriffe – erledigst du danach in der <b>Feature-Inbox</b> per Button <b>„Über Claude Max"</b> kostenfrei (siehe Anleitung „Feature-Wörterbuch pflegen").
+    </div>
+  </div>
+
+  <div class="sec-h">Crawl prüfen (nach dem Lauf)</div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Status im Crawl-Monitor</div>
+      <div class="st-do">Im <b>Crawl-Monitor</b> (linke Navigation) siehst du den Status: <b>läuft</b> → <b>fertig</b>. Prüfe, ob <b>Funktionen und Preise</b> erkannt wurden.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Kategorie prüfen</div>
+      <div class="st-do">Bei hoher Konfidenz übernimmt die KI die Kategorie automatisch. Ist sie <b>nicht eindeutig</b>, musst du sie <b>selbst wählen</b> – das ist zwingend, bevor es weitergeht.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="st-title">Offene Begriffe zuordnen</div>
+      <div class="st-do">Nicht sicher zugeordnete Funktionen liegen in der <b>Feature-Inbox</b> (rote Zahl). Ordne sie zu – erst dann ist das Produkt vollständig (siehe Anleitung „Feature-Wörterbuch pflegen").</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="st-title">Validieren</div>
+      <div class="st-do">Der Button <b>„Validieren"</b> zeigt eine Checkliste: Pflichtfelder, Funktionen gemappt, Preise erfasst – mit <b>ok / Warnungen / Fehler</b>. Fehler (rot) bedeuten fehlende Pflichtfelder, die du ergänzen musst.</div>
+      <div class="cond">✓ Stehen keine Fehler mehr an, ist die Datenbasis sauber und bereit für die nächsten Stufen.</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="t">⚠ Wichtige Punkte</div>
+    <ul>
+      <li><b>Hersteller-URL prüfen:</b> Vor dem Crawl muss die URL stimmen – sie steuert, was ausgelesen wird.</li>
+      <li><b>Bewusst crawlen:</b> Der Crawl kostet – nicht unnötig wiederholen. Bei echten Website-Änderungen erneut starten.</li>
+      <li><b>Ergebnis immer prüfen:</b> Status, Kategorie und offene Begriffe kontrollieren – die KI ist gut, aber nicht unfehlbar.</li>
+      <li><b>Nichts erfinden:</b> Fehlt eine Information auf der Website, bleibt sie leer – nicht manuell „raten".</li>
+    </ul>
+  </div>
+
+  <div class="gate">
+    <div class="t">🛡️ Warum das wichtig ist</div>
+    <p>Ohne erfolgreichen Crawl bleibt die Stufe <b>„Daten sammeln" (Stufe 3)</b> offen, und Folge-Schritte wie die <b>Video-Priorisierung</b> sind gesperrt (Halluzinationsschutz). Erst mit gecrawlten, geprüften Fakten kommt das Produkt Richtung 100 %.</p>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Crawl gelaufen, Status „fertig", Kategorie gesetzt, offene Begriffe zugeordnet und Validierung ohne Fehler – die Faktenbasis steht und du kannst mit „Ordnen &amp; ergänzen" weitermachen.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · Crawl starten &amp; prüfen</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>
