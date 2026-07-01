@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>QuickStart: Content-Erstellung · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #1f2733; font-size: 10.3pt; line-height: 1.5; margin: 0;
+  }
+  h1,h2,h3 { margin: 0; line-height: 1.2; }
+  p { margin: 0 0 6px; }
+  b, strong { color: #16202e; }
+  a { color: #2f80ff; text-decoration: none; }
+
+  /* Kopf */
+  .head {
+    display: flex; align-items: center; gap: 14px;
+    background: #3a404a; color: #fff; border-radius: 12px;
+    padding: 16px 20px; margin-bottom: 4px;
+  }
+  .head .logo { font-size: 26pt; font-weight: 900; letter-spacing: -.03em; line-height: 1; display: flex; align-items: baseline; }
+  .head .logo .o { position: relative; display: inline-block; width: .92em; height: .92em; margin: 0 .01em; }
+  .head .logo .o svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .head .ht { flex: 1; }
+  .head .claim { font-size: 9pt; color: #9fb4cd; margin-top: 2px; }
+  .head .doc { text-align: right; font-size: 8.5pt; color: #c3cdda; }
+  .head .doc b { color: #fff; font-size: 11pt; display: block; letter-spacing: -.01em; }
+
+  .lead { color: #4a5666; font-size: 10.6pt; margin: 12px 2px 14px; }
+  .lead b { color: #16202e; }
+
+  /* Prinzip-Box */
+  .principle {
+    border: 1px solid #cfe0ff; background: #f3f8ff; border-radius: 10px;
+    padding: 11px 14px; margin: 0 0 16px; font-size: 9.6pt; color: #23364d;
+  }
+  .principle b { color: #123; }
+  .principle .t { font-weight: 800; color: #1c4e8a; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+
+  /* Stufen */
+  .step { display: flex; gap: 12px; margin: 0 0 11px; break-inside: avoid; page-break-inside: avoid; }
+  .num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: #2f80ff; color: #fff; font-weight: 800; font-size: 11pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step.info .num { background: #8595a8; }
+  .body { flex: 1; padding-top: 1px; }
+  .st-title { font-size: 11.2pt; font-weight: 800; color: #16202e; margin-bottom: 1px; }
+  .st-title .tag {
+    font-size: 7.3pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: #2f80ff; border: 1px solid #bcd6ff; border-radius: 4px; padding: 1px 5px;
+    margin-left: 7px; vertical-align: middle;
+  }
+  .step.info .st-title .tag { color: #6b7a8d; border-color: #d3dae2; }
+  .st-do { margin: 2px 0 3px; }
+  .st-key {
+    font-size: 9.2pt; color: #5a6675; background: #f6f8fb; border-left: 3px solid #2f80ff;
+    padding: 4px 9px; border-radius: 0 6px 6px 0;
+  }
+  .step.info .st-key { border-left-color: #b3bfce; }
+  .st-key b { color: #2b3a4d; }
+
+  .sec-h {
+    font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+    color: #8595a8; margin: 18px 0 9px; padding-bottom: 4px; border-bottom: 1px solid #e6ebf1;
+  }
+
+  /* Regeln */
+  .rules { border: 1px solid #ffe0b8; background: #fff8ef; border-radius: 10px; padding: 11px 14px 8px; margin: 6px 0 0; break-inside: avoid; }
+  .rules .t { font-weight: 800; color: #9a5b00; margin-bottom: 5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin: 0; padding-left: 17px; }
+  .rules li { margin-bottom: 3px; font-size: 9.5pt; }
+  .rules li b { color: #7a4a00; }
+
+  .foot { margin-top: 16px; padding-top: 9px; border-top: 1px solid #e6ebf1; font-size: 8.3pt; color: #97a2b0; display: flex; justify-content: space-between; }
+  .done { background: #eafaf1; border: 1px solid #b7e9cd; border-radius: 10px; padding: 11px 14px; margin: 14px 0 0; font-size: 9.7pt; color: #1c6b40; break-inside: avoid; }
+  .done b { color: #145130; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht">
+      <div class="claim">Software, die passt.</div>
+    </div>
+    <div class="doc"><b>QuickStart</b>Content-Erstellung · Cockpit</div>
+  </div>
+
+  <p class="lead">Diese Kurzanleitung führt dich <b>Schritt für Schritt</b> von einer neuen Software bis zum fertigen, veröffentlichten Content im Frontend. Halte dich an die <b>Reihenfolge</b> – das Cockpit führt dich automatisch: Klick auf ein Produkt öffnet den <b>Arbeitsbereich</b> mit der <b>Stufenleiste</b> links, einem <b>Fortschrittsbalken</b> und einem <b>„Weiter"-Button</b>. Jede Stufe hat ein <b>ⓘ-Info</b> und eine Checkliste, die dir zeigt, was noch fehlt.</p>
+
+  <div class="principle">
+    <div class="t">★ Das oberste Prinzip: 100 % faktenbasiert</div>
+    Es wird <b>nie etwas erfunden oder vermutet</b>. Alle Inhalte stammen ausschließlich aus belegten Quellen (SSoT). Im Zweifel ein Feld lieber leer lassen als raten – das gilt für jede der folgenden Stufen.
+  </div>
+
+  <div class="sec-h">Der Ablauf in 9 Stufen</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Anlegen <span class="tag">Basis</span></div>
+      <div class="st-do">Neues Produkt anlegen mit <b>Name</b>, <b>Hersteller</b>, <b>Hersteller-URL</b> und <b>Kategorie</b>. Danach springst du direkt in den Arbeitsbereich.</div>
+      <div class="st-key"><b>Wichtig:</b> Die Hersteller-URL muss stimmen – sie ist die Basis für Crawl und Firmendaten. Tipp: Button <b>„Firmendaten aus Impressum holen"</b> füllt Land, Sitz, Gründung &amp; Co. automatisch aus dem Impressum.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Bilder &amp; Videos <span class="tag">Medien</span></div>
+      <div class="st-do">Das <b>Logo</b> setzen sowie ggf. <b>Screenshots</b> und passende <b>YouTube-Videos</b> hinterlegen.</div>
+      <div class="st-key"><b>Wichtig:</b> Ohne Logo wirkt die spätere Seite unfertig. Videos nur einbetten, wenn sie inhaltlich zur Software passen.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Daten sammeln <span class="tag">Crawl</span></div>
+      <div class="st-do"><b>Crawl starten</b>. Das System ermittelt die relevanten Seiten (Firecrawl Map), crawlt sie und lässt Claude <b>Funktionen, Preise &amp; Integrationen</b> extrahieren.</div>
+      <div class="st-key"><b>Wichtig:</b> Der Crawl läuft im Hintergrund – du musst nicht warten. Danach den Crawl-Monitor kurz prüfen: Wurden Funktionen und Preise erkannt?</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="st-title">Ordnen &amp; ergänzen <span class="tag">Kernarbeit</span></div>
+      <div class="st-do"><b>Offene Funktionen zuordnen</b> (Canonical-Name über die Feature-Inbox / das Feature-Wörterbuch) und <b>Tarife &amp; Preise</b> prüfen und vervollständigen.</div>
+      <div class="st-key"><b>Wichtig:</b> Ziel sind <b>0 offene Funktionen</b>. Nur so sind Programme tool-übergreifend vergleichbar. Limits je Tarif sind <b>optional</b> – nie erfinden, wenn nicht belegt.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="st-title">Belegen <span class="tag">Nachweise</span></div>
+      <div class="st-do"><b>Quellen</b> ergänzen, <b>Bewertungs-Synthese</b> erstellen, <b>externe Bewertungen</b> (G2 / Capterra / Trustpilot) per Button holen, <b>Logo</b> gegenprüfen und den <b>AppSumo-Deal</b> checken.</div>
+      <div class="st-key"><b>Wichtig:</b> Bewertungen immer nur <b>qualitativ</b> und belegt – keine erfundenen Sterne oder Zahlen. Der AppSumo-Check zeigt, ob es aktuell einen Lifetime-Deal gibt.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">6</div>
+    <div class="body">
+      <div class="st-title">Prüfen &amp; freigeben <span class="tag">Kontrolle</span></div>
+      <div class="st-do">Offene <b>Freigaben</b> abarbeiten: Grenzfälle, die der Auto-Watcher zurückgehalten hat (z. B. unklare Kategorie einer Funktion), einzeln entscheiden.</div>
+      <div class="st-key"><b>Wichtig:</b> Erst wenn <b>keine offene Freigabe</b> mehr übrig ist, gilt die Stufe als erledigt. Sichere Fälle laufen automatisch durch.</div>
+    </div>
+  </div>
+
+  <div class="step info">
+    <div class="num">7</div>
+    <div class="body">
+      <div class="st-title">Schlusscheck <span class="tag">Status</span></div>
+      <div class="st-do">Kurzer Kontrollblick: Sind die Stufen 1–6 auf <b>100 %</b>? Der Fortschrittsbalken oben zeigt es an.</div>
+      <div class="st-key"><b>Wichtig:</b> Diese Stufe rechnet nur – hier gibst du nichts ein. Steht etwas auf „offen", gehst du kurz zurück zur betreffenden Stufe.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">8</div>
+    <div class="body">
+      <div class="st-title">Veröffentlichen <span class="tag">Content live</span></div>
+      <div class="st-do"><b>Content generieren</b> (redaktioneller Artikel + Affiliate-Produkt), automatisch mit <b>NeuronWriter</b> optimiert und durch das <b>Fakten-Gate</b> geprüft. Dann <b>„Speichern &amp; veröffentlichen"</b> → Portal-Build → die Seite geht <b>live im Frontend</b>.</div>
+      <div class="st-key"><b>Wichtig:</b> Der Content zählt erst als veröffentlicht, wenn der Status <b>„live"</b> ist. Das Fakten-Gate blockiert automatisch alles, was nicht durch den SSoT gedeckt ist – es schützt dich vor Fehlern.</div>
+    </div>
+  </div>
+
+  <div class="step info">
+    <div class="num">9</div>
+    <div class="body">
+      <div class="st-title">Pflege <span class="tag">Dauerstufe</span></div>
+      <div class="st-do">Nach dem Go-live bleibt das Produkt in Pflege: <b>zuletzt geprüft</b>-Datum, laufende <b>Auto-Checks</b> (z. B. AppSumo) und Aktualisieren bei Änderungen.</div>
+      <div class="st-key"><b>Wichtig:</b> Regelmäßige Aktualität ist ein echter Ranking-Faktor. Ändert der Hersteller Preise oder Funktionen, Stufe 3–4 kurz wiederholen.</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="t">⚠ Die vier eisernen Regeln (gelten in jeder Stufe)</div>
+    <ul>
+      <li><b>Nie erfinden:</b> ausschließlich belegte Fakten – im Zweifel Feld leer lassen.</li>
+      <li><b>Kein „Test"-Wort</b> (Test, getestet, Testsieger, Praxistest …), solange die Software nicht wirklich selbst getestet wurde.</li>
+      <li><b>Preise nur belegt:</b> Rabatte klar als Rabatt kennzeichnen, keine Regulärpreise raten.</li>
+      <li><b>Sauberes Deutsch</b> geht vor SEO-Score – keine englischen Werbe-Floskeln.</li>
+    </ul>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Sind alle Stufen erledigt und der Status steht auf „live", ist dein Produkt öffentlich im Frontend erreichbar. Zur Kontrolle die Seite direkt aufrufen und Darstellung, Preise und Bewertung gegenprüfen.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · QuickStart Content-Erstellung</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>
