@@ -18,6 +18,8 @@
   .menubar .brand{font-weight:600;display:flex;align-items:center;gap:10px;margin-right:8px}.menubar .brand i{color:var(--accent);font-size:17px}
   .brand-logo{display:inline-flex;align-items:center;font-weight:800;font-size:21px;letter-spacing:-.01em;line-height:1;color:var(--ink)}
   .brand-logo svg{width:1em;height:1em;overflow:visible;margin-left:1px}
+  .brand-stack{display:flex;flex-direction:column;gap:2px;line-height:1}
+  .brand-claim{font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.005em}
   .brand-sub{color:var(--muted);font-size:12.5px;font-weight:600;padding-left:10px;border-left:1px solid var(--line)}
   .menubar .m{color:var(--muted);cursor:pointer}.menubar .m:hover{color:var(--ink)}.menubar .right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--faint)}.menubar .tg{cursor:pointer;display:flex;align-items:center;gap:5px;color:var(--muted)}
   .toolbar{display:flex;align-items:center;gap:3px;padding:6px 10px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -426,7 +428,7 @@
 </div>
 <div class="app"><div id="sideBackdrop" onclick="toggleSidebar(false)"></div>
   <div class="menubar">
-    <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand" onclick="route('software')" style="cursor:pointer" title="Zur Startseite (Produkte)"><span class="brand-logo">softwi<svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="12.5" cy="13.5" r="9.6" fill="none" stroke="currentColor" stroke-width="3.2"></circle><path d="M6.8 13.8 11 18 21 5.4" fill="none" stroke="#2f80ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="brand-sub">Cockpit</span></span>
+    <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand" onclick="route('software')" style="cursor:pointer" title="Zur Startseite (Produkte)"><span class="brand-stack"><span class="brand-logo">softwi<svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="12.5" cy="13.5" r="9.6" fill="none" stroke="currentColor" stroke-width="3.2"></circle><path d="M6.8 13.8 11 18 21 5.4" fill="none" stroke="#2f80ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="brand-claim">Software, die passt.</span></span><span class="brand-sub">Cockpit</span></span>
     <span class="m" onclick="openMenu('Datei',this)">Datei</span><span class="m" onclick="openMenu('Pipeline',this)">Pipeline</span><span class="m" onclick="openMenu('Portal',this)">Portal</span><span class="m" onclick="openMenu('Ansicht',this)">Ansicht</span><span class="m" onclick="openMenu('Extras',this)">Extras</span><span class="m" onclick="openMenu('Hilfe',this)">Hilfe</span>
     <span class="right"><span class="tg" onclick="document.body.classList.toggle('dark')"><i class="ti ti-contrast-2"></i> Hell/Dunkel</span><span>Markt: DE</span><span>Admin</span></span>
   </div>
