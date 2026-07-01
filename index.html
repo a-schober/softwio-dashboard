@@ -449,8 +449,8 @@
     <aside class="sidebar" id="side">
       <div class="grp">Arbeitsbereich</div>
       <div class="nav active" data-v="software"><i class="ti ti-stack-2"></i> Produkte <span class="cnt" id="navCount">16</span></div>
-      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg" id="freiBadge">3</span></div>
-      <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge">6</span></div>
+      <div class="nav" data-v="freigaben"><i class="ti ti-checkbox"></i> Freigaben <span class="bdg" id="freiBadge" style="display:none"></span></div>
+      <div class="nav" data-v="wbinbox"><i class="ti ti-inbox"></i> Feature-Inbox <span class="bdg" id="wbBadge" style="display:none"></span></div>
       <div class="grp">Inhalte &amp; Portal</div>
       <div class="nav" data-v="vergleiche"><i class="ti ti-git-compare"></i> Vergleichs-Artikel</div>
       <div class="nav" data-v="portalbuild"><i class="ti ti-hammer"></i> Portal bauen</div>
@@ -2123,7 +2123,7 @@ function vglResult(names){const c=$("#vglRes"),f=$("#aFoot");if(!c)return;
   if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb" onclick="toast(\'Als Entwurf gespeichert (Demo)\')"><i class="ti ti-device-floppy"></i> Als Entwurf</span> <span class="tb ok" onclick="vglPublish()"><i class="ti ti-rosette-discount-check"></i> Veröffentlichen</span>';
 }
 function vglPublish(){const names=vglLastNames;if(!names||names.length<2)return;VIEWS.vergleiche.rows.unshift({name:names.join(" vs. "),kat:vglCat,tools:names.length,markt:"DE",angelegt:"2026-06-22",pct:100,status:"live",geprueft:"2026-06-22",nw:80,_hue:HUE[VIEWS.vergleiche.rows.length%HUE.length]});vglSel=new Set();toast("Vergleichsartikel veröffentlicht & in Übersicht aufgenommen");closeAov();route("vergleiche");}
-async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); }
+async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
