@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Feature-Wörterbuch pflegen · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2733; font-size:10.2pt; line-height:1.46; margin:0; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  p { margin:0 0 6px; }
+  b,strong { color:#16202e; }
+
+  .head { display:flex; align-items:center; gap:14px; background:#3a404a; color:#fff; border-radius:12px; padding:15px 20px; margin-bottom:4px; }
+  .head .logo { font-size:25pt; font-weight:900; letter-spacing:-.03em; line-height:1; display:flex; align-items:baseline; }
+  .head .logo .o { position:relative; display:inline-block; width:.92em; height:.92em; margin:0 .01em; }
+  .head .logo .o svg { position:absolute; inset:0; width:100%; height:100%; }
+  .head .ht { flex:1; }
+  .head .claim { font-size:9pt; color:#9fb4cd; margin-top:2px; }
+  .head .doc { text-align:right; font-size:8.5pt; color:#c3cdda; }
+  .head .doc b { color:#fff; font-size:11pt; display:block; letter-spacing:-.01em; }
+
+  .lead { color:#4a5666; font-size:10.3pt; margin:11px 2px 12px; }
+  .lead b { color:#16202e; }
+
+  .principle { border:1px solid #cfe0ff; background:#f3f8ff; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:9.6pt; color:#23364d; }
+  .principle b { color:#123; }
+  .principle .t { font-weight:800; color:#1c4e8a; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+  .ex { font-size:9.1pt; color:#41506a; background:#eef2f8; border-radius:7px; padding:6px 10px; margin-top:6px; }
+  .ex b { color:#1c4e8a; }
+
+  .sec-h { font-size:8.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#8595a8; margin:15px 0 9px; padding-bottom:4px; border-bottom:1px solid #e6ebf1; }
+
+  .step { display:flex; gap:12px; margin:0 0 9px; break-inside:avoid; page-break-inside:avoid; }
+  .num { flex:none; width:25px; height:25px; border-radius:50%; background:#2f80ff; color:#fff; font-weight:800; font-size:10.5pt; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; padding-top:1px; min-width:0; }
+  .st-title { font-size:11pt; font-weight:800; color:#16202e; margin-bottom:2px; }
+  .st-do { margin:1px 0 3px; }
+  .cond { font-size:8.8pt; color:#1c6b40; background:#eefaf2; border-left:3px solid #27a567; padding:3px 9px; border-radius:0 6px 6px 0; }
+  .cond b { color:#145130; }
+
+  /* KI-Kasten mit Claude-Max-Weg */
+  .ki { border:1px solid #d6ccff; background:#f7f4ff; border-radius:10px; padding:10px 14px 9px; margin:8px 0 0; break-inside:avoid; }
+  .ki .t { font-weight:800; color:#5b3fd6; display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:10.2pt; }
+  .ki p { font-size:9.4pt; margin:0 0 4px; }
+  .ki b { color:#4327b3; }
+  .max { background:#eef7f0; border:1px solid #bfe6cd; border-radius:7px; padding:6px 10px; font-size:9.1pt; color:#1c6b40; margin-top:6px; }
+  .max .mh { font-weight:800; color:#145130; display:flex; align-items:center; gap:5px; margin-bottom:1px; }
+  .max b { color:#145130; }
+
+  .rules { border:1px solid #ffe0b8; background:#fff8ef; border-radius:10px; padding:10px 14px 7px; margin:14px 0 0; break-inside:avoid; }
+  .rules .t { font-weight:800; color:#9a5b00; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin:0; padding-left:17px; }
+  .rules li { margin-bottom:3px; font-size:9.4pt; }
+  .rules li b { color:#7a4a00; }
+
+  .gate { border:1px solid #ffc9c9; background:#fff5f5; border-radius:10px; padding:11px 14px 8px; margin:12px 0 0; break-inside:avoid; }
+  .gate .t { font-weight:800; color:#c1121f; margin-bottom:5px; display:flex; align-items:center; gap:6px; font-size:10.4pt; }
+  .gate p { font-size:9.4pt; margin:0; color:#3a2a2a; }
+  .gate b { color:#a01019; }
+
+  .done { background:#eafaf1; border:1px solid #b7e9cd; border-radius:10px; padding:10px 14px; margin:12px 0 0; font-size:9.6pt; color:#1c6b40; break-inside:avoid; }
+  .done b { color:#145130; }
+  .foot { margin-top:14px; padding-top:9px; border-top:1px solid #e6ebf1; font-size:8.3pt; color:#97a2b0; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht"><div class="claim">Software, die passt.</div></div>
+    <div class="doc"><b>Anleitung</b>Feature-Wörterbuch pflegen · Cockpit</div>
+  </div>
+
+  <p class="lead">Das <b>Feature-Wörterbuch</b> sorgt dafür, dass Funktionen <b>über alle Programme hinweg vergleichbar</b> werden. Diese Anleitung zeigt, wie du neue Begriffe in der <b>Feature-Inbox</b> zuordnest, das Wörterbuch pflegst – und wie dir die <b>KI</b> dabei hilft (inklusive des günstigen Wegs über <b>Claude Max</b>).</p>
+
+  <div class="principle">
+    <div class="t">★ Was ist das Feature-Wörterbuch?</div>
+    Jedes Programm nennt dieselbe Funktion anders. Das Wörterbuch bündelt diese Rohnamen unter einem <b>Canonical</b> – einem <b>tool-neutralen Standard-Namen</b>. Die einzelnen Programm-Bezeichnungen werden als <b>Synonyme</b> darangehängt. So kann softwio Programme sauber gegenüberstellen.
+    <div class="ex"><b>Beispiel:</b> Canonical „Automatische Belegerkennung" bündelt die Synonyme „Beleg-Scan" (Programm A), „OCR-Erfassung" (Programm B) und „Smart Capture" (Programm C).</div>
+  </div>
+
+  <div class="sec-h">Zwei Orte im Menü</div>
+  <p style="margin:0 0 12px;font-size:10pt"><b>Feature-Inbox</b> (Arbeitsbereich, mit <b>roter Zahl</b> = offene Begriffe) – hier ordnest du neue Rohnamen zu. <b>Feature-Wörterbuch</b> (unter Stammdaten) – hier verwaltest du die bestehenden Canonicals. Der Alltag passiert in der <b>Inbox</b>.</p>
+
+  <div class="sec-h">Feature-Inbox: Begriffe zuordnen</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Inbox öffnen</div>
+      <div class="st-do">Beim Crawl und bei Video-Auswertungen entstehen laufend neue Feature-Begriffe. <b>Kein Begriff wird still angelegt</b> – alle landen hier, gruppiert pro Programm. Die rote Zahl zeigt, wie viele noch offen sind.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Begriff prüfen</div>
+      <div class="st-do">Je Karte siehst du den <b>Rohnamen</b>, die <b>Art</b>, die <b>Quelle</b> (Crawl oder Video), das Alter und – falls vorhanden – <b>Vorschläge</b> ähnlicher Canonicals mit einem Prozent-Wert (Ähnlichkeit).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Entscheiden – drei Möglichkeiten</div>
+      <div class="st-do">
+        <b>① Zusammenführen mit …</b> – passt der Begriff zu einem bestehenden Canonical, Vorschlag anklicken oder im Dropdown wählen. Der Rohname wird als Synonym ergänzt.<br>
+        <b>② Neu anlegen</b> – gibt es noch keinen passenden Canonical, legst du einen neuen an (der Rohname wird zum Canonical).<br>
+        <b>③ Verwerfen</b> – nur, wenn es <b>kein echtes Feature</b> ist (Marketing-Floskel o. Ä.). Der Begriff wird gelöscht.
+      </div>
+    </div>
+  </div>
+
+  <div class="ki">
+    <div class="t">✨ KI-Funktion: „KI-Empfehlungen laden"</div>
+    <p>Auf Knopfdruck prüft die <b>KI</b> (Funktion <i>canonical-mapping</i>) jeden offenen Begriff gegen das Wörterbuch und empfiehlt entweder <b>Zusammenführen</b> mit einem bestehenden Canonical oder einen <b>neuen Canonical</b> – jeweils mit <b>Konfidenz in %</b> und kurzer Begründung. Du übernimmst einzeln („Übernehmen"/„Anlegen") oder mehrere auf einmal. <b>Angelegt wird nichts ohne deine Bestätigung.</b></p>
+    <div class="max">
+      <div class="mh">💶 Günstiger Weg über Claude Max (ohne API-Kosten)</div>
+      Statt der KI-Taste klickst du <b>„Über Claude Max"</b>. Das kopiert einen fertigen Befehl – füge ihn in deine <b>Claude-Code-Sitzung</b> ein. Claude erstellt die komplette Vorschlagsliste über den <b>Max-Plan</b> (kostenfrei), du gibst frei, was übernommen wird. <b>Ganz ohne KI</b> geht es auch: Vorschläge/Dropdown von Hand nutzen – das kostet nie etwas.
+    </div>
+  </div>
+
+  <div class="sec-h">Feature-Wörterbuch verwalten</div>
+  <p style="margin:0 0 8px;font-size:10pt">Unter <b>Feature-Wörterbuch</b> siehst du alle Canonicals mit Kategorie, Synonymen und der Zahl zugeordneter Tools. Hier kannst du:</p>
+  <div class="cond" style="margin-bottom:4px"><b>Bearbeiten:</b> Name, Kategorie und Synonyme anpassen. · <b>Zusammenführen:</b> zwei Canonicals vereinen (Dublette) – alle Features wandern mit. · <b>Löschen:</b> Canonical entfernen – die zugeordneten Features <b>wandern zurück in die Inbox</b> (gehen nicht verloren).</div>
+
+  <div class="rules">
+    <div class="t">⚠ Deine Pflichten beim Pflegen</div>
+    <ul>
+      <li><b>Nur echte Features zuordnen:</b> Marketing-Floskeln („marktführend", „einfach genial") gehören <b>verworfen</b>, nicht angelegt.</li>
+      <li><b>Tool-neutral benennen:</b> Ein Canonical beschreibt die Funktion allgemein, nicht den Produktnamen (nicht „sevDesk-Beleg-Scan", sondern „Automatische Belegerkennung").</li>
+      <li><b>Dubletten vermeiden:</b> Vor „Neu anlegen" die Vorschläge prüfen – Gleiches lieber <b>zusammenführen</b> als doppelt anlegen.</li>
+      <li><b>KI-Vorschlag gegenprüfen:</b> Die Konfidenz ist eine Empfehlung, keine Garantie – bei niedrigem Prozent-Wert selbst entscheiden.</li>
+    </ul>
+  </div>
+
+  <div class="gate">
+    <div class="t">🛡️ Warum das wichtig ist</div>
+    <p>Solange ein Programm <b>offene Begriffe</b> in der Inbox hat, bleibt im Produkt-Workflow die Stufe <b>„Ordnen &amp; ergänzen" (Stufe 4)</b> offen – das Produkt erreicht <b>keine 100 %</b> und kann <b>nicht veröffentlicht</b> werden. Erst mit <b>0 offenen Funktionen</b> ist es tool-übergreifend vergleichbar und bereit für den nächsten Schritt.</p>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Sind alle Begriffe eines Programms zugeordnet, verschwindet es aus der Inbox und die rote Zahl zählt herunter. Die Funktionen sind jetzt sauber im Wörterbuch verankert und vergleichbar.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · Feature-Wörterbuch pflegen</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>

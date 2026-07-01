@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bilder & Videos einbinden · softwio Cockpit</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2733; font-size:10.2pt; line-height:1.46; margin:0; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  p { margin:0 0 6px; }
+  b,strong { color:#16202e; }
+
+  .head { display:flex; align-items:center; gap:14px; background:#3a404a; color:#fff; border-radius:12px; padding:15px 20px; margin-bottom:4px; }
+  .head .logo { font-size:25pt; font-weight:900; letter-spacing:-.03em; line-height:1; display:flex; align-items:baseline; }
+  .head .logo .o { position:relative; display:inline-block; width:.92em; height:.92em; margin:0 .01em; }
+  .head .logo .o svg { position:absolute; inset:0; width:100%; height:100%; }
+  .head .ht { flex:1; }
+  .head .claim { font-size:9pt; color:#9fb4cd; margin-top:2px; }
+  .head .doc { text-align:right; font-size:8.5pt; color:#c3cdda; }
+  .head .doc b { color:#fff; font-size:11pt; display:block; letter-spacing:-.01em; }
+
+  .lead { color:#4a5666; font-size:10.3pt; margin:11px 2px 12px; }
+  .lead b { color:#16202e; }
+
+  .principle { border:1px solid #cfe0ff; background:#f3f8ff; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:9.6pt; color:#23364d; }
+  .principle b { color:#123; }
+  .principle .t { font-weight:800; color:#1c4e8a; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+
+  .sec-h { font-size:8.5pt; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#8595a8; margin:15px 0 9px; padding-bottom:4px; border-bottom:1px solid #e6ebf1; }
+  .sec-h.big { font-size:11pt; letter-spacing:0; text-transform:none; color:#16202e; border-bottom:2px solid #2f80ff; padding-bottom:5px; display:flex; align-items:center; gap:7px; }
+
+  .step { display:flex; gap:12px; margin:0 0 9px; break-inside:avoid; page-break-inside:avoid; }
+  .num { flex:none; width:25px; height:25px; border-radius:50%; background:#2f80ff; color:#fff; font-weight:800; font-size:10.5pt; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; padding-top:1px; min-width:0; }
+  .st-title { font-size:11pt; font-weight:800; color:#16202e; margin-bottom:2px; }
+  .st-do { margin:1px 0 3px; }
+  .cond { font-size:8.8pt; color:#1c6b40; background:#eefaf2; border-left:3px solid #27a567; padding:3px 9px; border-radius:0 6px 6px 0; }
+  .cond b { color:#145130; }
+
+  /* Rollen-Tabelle */
+  .roles { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:3px 0 0; }
+  .role { border:1px solid #e6ebf1; border-radius:8px; padding:7px 10px; font-size:9pt; background:#fbfcfe; }
+  .role b { color:#16202e; display:block; margin-bottom:1px; }
+
+  .ki { border:1px solid #d6ccff; background:#f7f4ff; border-radius:10px; padding:10px 14px 9px; margin:8px 0 0; break-inside:avoid; }
+  .ki .t { font-weight:800; color:#5b3fd6; display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:10.2pt; }
+  .ki p { font-size:9.4pt; margin:0 0 4px; }
+  .ki b { color:#4327b3; }
+  .max { background:#eef7f0; border:1px solid #bfe6cd; border-radius:7px; padding:6px 10px; font-size:9.1pt; color:#1c6b40; margin-top:6px; }
+  .max .mh { font-weight:800; color:#145130; display:flex; align-items:center; gap:5px; margin-bottom:1px; }
+  .max b { color:#145130; }
+
+  .rules { border:1px solid #ffe0b8; background:#fff8ef; border-radius:10px; padding:10px 14px 7px; margin:14px 0 0; break-inside:avoid; }
+  .rules .t { font-weight:800; color:#9a5b00; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .rules ul { margin:0; padding-left:17px; }
+  .rules li { margin-bottom:3px; font-size:9.4pt; }
+  .rules li b { color:#7a4a00; }
+
+  .done { background:#eafaf1; border:1px solid #b7e9cd; border-radius:10px; padding:10px 14px; margin:12px 0 0; font-size:9.6pt; color:#1c6b40; break-inside:avoid; }
+  .done b { color:#145130; }
+  .foot { margin-top:14px; padding-top:9px; border-top:1px solid #e6ebf1; font-size:8.3pt; color:#97a2b0; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="logo">softwi<span class="o"><svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12.6" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M7.7 17 L14 23.6 L26.2 5.6" fill="none" stroke="#2f80ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="ht"><div class="claim">Software, die passt.</div></div>
+    <div class="doc"><b>Anleitung</b>Bilder &amp; Videos einbinden · Cockpit</div>
+  </div>
+
+  <p class="lead">Bilder und Videos machen eine Produktseite <b>anschaulich und vertrauenswürdig</b>. Diese Anleitung zeigt, wie du <b>Screenshots &amp; Logos</b> hochlädst und richtig einsetzt und wie <b>YouTube-Videos</b> ausgewertet werden – inklusive der <b>KI-Funktionen</b> und des günstigen Wegs über <b>Claude Max</b>.</p>
+
+  <div class="principle">
+    <div class="t">★ Grundgedanke</div>
+    Bilder &amp; Videos sind <b>empfohlen, aber nicht blockierend</b> für die Veröffentlichung – <b>Ausnahme: das Logo</b> ist in der Stufe „Belegen" Pflicht. Videos werden <b>nicht einfach eingebettet</b>: Sie werden zuerst <b>ausgewertet</b>, ihre Fakten laufen über die Freigaben in die Datenbasis.
+  </div>
+
+  <div class="sec-h big"><i>🖼</i> Teil 1 · Bilder</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Hochladen</div>
+      <div class="st-do">Im Produkt unter <b>Bilder</b>: Dateien per <b>Drag &amp; Drop</b> hineinziehen oder ins Feld klicken. Die Bilder landen zunächst als <b>Content-Bild</b>.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Rolle wählen</div>
+      <div class="st-do">Jedes Bild bekommt eine <b>Rolle</b> – sie entscheidet, wo es erscheint:</div>
+      <div class="roles">
+        <div class="role"><b>Content-Bild</b>Wird von Claude thematisch passend <b>in den Artikeltext</b> platziert.</div>
+        <div class="role"><b>Galeriebild</b>Erscheint im <b>Screenshot-Galerie-Block</b> (Reihenfolge per ↑↓).</div>
+        <div class="role"><b>Hauptbild</b>Das <b>Hero-Bild</b> oben in der Einleitung.</div>
+        <div class="role"><b>Logo</b>Das <b>Hersteller-Logo</b> – erscheint nie im Text.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Beschreibung eintragen</div>
+      <div class="st-do">Ins Feld <b>„Was zeigt das Bild?"</b> eine kurze Beschreibung schreiben. Sie dient als <b>Alt-Text</b> (wichtig für SEO &amp; Barrierefreiheit) bzw. als <b>Bildunterschrift</b> in der Galerie.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="st-title">Content-Bild: Platzierung steuern</div>
+      <div class="st-do">Nur bei Content-Bildern: über den <b>Abschnitt-Hinweis</b> wählst du, in welchem Textabschnitt das Bild erscheinen soll. Mit dem Häkchen <b>„Pflicht"</b> erzwingst du, dass es beim Portal-Build im Artikel platziert wird.</div>
+      <div class="cond">✓ Ein Pflicht-Bild zeigt <b>„✓ platziert in …"</b>, sobald es im Artikel sitzt – sonst <b>„⚠ noch nicht platziert"</b>.</div>
+    </div>
+  </div>
+
+  <div class="ki">
+    <div class="t">✨ KI-Funktion: Beschreibung automatisch</div>
+    <p>Das <b>✨-Symbol</b> neben dem Beschreibungsfeld lässt <b>Claude das Bild ansehen</b> (Funktion <i>bild-beschreiben</i>) und eine Beschreibung vorschlagen – bei Content-Bildern zusätzlich den passenden Abschnitt. Beim Hochladen läuft das für neue Bilder <b>automatisch</b>.</p>
+    <div class="max">
+      <div class="mh">💶 Günstiger Weg</div>
+      Die Beschreibung kannst du jederzeit <b>selbst eintippen</b> – dann fällt <b>keine API-Nutzung</b> an. Das ✨ ist nur eine Hilfe, kein Muss.
+    </div>
+  </div>
+
+  <div class="sec-h big"><i>🎬</i> Teil 2 · Videos</div>
+
+  <div class="principle" style="margin-top:2px">
+    <div class="t">So funktioniert es in Kürze</div>
+    Ein YouTube-Video wird nicht nur verlinkt, sondern <b>komplett angeschaut und ausgewertet</b>. Die dabei gefundenen Fakten kommen als <b>Erkenntnisse in die Freigaben</b> – dort bestätigst du sie, erst dann landen sie in der Datenbasis. Ablauf: <b>hinzufügen → auswerten → in den Freigaben bestätigen</b>.
+  </div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="st-title">Video hinzufügen</div>
+      <div class="st-do">Zwei Wege: <b>(a)</b> Im <b>YouTube-Tab</b> nach Videos suchen bzw. Abos durchsehen, passende markieren. <b>(b)</b> In der <b>Video-Warteschlange</b> oben direkt eine <b>YouTube-URL oder Video-ID</b> einfügen.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="st-title">Warteschlange &amp; Status</div>
+      <div class="st-do">Jedes Video durchläuft Stufen: <b>offen</b> → <b>wird ausgewertet</b> → <b>ausgewertet</b>. Danach steht meist <b>„Freigabe offen"</b> – die Erkenntnisse warten im Modul <b>Freigaben</b> auf dich.</div>
+      <div class="cond">Ein <b>Crawl muss zuerst gelaufen sein</b> – ohne gecrawlte Fakten darf nicht ausgewertet/priorisiert werden (Halluzinationsschutz).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="st-title">Erkenntnisse freigeben</div>
+      <div class="st-do">Nach der Auswertung wechselst du zu <b>Freigaben</b> und bestätigst die Video-Erkenntnisse (siehe Anleitung „Freigaben entscheiden"). Erst dann sind die Fakten in der Datenbasis.</div>
+    </div>
+  </div>
+
+  <div class="ki">
+    <div class="t">✨ KI &amp; der Claude-Max-Weg bei Videos</div>
+    <p><b>Auswertung (das Herzstück):</b> Das Anschauen &amp; Fakten-Extrahieren übernimmt der <b>lokale Runner über Claude Max</b> (via <i>/watch</i>) – <b>vollautomatisch</b> (Prüfung alle 60 Sek.) und <b>ohne API-Kosten</b>. Du musst dafür nichts tun. Alternativ kopierst du mit <b>„/watch kopieren"</b> den Befehl selbst in deine Claude-Code-Sitzung.</p>
+    <p style="margin-top:5px"><b>Priorisierung (optional):</b> Hast du viele Videos markiert, ordnet die KI (Funktion <i>ranking-proxy</i>, Opus) sie nach <b>Relevanz (0–10)</b> mit Begründung, damit du die besten zuerst auswertest.</p>
+    <div class="max">
+      <div class="mh">💶 Günstiger Weg</div>
+      Die eigentliche Video-Auswertung ist <b>ohnehin kostenfrei</b> (Max-Runner). Nur die optionale <b>KI-Priorisierung</b> nutzt die API – wer sparen will, fügt Videos einfach <b>direkt in die Warteschlange</b> ein und überspringt das Ranking.
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="t">⚠ Wichtige Punkte &amp; Pflichten</div>
+    <ul>
+      <li><b>Logo ist Pflicht:</b> Ohne gesetztes Logo bleibt die Stufe „Belegen" offen (Bild-Rolle „Logo").</li>
+      <li><b>Nur relevante Videos:</b> Videos einbinden, die wirklich zur Software passen – Relevanz-Wert der KI hilft bei der Auswahl.</li>
+      <li><b>Beschreibung nicht vergessen:</b> Jedes sichtbare Bild braucht eine Beschreibung (Alt-Text) – gut für SEO &amp; Barrierefreiheit.</li>
+      <li><b>Rechte beachten:</b> Eigene Screenshots sind unproblematisch; fremde Bilder nur nutzen, wenn erlaubt.</li>
+      <li><b>Video-Fakten erst nach Freigabe:</b> Ausgewertet heißt noch nicht übernommen – die Bestätigung in den Freigaben ist Pflicht.</li>
+    </ul>
+  </div>
+
+  <div class="done">
+    <b>✓ Fertig.</b> Logo gesetzt, Screenshots mit Rolle &amp; Beschreibung versehen, relevante Videos ausgewertet und ihre Erkenntnisse freigegeben – die Produktseite ist anschaulich und die Video-Fakten sind sauber belegt.
+  </div>
+
+  <div class="foot">
+    <span>softwio Cockpit · Bilder &amp; Videos einbinden</span>
+    <span>Stand: Juli 2026</span>
+  </div>
+
+</body>
+</html>
