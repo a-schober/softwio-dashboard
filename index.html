@@ -36,6 +36,13 @@
   .kat-ic.on{border-color:#4f46e5;color:#4338ca;background:#eef2ff;box-shadow:0 0 0 1px #c7d2fe inset}
   .kat-chip{display:inline-block;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:3px 10px;margin:0 5px 5px 0;color:var(--ink)}
   .pws-wrap{max-width:1480px;margin:0 auto}
+  .slim-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}@media(max-width:820px){.slim-body{grid-template-columns:1fr}}
+  .slim-zone{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--panel)}
+  .slim-zt{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;display:flex;align-items:center;gap:8px}.slim-zt small{text-transform:none;font-weight:400;letter-spacing:0;color:var(--faint);margin-left:auto}
+  .slim-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line2)}.slim-row:last-child{border-bottom:none}
+  .slim-ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--line2);color:var(--muted);flex:none}.slim-ic.ok{background:rgba(34,197,94,.14);color:#16a34a}
+  .slim-l{font-size:13.5px;font-weight:500}.slim-v{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}.slim-b{flex:none;font-size:11.5px;padding:3px 9px}
+  .slim-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:16px 0 2px}
   .pws-head{display:flex;align-items:center;gap:14px;padding:4px 2px 16px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
   .pws-logo{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-weight:800;font-size:15px;overflow:hidden;flex:none}
   .pws-h-main{flex:1;min-width:150px}
@@ -1850,6 +1857,7 @@ function pwsPanel(P,st){
   }
   return h+'<div class="pws-p-body"><div id="pwsStatus">'+pwsBody(P,st)+'</div>'+editor+'</div><div id="pwsFootWrap">'+pwsFoot(P,st)+'</div>';
 }
+function artStatusLabel(s){var M={live:'live',wartet_auf_native_review:'Entwurf — bitte prüfen',entwurf:'Entwurf',in_bearbeitung:'in Arbeit',native_review_abgeschlossen:'geprüft',archiviert:'archiviert',manuelle_pruefung_noetig:'Prüfung nötig'};return M[s]||s||'—';}
 function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
   const P=PWS,f=P.full||{};const stages=pwsStages(P);
@@ -1857,19 +1865,40 @@ function pwsRender(){
   const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
   const viewStage=stages.find(function(s){return s.n===view;})||stages.find(function(s){return s.n===cur;});
   const mono=esc((f.name||'NN').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'NN');const _lg=dlgRow&&dlgRow._logo;
-  const rail=stages.map(function(s){var ic=s.state==='done'?'ti-circle-check':s.state==='current'?'ti-player-play-filled':s.state==='pflege'?'ti-refresh':'ti-circle';
-    return '<button class="pws-step '+s.state+(s.n===view?' sel':'')+'" onclick="pwsGoto('+s.n+')"><span class="pws-st-ic"><i class="ti '+ic+'"></i></span><span class="pws-st-n">'+s.n+'</span><span class="pws-st-t">'+esc(s.t)+'</span></button>';}).join('');
+  var doneMap={};stages.forEach(function(s){doneMap[s.key]=s.done;});
+  var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});var swpct=_swr?(_swr.pct||0):pct;
+  var _offFunk=(P.funk||[]).filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
+  var _funkN=(P.funk||[]).length,_preiseN=(P.preise||[]).length;
+  var _art=P.artikel,_artStatus=_art?_art.inhalts_status:null,_liveOK=_artStatus==='live';
+  var _belegOffen=(P.beleg&&P.beleg.unbelegt)||0;
+  function _z(icon,label,wert,ok,action,actLabel){return '<div class="slim-row"><span class="slim-ic '+(ok?'ok':(ok===false?'no':''))+'"><i class="ti '+icon+'"></i></span><span class="slim-l">'+esc(label)+'</span><span class="slim-v">'+wert+'</span>'+(action?'<button class="tb slim-b" onclick="'+action+'">'+esc(actLabel||'öffnen')+'</button>':'')+'</div>';}
+  var _eingabe=_z('ti-id-badge-2','Stammdaten',(doneMap.anlegen?'vollständig':'unvollständig'),!!doneMap.anlegen,"pwsEditor('stammdaten')",'bearbeiten')
+    +_z('ti-photo','Bilder / Screenshots',((P.bilderN||0)+' Bilder'),(P.bilderN||0)>0,"pwsEditor('bilder')",'verwalten')
+    +_z('ti-brand-youtube','Videos',((P.videoN||0)+' Videos'),(P.videoN||0)>0,"pwsEditor('videos')",'verwalten')
+    +_z('ti-star','Bewertungen & Community',(P.synthese?'ausgewertet':((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
+  var _fWert=_offFunk>0?('<span style="color:#b45309">⚠ '+_offFunk+' zuordnen</span>'):(_funkN+' Funktionen · '+_preiseN+' Tarife');
+  var _ergebnis=_z('ti-database','Fakten (SSoT)',_fWert,(_offFunk===0&&_funkN>0),"pwsEditor('funktionen')",(_offFunk>0?'zuordnen':'ansehen'))
+    +_z('ti-file-text','Artikel-Entwurf',(_art?esc(artStatusLabel(_artStatus)):'noch nicht erzeugt'),!!_art,"pwsEditor('content')",(_art?'ansehen':''))
+    +_z('ti-world','Portal',(_liveOK?'<span style="color:#15803d">live</span>':'nicht live'),_liveOK,(_liveOK?"pwsEditor('distribution')":''),(_liveOK?'Social':''));
+  var _warn=_belegOffen>0?'<div class="pws-hint" style="color:#b91c1c">🛡️ '+_belegOffen+' Aussage(n) ohne Beleg — in „Fakten" prüfen, sonst ist Veröffentlichen gesperrt.</div>':'';
+  var _acts='<div class="slim-acts">'+(swpct>=100?pwsBtn((_art?'Artikel neu bauen (Auto)':'Artikel automatisch bauen'),"artikelBauen('"+P.id+"')",'ti-sparkles',!_art):'<button class="pws-act" disabled><i class="ti ti-sparkles"></i> Artikel bauen (ab 100 %)</button>')+((_art&&!_liveOK)?pwsBtn('Freigeben & live schalten','pwsPublish()','ti-cloud-upload',1):'')+(_liveOK?pwsBtn('Inhalt ansehen',"pwsEditor('content')",'ti-eye')+pwsBtn('Portal neu bauen',"runBuild('de')",'ti-hammer'):'')+'</div>';
+  setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);
   cv.innerHTML='<div class="pws-wrap"><div class="pws-head">'+
     '<button class="tb" onclick="route(\'software\')"><i class="ti ti-arrow-left"></i> Alle Produkte</button>'+
     '<span class="pws-logo"'+(_lg?' style="background:#fff"':'')+'>'+(_lg?'<img src="'+esc(_lg)+'" alt="" style="width:100%;height:100%;object-fit:contain">':mono)+'</span>'+
     '<div class="pws-h-main"><div class="pws-h-name">'+esc(f.name||'—')+'</div><div class="pws-h-sub">'+esc(f.hersteller||'')+(f.kategorie?(' · '+esc(f.kategorie)):'')+'</div></div>'+
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
-    '<div class="pws-h-prog"><div class="pws-h-pct">Stufe '+cur+'/'+total+' · '+pct+'%</div><div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'+
-    '</div><div class="pws-body"><div class="pws-rail">'+rail+'</div><div class="pws-panel" id="pwsPanel">'+pwsPanel(P,viewStage)+'</div></div></div>';
-  var _vt=(viewStage&&viewStage.tabs)||[];if(_vt.length){pwsTab(_vt[0]);}
+    '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+'% fertig</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
+    '</div>'+
+    '<div class="slim-body">'+
+    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-forms"></i> Deine Eingaben <small>das füllst nur du</small></div>'+_eingabe+'</div>'+
+    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'</div>'+
+    '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+
+    '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
+    '</div>';
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
-function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const total=stages.length;const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
+function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;if(!document.querySelector('.pws-rail')){try{pwsRender();}catch(e){}return;}const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const total=stages.length;const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
   const railEl=document.querySelector('.pws-rail');if(railEl)railEl.innerHTML=stages.map(function(s){var ic=s.state==='done'?'ti-circle-check':s.state==='current'?'ti-player-play-filled':s.state==='pflege'?'ti-refresh':'ti-circle';return '<button class="pws-step '+s.state+(s.n===view?' sel':'')+'" onclick="pwsGoto('+s.n+')"><span class="pws-st-ic"><i class="ti '+ic+'"></i></span><span class="pws-st-n">'+s.n+'</span><span class="pws-st-t">'+esc(s.t)+'</span></button>';}).join('');
   const pe=document.querySelector('.pws-h-pct');if(pe)pe.textContent='Stufe '+cur+'/'+total+' · '+pct+'%';
   const be=document.querySelector('.pws-bar span');if(be)be.style.width=pct+'%';
