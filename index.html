@@ -624,18 +624,45 @@ function mapRow(r,i){
     status:st, geprueft:(r.letzte_pruefung_am||"").slice(0,10), nw:r.neuronwriter_score, ltd:!!r.hat_ltd,
     _hue:HUE[i%HUE.length] };
 }
-function stagePct(me,sg){
+function milestones(me,sg){
   me=me||{};sg=sg||{};
-  const anlegen=!!(me.name&&me.hersteller&&me.url&&me.kategorie);
-  const medien=(sg.bilder||0)>0||(sg.videos||0)>0;
-  const sammeln=(sg.funkTotal||0)>0||(sg.preise||0)>0;
-  const ordnen=(sg.funkOffen||0)===0&&(sg.funkTotal||0)>0&&(sg.preise||0)>0;
-  const belegen=(sg.quellen||0)>0&&!!sg.synthese&&!!me.logo;
-  const pruefen=(sg.freiOffen||0)===0;
-  const schluss=anlegen&&sammeln&&ordnen&&belegen&&pruefen;
-  const veroeff=!!sg.artikel;
-  const done=[anlegen,medien,sammeln,ordnen,belegen,pruefen,schluss,veroeff].filter(Boolean).length;
-  return Math.round(done/8*100);
+  var funkTotal=sg.funkTotal||0,funkOffen=sg.funkOffen||0,preise=sg.preise||0;
+  var anlegen=!!(me.name&&me.hersteller&&me.url&&me.kategorie);
+  var sammeln=funkTotal>0||preise>0;
+  var ordnen=funkOffen===0&&funkTotal>0&&preise>0;
+  var belegen=(sg.quellen||0)>0&&!!sg.synthese&&!!me.logo;
+  var medien=(sg.bilder||0)>0||(sg.videos||0)>0;
+  var pruefen=(sg.freiOffen||0)===0;
+  var schluss=anlegen&&sammeln&&ordnen&&belegen&&pruefen;
+  var veroeff=!!sg.artikel;
+  return [
+    {k:'anlegen',t:'Stammdaten',done:anlegen,d:'Name, Hersteller, URL & Kategorie'},
+    {k:'sammeln',t:'Fakten erfasst',done:sammeln,d:funkTotal+' Funktionen · '+preise+' Tarife'},
+    {k:'ordnen',t:'Funktionen zugeordnet',done:ordnen,d:funkOffen>0?(funkOffen+' noch offen'):(funkTotal>0?'alle zugeordnet':'keine Funktionen')},
+    {k:'belegen',t:'Belegt & bewertet',done:belegen,d:'Quellen '+((sg.quellen||0)>0?'✓':'–')+' · Bewertungs-Synthese '+(sg.synthese?'✓':'–')+' · Logo '+(me.logo?'✓':'–')},
+    {k:'medien',t:'Medien',done:medien,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos'},
+    {k:'pruefen',t:'Freigaben geprüft',done:pruefen,d:(sg.freiOffen||0)>0?((sg.freiOffen||0)+' offen'):'keine offenen'},
+    {k:'schluss',t:'Schlusscheck',done:schluss,d:'automatisch grün, wenn alle Pflichtstufen stehen'},
+    {k:'veroeff',t:'Artikel veröffentlicht',done:veroeff,d:veroeff?'live':'noch nicht live'}
+  ];
+}
+function stagePct(me,sg){var m=milestones(me,sg);return Math.round(m.filter(function(x){return x.done;}).length/m.length*100);}
+function meilensteinHtml(row){
+  var ms=(row&&row._meilen)||[];if(!ms.length)return '';
+  var done=ms.filter(function(x){return x.done;}).length,pctv=Math.round(done/ms.length*100);
+  var barc=pctv>=100?'var(--ok)':(pctv>=50?'var(--warn)':'var(--bad)');
+  var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px"><span style="font-weight:600;font-size:13px"><i class="ti ti-checklist"></i> Bausteine-Fortschritt</span><span style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)">'+done+' / '+ms.length+' · '+pctv+' %</span></div>';
+  var track='<div style="height:7px;border-radius:5px;background:var(--line);overflow:hidden;margin-bottom:6px"><span style="display:block;height:100%;width:'+pctv+'%;background:'+barc+';border-radius:5px"></span></div>';
+  var rows=ms.map(function(m){
+    var col=m.done?'var(--ok)':'var(--faint)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid var(--line)">'+
+      '<i class="ti '+(m.done?'ti-circle-check-filled':'ti-circle-dashed')+'" style="font-size:18px;color:'+col+';flex:none"></i>'+
+      '<span style="font-size:12.5px;font-weight:600;color:var(--ink);min-width:172px;flex:none">'+esc(m.t)+'</span>'+
+      '<span style="flex:1;font-size:11.5px;color:var(--muted)">'+esc(m.d)+'</span>'+
+      '<span style="font-size:11px;font-weight:700;color:'+(m.done?'var(--ok)':'var(--faint)')+';flex:none">'+(m.done?'✓ fertig':'offen')+'</span>'+
+    '</div>';
+  }).join('');
+  return '<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel)">'+head+track+rows+'</div>';
 }
 async function ladeSW(){
   const {data,error}=await sb.from("cockpit_startseite").select("*").order("name");
@@ -670,7 +697,7 @@ async function ladeSW(){
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
@@ -1901,6 +1928,7 @@ function pwsRender(){
     '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'<div style="display:flex;justify-content:flex-end;padding:9px 8px 2px"><button class="tb" onclick="pwsCrawl()" title="Startet Firecrawl-Crawl + KI-Extraktion – füllt Funktionen, Preise &amp; Integrationen aus der Hersteller-Website"><i class="ti ti-spider"></i> Fakten aus Website crawlen</button></div></div>'+
     '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+
     '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
+    meilensteinHtml(_swr)+
     '</div>';
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
