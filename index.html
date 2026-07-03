@@ -1999,7 +1999,7 @@ function crawlRender(sid,row,phase){
     return;
   }
   if(phase==='validiert'){
-    crawlShow(nm,crawlStepper(6,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen jetzt in den Ergebnis-Tabs.</div></div>',
+    crawlShow(nm,crawlStepper(6,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen in den Ergebnis-Tabs.<br><i class="ti ti-robot"></i> Firmendaten (Impressum) &amp; Logo werden automatisch nachgezogen (~1–2 Min).</div></div>',
       '<span class="tb primary" onclick="closeAov()"><i class="ti ti-check"></i> Fertig</span>');
     return;
   }
