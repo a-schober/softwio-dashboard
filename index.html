@@ -445,8 +445,6 @@
     <span class="tb" id="tbDel" disabled onclick="onDel()"><i class="ti ti-trash"></i> Löschen</span>
     <span class="sep ctx"></span>
     <span class="tb ctx" onclick="runCrawl()"><i class="ti ti-spider"></i> Crawl &amp; Anreichern</span>
-    <span class="tb ctx" onclick="runValidate()"><i class="ti ti-checkup-list"></i> Validieren</span>
-    <span class="tb ok ctx" onclick="runFreigabe()"><i class="ti ti-rosette-discount-check"></i> Freigeben</span>
     <span class="sep"></span>
     <span class="tb" onclick="openCols(this)"><i class="ti ti-columns"></i> Spalten</span>
     <span class="tb" onclick="openExport()"><i class="ti ti-file-export"></i> Export</span>
@@ -1900,7 +1898,7 @@ function pwsRender(){
     '</div>'+
     '<div class="slim-body">'+
     '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-forms"></i> Deine Eingaben <small>das füllst nur du</small></div>'+_eingabe+'</div>'+
-    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'</div>'+
+    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'<div style="display:flex;justify-content:flex-end;padding:9px 8px 2px"><button class="tb" onclick="pwsCrawl()" title="Startet Firecrawl-Crawl + KI-Extraktion – füllt Funktionen, Preise &amp; Integrationen aus der Hersteller-Website"><i class="ti ti-spider"></i> Fakten aus Website crawlen</button></div></div>'+
     '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+
     '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
     '</div>';
@@ -1918,6 +1916,7 @@ function procStep(i,steps,done){if(i>=steps.length){if(typeof done==="function")
 function procBody(steps){return '<div class="proc">'+steps.map((s,i)=>`<div class="pstep" id="ps${i}"><span class="pi"><i class="ti ${s[0]}"></i></span><span class="pl">${s[1]}</span><span class="ps">wartet</span></div>`).join("")+'</div>';}
 const CRAWL_STEPS=[["ti-map-search","Relevante Seiten ermitteln (Firecrawl Map)"],["ti-spider","19 Seiten crawlen"],["ti-sparkles","Inhalt bereinigen & extrahieren (Claude)"],["ti-category","KI: Kategorie zuordnen"],["ti-list-check","Funktionen · Preise · Integrationen erkennen"],["ti-book","Canonical-Mapping (Feature-Wörterbuch)"],["ti-checkup-list","Validierung &amp; Reifegrad setzen"]];
 function runCrawl(){const n=(dlgRow&&dlgRow.name)||"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
+function pwsCrawl(){if(!PWS)return;const n=(PWS.full&&PWS.full.name)||"";const sid=PWS.id;aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund. Danach stehen Funktionen, Preise &amp; Integrationen in den „Automatisch erzeugt"-Feldern.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
 async function crawlDo(sid){if(!sid)return;try{const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});if(r&&r.error)throw new Error(r.error.message||'Fehler');toast('Crawl gestartet – läuft im Hintergrund');closeAov();}catch(e){alert('Crawl-Start fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 function crawlDone(){crawlCat("auto");}
 function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
