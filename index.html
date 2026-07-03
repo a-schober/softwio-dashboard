@@ -636,25 +636,29 @@ function milestones(me,sg){
   var schluss=anlegen&&sammeln&&ordnen&&belegen&&pruefen;
   var veroeff=!!sg.artikel;
   return [
-    {k:'anlegen',t:'Stammdaten',done:anlegen,d:'Name, Hersteller, URL & Kategorie'},
-    {k:'sammeln',t:'Fakten erfasst',done:sammeln,d:funkTotal+' Funktionen · '+preise+' Tarife'},
-    {k:'ordnen',t:'Funktionen zugeordnet',done:ordnen,d:funkOffen>0?(funkOffen+' noch offen'):(funkTotal>0?'alle zugeordnet':'keine Funktionen')},
-    {k:'belegen',t:'Belegt & bewertet',done:belegen,d:'Quellen '+((sg.quellen||0)>0?'✓':'–')+' · Bewertungs-Synthese '+(sg.synthese?'✓':'–')+' · Logo '+(me.logo?'✓':'–')},
-    {k:'medien',t:'Medien',done:medien,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos'},
-    {k:'pruefen',t:'Freigaben geprüft',done:pruefen,d:(sg.freiOffen||0)>0?((sg.freiOffen||0)+' offen'):'keine offenen'},
-    {k:'schluss',t:'Schlusscheck',done:schluss,d:'automatisch grün, wenn alle Pflichtstufen stehen'},
-    {k:'veroeff',t:'Artikel veröffentlicht',done:veroeff,d:veroeff?'live':'noch nicht live'}
+    {k:'anlegen',t:'Stammdaten',done:anlegen,manuell:true,d:'Name, Hersteller, URL & Kategorie'},
+    {k:'sammeln',t:'Fakten erfasst',done:sammeln,manuell:false,d:funkTotal+' Funktionen · '+preise+' Tarife'},
+    {k:'ordnen',t:'Funktionen zugeordnet',done:ordnen,manuell:false,d:funkOffen>0?(funkOffen+' noch offen'):(funkTotal>0?'alle zugeordnet':'keine Funktionen')},
+    {k:'belegen',t:'Bewertungen & Belege',done:belegen,manuell:true,d:'Quellen '+((sg.quellen||0)>0?'✓':'–')+' · Bewertungs-Synthese '+(sg.synthese?'✓':'–')+' · Logo '+(me.logo?'✓':'–')},
+    {k:'medien',t:'Medien',done:medien,manuell:true,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos'+(medien?'':' → hinzufügen')},
+    {k:'pruefen',t:'Freigaben geprüft',done:pruefen,manuell:true,d:(sg.freiOffen||0)>0?((sg.freiOffen||0)+' offen'):'keine offenen'},
+    {k:'schluss',t:'Schlusscheck',done:schluss,manuell:false,d:'automatisch grün, wenn alle Pflichtstufen stehen'},
+    {k:'veroeff',t:'Artikel veröffentlicht',done:veroeff,manuell:true,d:veroeff?'live':'bauen & freigeben'}
   ];
 }
 function stagePct(me,sg){var m=milestones(me,sg);return Math.round(m.filter(function(x){return x.done;}).length/m.length*100);}
 function schlussOk(sw){if(!sw||!sw._meilen)return false;var m=sw._meilen.find(function(x){return x.k==='schluss';});return !!(m&&m.done);}
 function meilensteinHtml(row){
   var ms=(row&&row._meilen)||[];if(!ms.length)return '';
-  var done=ms.filter(function(x){return x.done;}).length,pctv=Math.round(done/ms.length*100);
+  var manuell=ms.filter(function(m){return m.manuell;});
+  var auto=ms.filter(function(m){return !m.manuell;});
+  if(!manuell.length)return '';
+  var done=manuell.filter(function(m){return m.done;}).length,pctv=Math.round(done/manuell.length*100);
   var barc=pctv>=100?'var(--ok)':(pctv>=50?'var(--warn)':'var(--bad)');
-  var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px"><span style="font-weight:600;font-size:13px"><i class="ti ti-checklist"></i> Bausteine-Fortschritt</span><span style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)">'+done+' / '+ms.length+' · '+pctv+' %</span></div>';
+  var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="font-weight:600;font-size:13px"><i class="ti ti-checklist"></i> Deine Aufgaben bis 100 %</span><span style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)">'+done+' / '+manuell.length+' erledigt</span></div>';
+  var sub='<div style="font-size:11px;color:var(--faint);margin-bottom:9px">Nur was dein Zutun braucht · automatische Schritte ausgeblendet</div>';
   var track='<div style="height:7px;border-radius:5px;background:var(--line);overflow:hidden;margin-bottom:6px"><span style="display:block;height:100%;width:'+pctv+'%;background:'+barc+';border-radius:5px"></span></div>';
-  var rows=ms.map(function(m){
+  var rows=manuell.map(function(m){
     var col=m.done?'var(--ok)':'var(--faint)';
     return '<div style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid var(--line)">'+
       '<i class="ti '+(m.done?'ti-circle-check-filled':'ti-circle-dashed')+'" style="font-size:18px;color:'+col+';flex:none"></i>'+
@@ -663,7 +667,9 @@ function meilensteinHtml(row){
       '<span style="font-size:11px;font-weight:700;color:'+(m.done?'var(--ok)':'var(--faint)')+';flex:none">'+(m.done?'✓ fertig':'offen')+'</span>'+
     '</div>';
   }).join('');
-  return '<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel)">'+head+track+rows+'</div>';
+  var autoDone=auto.filter(function(m){return m.done;}).length;
+  var foot=auto.length?'<div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--faint)"><i class="ti ti-robot"></i> Automatisch (ohne dein Zutun): '+autoDone+' / '+auto.length+' erledigt · Fakten, Zuordnung, Schlusscheck</div>':'';
+  return '<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel)">'+head+sub+track+rows+foot+'</div>';
 }
 async function ladeSW(){
   const {data,error}=await sb.from("cockpit_startseite").select("*").order("name");
