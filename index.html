@@ -1917,7 +1917,122 @@ function procBody(steps){return '<div class="proc">'+steps.map((s,i)=>`<div clas
 const CRAWL_STEPS=[["ti-map-search","Relevante Seiten ermitteln (Firecrawl Map)"],["ti-spider","19 Seiten crawlen"],["ti-sparkles","Inhalt bereinigen & extrahieren (Claude)"],["ti-category","KI: Kategorie zuordnen"],["ti-list-check","Funktionen · Preise · Integrationen erkennen"],["ti-book","Canonical-Mapping (Feature-Wörterbuch)"],["ti-checkup-list","Validierung &amp; Reifegrad setzen"]];
 function runCrawl(){const n=(dlgRow&&dlgRow.name)||"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
 function pwsCrawl(){if(!PWS)return;const n=(PWS.full&&PWS.full.name)||"";const sid=PWS.id;aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund. Danach stehen Funktionen, Preise &amp; Integrationen in den „Automatisch erzeugt"-Feldern.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
-async function crawlDo(sid){if(!sid)return;try{const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});if(r&&r.error)throw new Error(r.error.message||'Fehler');toast('Crawl gestartet – läuft im Hintergrund');closeAov();}catch(e){alert('Crawl-Start fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+// ===== Crawl-Status/Freigabe/Ergebnis-UI (live, 2-phasig mit URL-Freigabe) =====
+async function crawlDo(sid){
+  if(!sid)return;
+  window._crawlState={sid:sid,started:Date.now(),phaseB:0,cleared:false,name:''};
+  crawlShow('',crawlStepper(1,'run')+crawlHint('start'),crawlFootWait());
+  try{
+    const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});
+    if(r&&r.error)throw new Error(r.error.message||'Fehler');
+  }catch(e){
+    crawlShow('',crawlErrBox('Crawl-Start fehlgeschlagen: '+(e&&e.message?e.message:e)),'<span class="tb" onclick="closeAov()">Schließen</span>');
+    return;
+  }
+  crawlPoll(sid);
+}
+function crawlShow(name,body,foot){
+  const st=window._crawlState;const nm=name||(st&&st.name)||'';
+  if(!$("#aov").classList.contains("show")){aov("Crawl & Anreichern",nm,body,foot);}
+  else{$("#aSub").textContent=nm;$("#aBody").innerHTML=body;$("#aFoot").innerHTML=foot;}
+}
+function crawlFootWait(){return '<span class="tb" onclick="closeAov()"><i class="ti ti-arrow-down"></i> Im Hintergrund weiterlaufen lassen</span>';}
+function crawlErrBox(msg){return '<div class="catr warn"><div class="h"><i class="ti ti-alert-triangle"></i> Fehler</div>'+esc(msg)+'</div>';}
+function crawlStepper(active,mode){
+  const steps=[["ti-file-text","Erfasst"],["ti-map-search","Seiten ermitteln (Map)"],["ti-checkbox","Deine Freigabe"],["ti-spider","Crawlen &amp; Extrahieren"],["ti-check","Fertig"]];
+  return '<div class="proc">'+steps.map(function(s,i){
+    var cls,lab,ic;
+    if(mode==='done'||i<active){cls='done';lab='fertig';ic='ti-check';}
+    else if(i===active){cls='run';if(mode==='freigabe'){lab='wartet auf dich';ic=s[0];}else{lab='läuft …';ic='ti-loader-2 spin';}}
+    else{cls='';lab='wartet';ic=s[0];}
+    return '<div class="pstep '+cls+'"><span class="pi"><i class="ti '+ic+'"></i></span><span class="pl">'+s[1]+'</span><span class="ps">'+lab+'</span></div>';
+  }).join('')+'</div>';
+}
+function crawlHint(kind,extra){
+  var t=kind==='scrape'?'Ausgewählte Seiten werden gecrawlt und mit Claude extrahiert – das dauert 1–3 Minuten.':'Der Crawl läuft – relevante Seiten werden ermittelt …';
+  return '<div style="padding:7px 2px 2px;font-size:12.5px;color:var(--muted)">'+t+(extra?' <span style="color:var(--faint)">('+extra+' s)</span>':'')+'</div>';
+}
+function crawlPhase(row){
+  if(!row)return 'start';
+  if(row.daten_reifegrad==='crawl_fertig'||row.ssot_rohtext)return 'fertig';
+  if(row.crawl_freigabe_status==='warte_freigabe')return 'freigabe';
+  if(row.daten_reifegrad==='crawl_laeuft'||row.crawl_freigabe_status==='freigegeben')return 'laeuft';
+  return 'start';
+}
+async function crawlPoll(sid){
+  try{clearTimeout(window._pbPoll);}catch(e){}
+  const st=window._crawlState;if(!st||st.sid!==sid)return;
+  if(!$("#aov").classList.contains("show"))return;
+  let row=null;
+  try{const q=await sb.from('software').select('name,daten_reifegrad,crawl_freigabe_status,crawl_kandidaten,crawl_url_liste,ssot_rohtext,crawl_metadaten').eq('id',sid).single();row=q.data;}catch(e){}
+  if(row&&row.name)st.name=row.name;
+  const phase=crawlPhase(row);
+  crawlRender(sid,row,phase);
+  if(phase==='fertig'){
+    if(!st.cleared){st.cleared=true;try{await dbW('update','software',sid,{crawl_url_liste:null,crawl_freigabe_status:null});}catch(e){}}
+    try{if(typeof ladeCrawlView==='function')ladeCrawlView().then(function(){if(CUR==='crawl')render();});}catch(e){}
+    try{if(typeof ladeSW==='function')ladeSW();}catch(e){}
+    return;
+  }
+  window._pbPoll=setTimeout(function(){crawlPoll(sid);},3000);
+}
+function crawlRender(sid,row,phase){
+  const st=window._crawlState||{};const nm=(row&&row.name)||st.name||'';
+  if(phase==='freigabe'){
+    const kand=(row&&Array.isArray(row.crawl_kandidaten))?row.crawl_kandidaten:[];
+    const liste='<div style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:6px">'+
+      (kand.length?kand.map(function(k){
+        var src=(k&&k.herkunft==='doku-probe')?'<span class="pa" style="font-size:10px;white-space:nowrap">Doku</span>':'<span class="pn" style="font-size:10px;white-space:nowrap">Map</span>';
+        return '<label style="display:flex;gap:9px;align-items:flex-start;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer">'+
+          '<input type="checkbox" data-crawl-url="'+esc(k&&k.url)+'" checked style="margin-top:2px;flex:none">'+
+          '<span style="flex:1;word-break:break-all">'+esc(k&&k.url)+'</span>'+src+'</label>';
+      }).join(''):'<div style="padding:12px;color:var(--muted)">Keine Kandidaten gefunden.</div>')+'</div>';
+    const info='<div style="padding:2px 2px 6px;font-size:12.5px;color:var(--muted)">Claude hat <b>'+kand.length+' Seiten</b> vorgeschlagen. Abwählen, was nicht gecrawlt werden soll – dann freigeben. <b>Nur ausgewählte</b> Seiten werden gescrapt (Kostenkontrolle).</div>';
+    const tools='<div style="display:flex;gap:12px;margin:8px 2px 0;font-size:11.5px"><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(true)">Alle</a><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(false)">Keine</a></div>';
+    crawlShow(nm,crawlStepper(2,'freigabe')+info+liste+tools,
+      '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlFreigeben(\''+sid+'\')"><i class="ti ti-check"></i> Freigeben &amp; Crawl fortsetzen</span>');
+    return;
+  }
+  if(phase==='fertig'){
+    crawlShow(nm,crawlStepper(4,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Crawl fertig</div>Die Website-Fakten sind als SSoT-Rohtext gespeichert.'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Nächster Schritt: die KI-Extraktion füllt Funktionen, Preise &amp; Felder (Reifegrad → Claude-extrahiert).</div></div>',
+      '<span class="tb primary" onclick="closeAov()"><i class="ti ti-check"></i> Fertig</span>');
+    return;
+  }
+  // start / laeuft
+  const scraping=(st.phaseB>0)||((Date.now()-(st.started||Date.now()))>25000);
+  const el=Math.round((Date.now()-(st.started||Date.now()))/1000);
+  var warn='';
+  if(scraping&&st.phaseB&&(Date.now()-st.phaseB>210000)){
+    warn='<div class="catr warn" style="margin-top:10px"><div class="h"><i class="ti ti-clock"></i> Dauert länger als üblich</div>Der Crawl läuft noch. Falls nichts passiert, ist evtl. ein Fehler aufgetreten – prüfe die Crawl-Fehler-Mail. Du kannst das Fenster schließen; der Lauf läuft im Hintergrund weiter.</div>';
+  }
+  crawlShow(nm,crawlStepper(scraping?3:1,'run')+crawlHint(scraping?'scrape':'start',el)+warn,crawlFootWait());
+}
+function crawlMetaText(row){
+  try{
+    var m=(row&&row.crawl_metadaten)?(typeof row.crawl_metadaten==='string'?JSON.parse(row.crawl_metadaten):row.crawl_metadaten):null;
+    var seiten=m&&(m.anzahl_seiten||m.seiten||m.anzahl);
+    var zeichen=(row&&row.ssot_rohtext)?row.ssot_rohtext.length:(m&&m.zeichen_anzahl);
+    var parts=[];if(seiten)parts.push(seiten+' Seiten');if(zeichen)parts.push(Number(zeichen).toLocaleString('de-DE')+' Zeichen Rohtext');
+    return parts.length?'<div style="margin-top:6px;font-size:12px"><b>'+parts.join(' · ')+'</b></div>':'';
+  }catch(e){return '';}
+}
+function crawlSel(on){document.querySelectorAll('#aBody input[data-crawl-url]').forEach(function(b){b.checked=!!on;});}
+async function crawlFreigeben(sid){
+  const boxes=Array.prototype.slice.call(document.querySelectorAll('#aBody input[data-crawl-url]'));
+  const urls=boxes.filter(function(b){return b.checked;}).map(function(b){return b.getAttribute('data-crawl-url');});
+  if(!urls.length){toast('Bitte mindestens eine URL auswählen');return;}
+  const st=window._crawlState||{sid:sid};st.sid=sid;st.phaseB=Date.now();st.started=Date.now();window._crawlState=st;
+  crawlShow('',crawlStepper(3,'run')+'<div style="padding:8px 2px 2px;font-size:12.5px;color:var(--muted)">Freigabe gespeichert – <b>'+urls.length+'</b> Seiten werden jetzt gecrawlt &amp; extrahiert …</div>',crawlFootWait());
+  try{
+    await dbW('update','software',sid,{crawl_url_liste:urls.join('\n'),crawl_freigabe_status:'freigegeben'});
+    const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});
+    if(r&&r.error)throw new Error(r.error.message||'Fehler');
+  }catch(e){
+    crawlShow('',crawlErrBox('Freigabe/Neustart fehlgeschlagen: '+(e&&e.message?e.message:e)),'<span class="tb" onclick="closeAov()">Schließen</span>');
+    return;
+  }
+  crawlPoll(sid);
+}
 function crawlDone(){crawlCat("auto");}
 function crawlCat(modus){const c=$("#crawlCat"),f=$("#aFoot");if(!c)return;
   if(modus==="auto"){
