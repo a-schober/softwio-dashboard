@@ -713,6 +713,8 @@ const VIEWS={
    rows:[{name:"Standard-Markt",wert:"DE"},{name:"Theme",wert:"Hell (umschaltbar)"},{name:"Auto-Crawl-Intervall",wert:"180 Tage"},{name:"Auto-Freigabe ab Konfidenz",wert:"90 %"},{name:"Anthropic-Modell",wert:"Opus 4.8"}]}
 };
 Object.values(VIEWS).forEach(v=>{v.cols.forEach(c=>c.vis=true);v._sort={k:v.cols[0].k,d:1};v._filt={};});
+// Übersicht schlank: selten genutzte Spalten standardmäßig ausblenden (per "Spalten" wieder einblendbar)
+(function(){try{var sc=(VIEWS.software&&VIEWS.software.cols)||[];sc.forEach(function(c){if(['hersteller','markt','ltd','angelegt','funk','beleg','geprueft','age','nw'].indexOf(c.k)>=0)c.vis=false;});}catch(e){}})();
 VIEWS.software._sort={k:"pct",d:-1};
 
 let CUR="software";const $=s=>document.querySelector(s);const dec=decodeURIComponent;
