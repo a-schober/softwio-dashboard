@@ -1789,6 +1789,34 @@ async function pwsBelegAck(oi){if(!PWS||!PWS.beleg||!PWS.beleg.offen||!PWS.beleg
   if(!confirm('„'+o.ref+'" als manuell GEPRÜFT markieren?\nNur bestätigen, wenn die Aussage nachweislich korrekt ist – sonst korrigieren oder entfernen.'))return;
   try{await sb.from('ssot_verifikation').update({status:'mensch_bestaetigt',grund:'manuell als geprüft bestätigt'}).eq('software_id',PWS.id).eq('tabelle',o.tabelle).eq('ref',o.ref).eq('status','unbelegt');await pwsLadeBeleg();try{pwsSyncRail();}catch(e){}toast('Als geprüft markiert ✓');}
   catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+// ===== Auto-Build (Content-Warteschlange) =====
+async function artikelBauen(sid){
+  if(!sid)return;
+  var sw=(SW||[]).find(function(x){return String(x.id)===String(sid);});
+  var pct=sw?(sw.pct||0):0;
+  if(pct<100){ toast('Auto-Bau erst ab 100 % Fortschritt (aktuell '+pct+' %).'); return; }
+  try{
+    await dbW('create','content_jobs',{software_id:sid,markt_id:'de',angefordert_von:'cockpit'});
+    toast('In die Bau-Warteschlange gelegt ✓ — der Runner erzeugt den Entwurf (0 Credits, einige Minuten). Danach hier prüfen & freigeben.');
+    try{ladeJobStatus(sid);}catch(e){}
+  }catch(e){
+    var m=(e&&e.message)?e.message:String(e);
+    if(/duplicate|unique|content_jobs_aktiv|409/i.test(m)) toast('Es läuft bereits ein Bau-Job für diese Software.');
+    else toast('Job konnte nicht angelegt werden: '+m);
+  }
+}
+async function ladeJobStatus(sid){
+  var box=document.getElementById('pwsJobStatus'); if(!box||!sid)return;
+  try{
+    var r=await sb.from('content_jobs').select('status,phase,log,geaendert_am').eq('software_id',sid).eq('markt_id','de').order('erstellt_am',{ascending:false}).limit(1);
+    var d=(r&&r.data)||[];
+    if(!d.length){ box.innerHTML=''; return; }
+    var j=d[0];
+    var M={offen:['In Bau-Warteschlange','a'],in_arbeit:['Auto-Build läuft …','a'],wartet_freigabe:['Auto-Entwurf fertig — bitte prüfen & freigeben','g'],fehler:['Auto-Build-Fehler: '+((j.log||'').slice(0,120)),'r'],abgebrochen:['Auto-Build abgebrochen','n']};
+    var e=M[j.status]; if(!e){ box.innerHTML=''; return; }
+    box.innerHTML='<div class="pws-hint'+(e[1]==='g'?' ok':'')+'"><i class="ti ti-robot"></i> '+esc(e[0])+'</div>';
+  }catch(e){}
+}
 function pwsBody(P,st){
   const f=P.full||{};const k=st.key;
   if(k==='anlegen')return '';
@@ -1805,7 +1833,7 @@ function pwsBody(P,st){
     var ab='';if(P.audit&&P.audit.befunde&&P.audit.befunde.length){ab='<div style="border:1px solid var(--line);border-left:4px solid #f59e0b;border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--soft,#f8fafc)"><b style="font-size:13px">🔎 Kategorisierungs-Check</b><div style="font-size:11.5px;color:var(--muted);margin:4px 0 8px">Hinweise zu Fehlkategorisierung/Widersprüchen (beratend, blockiert nicht).</div>'+P.audit.befunde.slice(0,6).map(function(x){return '<div style="font-size:12px;margin:4px 0;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(x.bereich||'')+':</b> '+esc(x.fund||'')+'</div>';}).join('')+'</div>';}
     return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+bb+ab+pwsRow(true,'Crawl-Status','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));}
   if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
-  if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var acts='<div class="pws-acts">'+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(hasArt?pwsBtn('Note neu berechnen','pwsScoreNeu(this)','ti-calculator'):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';return pwsRow(hasArt,'Content erzeugt')+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+(hasArt?'':'<div class="pws-hint">Noch kein Artikel erzeugt – der Content wird in der Pipeline generiert, dann hier prüfen & veröffentlichen.</div>');}
+  if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});var swpct=_swr?(_swr.pct||0):0;setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);var acts='<div class="pws-acts">'+((swpct>=100)?pwsBtn((hasArt?'Artikel neu bauen (Auto)':'Artikel automatisch bauen'),'artikelBauen(\''+P.id+'\')','ti-sparkles',(!hasArt)):'')+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(hasArt?pwsBtn('Note neu berechnen','pwsScoreNeu(this)','ti-calculator'):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';return pwsRow(hasArt,'Content erzeugt')+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+'<div id="pwsJobStatus"></div>'+(hasArt?'':(swpct>=100?'<div class="pws-hint">Klick „Artikel automatisch bauen" – der Runner erzeugt den Entwurf (0 Credits), danach hier prüfen &amp; freigeben.</div>':'<div class="pws-hint">Sobald der Fortschritt 100 % erreicht ist, kannst du den Artikel automatisch bauen lassen.</div>'));}
   return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
 }
 function pwsFoot(P,st){if(st.n>=st.total)return '';var nx=st.n+1;return '<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(st.key==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
