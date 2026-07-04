@@ -1698,9 +1698,10 @@ async function socialGenerate(sid){
   }catch(e){toast('Generierung fehlgeschlagen: '+(e&&e.message?e.message:e));try{await ladeSocial(sid);}catch(_){}}
 }
 function tabVideos(r){return ytTool(r);}
-function tabBilder(r,s,isSev){const sid=r.id||(r._d&&r._d.full&&r._d.full.id);setTimeout(function(){ladeBilder(sid);},0);return `<div class="tabhint"><i class="ti ti-photo"></i> Screenshots &amp; Produktbilder für <b>${esc(r.name||"")}</b>. Werden in Supabase Storage (Bucket „software-bilder“) abgelegt und im Astro-Portal eingebunden.</div>
-  <div class="bw-row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap"><button class="tb primary" onclick="document.getElementById('biFile').click()"><i class="ti ti-upload"></i> Bilder hochladen</button><input type="file" id="biFile" accept="image/*" multiple style="display:none" onchange="bilderUpload('${sid}',this.files)"><button class="tb" id="biHarvest" onclick="screenshotsHolen('${sid}')" title="Sucht automatisch echte Oberflächen-Screenshots auf der Hersteller-Website – KI-geprüft, nur echte UI, Quelle = Hersteller-Medienkit"><i class="ti ti-camera-plus"></i> Screenshots vom Hersteller holen</button></div>
-  <div style="font-size:11px;color:var(--faint);margin-bottom:12px"><i class="ti ti-shield-check"></i> „Vom Hersteller holen“ lädt nur echte, KI-geprüfte Oberflächen-Screenshots von der Hersteller-Website (Herkunft „Medienkit“), speichert eine eigene Kopie und ergänzt Bildunterschriften. Dauert ~30–60 Sek. Nicht jede Software (v. a. Hosting/Infrastruktur) hat welche.</div>
+function tabBilder(r,s,isSev){const sid=r.id||(r._d&&r._d.full&&r._d.full.id);const g=!!(r._d&&r._d.full&&r._d.full.screenshots_gesperrt);setTimeout(function(){ladeBilder(sid);},0);return `<div class="tabhint"><i class="ti ti-photo"></i> Screenshots &amp; Produktbilder für <b>${esc(r.name||"")}</b>. Werden in Supabase Storage (Bucket „software-bilder“) abgelegt und im Astro-Portal eingebunden.</div>
+  <div class="bw-row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap"><button class="tb primary" onclick="document.getElementById('biFile').click()"><i class="ti ti-upload"></i> Bilder hochladen</button><input type="file" id="biFile" accept="image/*" multiple style="display:none" onchange="bilderUpload('${sid}',this.files)"><button class="tb" id="biHarvest"${g?' disabled':''} onclick="screenshotsHolen('${sid}')" title="Sucht automatisch echte Oberflächen-Screenshots auf der Hersteller-Website – KI-geprüft, nur echte UI, Presse-/Medienkit-Seiten bevorzugt"><i class="ti ti-camera-plus"></i> Screenshots vom Hersteller holen</button></div>
+  <div style="font-size:11px;color:var(--faint);margin-bottom:6px"><i class="ti ti-shield-check"></i> „Vom Hersteller holen“ lädt nur echte, KI-geprüfte Oberflächen-Screenshots (Presse-/Medienkit-Seiten bevorzugt), speichert eine eigene Kopie mit Quellennachweis und ergänzt Bildunterschriften. Dauert ~30–60 Sek. Nicht jede Software (v. a. Hosting) hat welche.</div>
+  <label style="display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--faint);margin-bottom:12px;cursor:pointer"><input type="checkbox"${g?' checked':''} onchange="bildSperreSet('${sid}',this.checked)" style="margin-top:2px"> <span><b>Auto-Screenshots sperren</b> (Takedown) – falls der Hersteller widerspricht: Bild oben mit × löschen und hier sperren, damit es beim nächsten Crawl nicht erneut geholt wird.</span></label>
   <div class="bw-drop" id="biDrop" onclick="document.getElementById('biFile').click()" ondragover="event.preventDefault()" ondrop="bilderDrop(event,'${sid}')">🖼 Screenshots hier hochladen (hineinziehen oder klicken)</div>
   <div id="bilderBox"><div style="padding:24px;color:var(--muted)">Lade Bilder …</div></div>`;}
 function setBildCount(sid){if(!sid){const e=$("#dnBild");if(e)e.textContent="";return;}sb.from("software_bilder").select("id",{count:"exact",head:true}).eq("software_id",sid).then(function(res){const e=$("#dnBild");if(e)e.textContent=res.count||0;});}
@@ -1774,6 +1775,15 @@ function bildGross(el){
 }
 function bildGrossZu(){var ov=document.getElementById('bildLightbox');if(ov)ov.style.display='none';document.removeEventListener('keydown',bildGrossEsc);}
 function bildGrossEsc(e){if(e.key==='Escape')bildGrossZu();}
+async function bildSperreSet(sid,val){
+  if(!sid)return;
+  try{
+    await dbW('update','software',sid,{screenshots_gesperrt:!!val,geaendert_am:new Date().toISOString()});
+    if(dlgRow&&dlgRow._d&&dlgRow._d.full)dlgRow._d.full.screenshots_gesperrt=!!val;
+    var btn=document.getElementById('biHarvest');if(btn)btn.disabled=!!val;
+    toast(val?'🚫 Auto-Screenshots gesperrt (Takedown)':'Auto-Screenshots wieder erlaubt');
+  }catch(e){toast('Sperre fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
 function bildDim(f){return new Promise(function(res){const img=new Image();img.onload=function(){res({w:img.naturalWidth,h:img.naturalHeight});};img.onerror=function(){res({w:null,h:null});};img.src=URL.createObjectURL(f);});}
 async function bilderUpload(sid,files){if(!sid){toast("Keine Software-ID");return;}const list=[...files].filter(function(f){return f.type&&f.type.indexOf('image/')===0;});if(!list.length){toast("Keine Bilddateien gewählt");return;}toast("Lade "+list.length+" Bild(er) hoch …");
   const neuUrls=[];
