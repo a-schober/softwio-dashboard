@@ -648,6 +648,31 @@ function milestones(me,sg){
 }
 function stagePct(me,sg){var m=milestones(me,sg);return Math.round(m.filter(function(x){return x.done;}).length/m.length*100);}
 function schlussOk(sw){if(!sw||!sw._meilen)return false;var m=sw._meilen.find(function(x){return x.k==='schluss';});return !!(m&&m.done);}
+async function ladeKosten(sid){
+  var box=document.getElementById('pwsKosten');if(!box||!sid)return;
+  try{
+    var q=await sb.from('kosten_log').select('schritt,anbieter,modell,input_tokens,output_tokens,kosten_usd,kosten_typ,erstellt_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(40);
+    var rows=q.data||[];
+    if(!rows.length){box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--panel);font-size:12px;color:var(--muted)"><i class="ti ti-coin"></i> Kosten: noch keine Daten erfasst — das Logging läuft ab jetzt automatisch mit.</div>';return;}
+    var totalUsd=rows.filter(function(r){return r.kosten_typ!=='max_unspezifiziert';}).reduce(function(s,r){return s+(+r.kosten_usd||0);},0);
+    var maxN=rows.filter(function(r){return r.kosten_typ==='max_unspezifiziert';}).length;
+    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:13px"><i class="ti ti-coin-euro"></i> Kosten je Schritt</span><span style="font-size:12px;color:var(--muted)">API gesamt: <b style="color:var(--ink)">$'+totalUsd.toFixed(4)+'</b>'+(maxN?' · <span style="color:var(--accent-ink)">'+maxN+'× Claude&nbsp;Max</span>':'')+'</span></div>';
+    var body=rows.map(function(r){
+      var max=r.kosten_typ==='max_unspezifiziert';
+      var wert=max?'<span style="color:var(--accent-ink)" title="Über Claude-Max-Abo abgedeckt, keine API-Kosten">Max · n. spez.</span>':'$'+(+r.kosten_usd||0).toFixed(4);
+      var tok=(r.input_tokens||r.output_tokens)?((r.input_tokens||0).toLocaleString('de-DE')+' / '+(r.output_tokens||0).toLocaleString('de-DE')):'—';
+      var zeit=String(r.erstellt_am||'').slice(0,16).replace('T',' ');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-top:1px solid var(--line);font-size:11.5px">'+
+        '<span style="flex:none;width:108px;color:var(--faint)">'+esc(zeit)+'</span>'+
+        '<span style="flex:1;font-weight:600">'+esc(r.schritt)+'</span>'+
+        '<span style="flex:none;width:140px;color:var(--muted)">'+esc(r.modell||r.anbieter||'')+'</span>'+
+        '<span style="flex:none;width:118px;text-align:right;color:var(--faint)" title="Input / Output Tokens">'+tok+'</span>'+
+        '<span style="flex:none;width:92px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">'+wert+'</span>'+
+      '</div>';
+    }).join('');
+    box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel)">'+head+body+'</div>';
+  }catch(e){box.innerHTML='';}
+}
 function meilensteinHtml(row){
   var ms=(row&&row._meilen)||[];if(!ms.length)return '';
   var manuell=ms.filter(function(m){return m.manuell;});
@@ -1922,7 +1947,7 @@ function pwsRender(){
     +_z('ti-world','Portal',(_liveOK?'<span style="color:#15803d">live</span>':'nicht live'),_liveOK,(_liveOK?"pwsEditor('distribution')":''),(_liveOK?'Social':''));
   var _warn=_belegOffen>0?'<div class="pws-hint" style="color:#b91c1c">🛡️ '+_belegOffen+' Aussage(n) ohne Beleg — in „Fakten" prüfen, sonst ist Veröffentlichen gesperrt.</div>':'';
   var _acts='<div class="slim-acts">'+(schlussOk(_swr)?pwsBtn((_art?'Artikel neu bauen':'Artikel jetzt bauen'),"artikelBauen('"+P.id+"')",'ti-sparkles',!_art):'<button class="pws-act" disabled title="Wird freigeschaltet, sobald der Schlusscheck grün ist"><i class="ti ti-sparkles"></i> Artikel bauen (ab „Schlusscheck")</button>')+((_art&&!_liveOK)?pwsBtn('Freigeben & live schalten','pwsPublish()','ti-cloud-upload',1):'')+(_liveOK?pwsBtn('Inhalt ansehen',"pwsEditor('content')",'ti-eye')+pwsBtn('Portal neu bauen',"runBuild('de')",'ti-hammer'):'')+'</div>';
-  setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);
+  setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);setTimeout(function(){try{ladeKosten(P.id);}catch(e){}},40);
   cv.innerHTML='<div class="pws-wrap"><div class="pws-head">'+
     '<button class="tb" onclick="route(\'software\')"><i class="ti ti-arrow-left"></i> Alle Produkte</button>'+
     '<span class="pws-logo"'+(_lg?' style="background:#fff"':'')+'>'+(_lg?'<img src="'+esc(_lg)+'" alt="" style="width:100%;height:100%;object-fit:contain">':mono)+'</span>'+
@@ -1936,6 +1961,7 @@ function pwsRender(){
     '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+
     '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
     meilensteinHtml(_swr)+
+    '<div id="pwsKosten"></div>'+
     '</div>';
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
