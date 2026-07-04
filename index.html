@@ -757,11 +757,22 @@ async function crawlReport(sid){
     // Feld-Befüllung
     function feldGrid(list,titel){return '<div style="flex:1;min-width:220px"><div style="font-size:11.5px;font-weight:700;margin-bottom:6px">'+titel+' <span style="color:var(--muted);font-weight:500">'+fillGrp(list).done+'/'+list.length+'</span></div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:5px">'+list.map(function(f){var ok=_repVoll(sw[f[0]]);return '<span style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:'+(ok?'var(--ink)':'var(--faint)')+';background:'+(ok?'var(--ok)0f':'transparent')+'"><i class="ti '+(ok?'ti-check':'ti-minus')+'" style="color:'+(ok?'var(--ok)':'var(--faint)')+'"></i> '+f[1]+'</span>';}).join('')+'</div></div>';}
-    var feld='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:12px;color:var(--muted)"><i class="ti ti-forms"></i> Feld-Befüllung (automatisch)</span><span style="font-size:11px;font-weight:700;color:'+_repCol(feldPct)+'">'+feldPct+'% gefüllt</span></div>'+
+    var feld='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px"><span style="font-weight:600;font-size:12px;color:var(--muted)"><i class="ti ti-forms"></i> Feld-Befüllung (automatisch)</span><span style="display:flex;align-items:center;gap:10px">'+(feldPct<100?'<button class="tb" style="height:26px;font-size:11px" onclick="crawlRepair(\''+sid+'\')" title="Firmendaten + Steckbrift-Felder erneut automatisch ziehen (falls die Auto-Anreicherung unvollständig blieb)"><i class="ti ti-refresh"></i> Nachziehen</button>':'')+'<span style="font-size:11px;font-weight:700;color:'+_repCol(feldPct)+'">'+feldPct+'% gefüllt</span></span></div>'+
       '<div style="display:flex;gap:18px;flex-wrap:wrap">'+feldGrid(txtF,'Steckbrief-Texte & Preis')+feldGrid(firF,'Firmendaten')+'</div>'+
       '<div style="font-size:10.5px;color:var(--faint);margin-top:8px">Externe Bewertungen (G2/Capterra/Trustpilot) &amp; Affiliate-URL werden bewusst manuell gepflegt und zählen hier nicht mit.</div></div>';
     box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--panel)">'+head+statrow+kat+vhtml+feld+'</div>';
   }catch(e){box.innerHTML='';}
+}
+async function crawlRepair(sid){
+  if(!sid)return;
+  if(typeof toast==='function')toast('Anreicherung wird nachgezogen … (~15 Sek.)');
+  try{
+    await sb.functions.invoke('firmendaten-extrahieren',{body:{software_id:sid}});
+    await sb.functions.invoke('profil-ableiten',{body:{software_id:sid}});
+    if(typeof toast==='function')toast('Felder nachgezogen ✓');
+    try{if(CUR==='produkt'&&PWS&&String(PWS.id)===String(sid)){await pwsOpen(sid);}else{crawlReport(sid);}}catch(e){}
+    try{ladeSW();}catch(e){}
+  }catch(e){if(typeof toast==='function')toast('Nachziehen fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 function meilensteinHtml(row){
   var ms=(row&&row._meilen)||[];if(!ms.length)return '';
@@ -1382,7 +1393,9 @@ async function saveStamm(){
   const sid=(dlgRow&&dlgRow.id)||(dlgRow&&dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id);
   if(!sid){toast("Keine Software-ID – Dialog bitte neu öffnen.");return;}
   const patch={};
-  document.querySelectorAll('#'+DLGFORM+' [data-k]').forEach(function(el){const k=el.dataset.k,ty=el.dataset.ty;
+  document.querySelectorAll('#'+DLGFORM+' [data-k]').forEach(function(el){
+    if(el.readOnly||el.disabled){return;}// read-only Auto-Felder NICHT mitschreiben — sonst wuerde ein leeres Formular die von der Pipeline befuellten Werte auf null setzen. Nur im "Bearbeiten"-Modus sind sie editierbar und werden gespeichert.
+    const k=el.dataset.k,ty=el.dataset.ty;
     if(el.classList.contains('chipsel')){patch[k]=[...el.querySelectorAll('.chsel.on')].map(c=>c.textContent.trim().toLowerCase());return;}
     let v=el.value;
     if(ty==='money'){v=geldParse(v);}
