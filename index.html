@@ -677,6 +677,92 @@ async function ladeKosten(sid){
     box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel)">'+head+body+'</div>';
   }catch(e){box.innerHTML='';}
 }
+function _repBar(pct,col){pct=Math.max(0,Math.min(100,pct||0));return '<div style="height:6px;border-radius:4px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+';border-radius:4px"></span></div>';}
+function _repCol(pct){return pct>=80?'var(--ok)':(pct>=50?'var(--warn)':'var(--bad)');}
+function _repVoll(v){return !(v===null||v===undefined||(typeof v==='string'&&!v.trim()));}
+async function crawlReport(sid){
+  var box=document.getElementById('pwsReport');if(!box||!sid)return;
+  try{
+    var qs=await Promise.all([
+      sb.from('funktionen').select('quelle_zitat,canonical_name,konfidenz_score').eq('software_id',sid),
+      sb.from('preise').select('quelle_zitat').eq('software_id',sid),
+      sb.from('integrationen').select('quelle_zitat').eq('software_id',sid),
+      sb.from('anwendungsfaelle').select('quelle_zitat').eq('software_id',sid),
+      sb.from('vorteile_nachteile').select('quelle_zitat').eq('software_id',sid),
+      sb.from('validierungs_berichte').select('anzahl_geprueft,anzahl_ok,anzahl_verdacht,anzahl_falsch,anzahl_duplikate,erstellt_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1),
+      sb.from('software').select('kurzbeschreibung,lange_beschreibung,unterkategorie,zielgruppe,hauptnutzen,kern_aussage,vergleichs_pointe,bereitstellungs_art,einstiegspreis,land_hauptsitz,gegruendet,mitarbeiterzahl_bereich,sitz_stadt,server_standort,dsgvo_konform,sprachen,logo_pfad,crawl_metadaten,daten_reifegrad,ssot_rohtext').eq('id',sid).single()
+    ]);
+    var funk=qs[0].data||[];var sw=qs[6].data||{};
+    if(!funk.length && !(qs[1].data||[]).length && !_repVoll(sw.ssot_rohtext)){box.innerHTML='<div style="margin-top:14px;border:1px dashed var(--line);border-radius:11px;padding:16px;background:var(--panel);font-size:12.5px;color:var(--muted);text-align:center"><i class="ti ti-report-analytics" style="font-size:22px;color:var(--faint)"></i><br>Noch kein Crawl-Ergebnis. Nach „Fakten aus Website crawlen" erscheint hier der detaillierte Report.</div>';return;}
+    function belg(a){a=a||[];return {n:a.length,b:a.filter(function(x){return x.quelle_zitat&&String(x.quelle_zitat).trim();}).length};}
+    var cats=[
+      {t:'Funktionen',i:'ti-list-check',d:belg(funk)},
+      {t:'Preise / Tarife',i:'ti-tag',d:belg(qs[1].data)},
+      {t:'Integrationen',i:'ti-plug',d:belg(qs[2].data)},
+      {t:'Anwendungsfälle',i:'ti-bulb',d:belg(qs[3].data)},
+      {t:'Vor-/Nachteile',i:'ti-scale',d:belg(qs[4].data)}
+    ];
+    var datenN=cats.reduce(function(s,c){return s+c.d.n;},0);
+    var belegN=cats.reduce(function(s,c){return s+c.d.b;},0);
+    var belegPct=datenN?Math.round(belegN/datenN*100):0;
+    var konf3=funk.filter(function(f){return Number(f.konfidenz_score)===3;}).length;
+    var canonN=funk.filter(function(f){return f.canonical_name&&String(f.canonical_name).trim();}).length;
+    var val=qs[5].data&&qs[5].data[0];
+    var okPct=(val&&val.anzahl_geprueft)?Math.round(val.anzahl_ok/val.anzahl_geprueft*100):0;
+    // Crawl-Umfang
+    var meta=null;try{meta=sw.crawl_metadaten?(typeof sw.crawl_metadaten==='string'?JSON.parse(sw.crawl_metadaten):sw.crawl_metadaten):null;}catch(e){}
+    var seiten=(meta&&(meta.anzahl_seiten||meta.seiten||meta.anzahl))||null;
+    var zeichen=(sw.ssot_rohtext?sw.ssot_rohtext.length:(meta&&meta.zeichen_anzahl))||0;
+    // Feld-Befüllung
+    var txtF=[['kurzbeschreibung','Kurzbeschreibung'],['lange_beschreibung','Lange Beschreibung'],['unterkategorie','Unterkategorie'],['zielgruppe','Zielgruppe'],['hauptnutzen','Hauptnutzen'],['kern_aussage','Kern-Aussage'],['vergleichs_pointe','Vergleichs-Pointe'],['bereitstellungs_art','Bereitstellung'],['einstiegspreis','Einstiegspreis']];
+    var firF=[['land_hauptsitz','Land'],['gegruendet','Gegründet'],['mitarbeiterzahl_bereich','Mitarbeiter'],['sitz_stadt','Sitz'],['server_standort','Serverstandort'],['dsgvo_konform','DSGVO'],['sprachen','Sprachen'],['logo_pfad','Logo']];
+    function fillGrp(list){var done=list.filter(function(f){return _repVoll(sw[f[0]]);}).length;return {done:done,total:list.length};}
+    var tg=fillGrp(txtF),fg=fillGrp(firF);
+    var feldPct=Math.round((tg.done+fg.done)/(txtF.length+firF.length)*100);
+    // Gesamtscore (Beleg-Quote, Validierung-OK, Feld-Befüllung)
+    var teile=[belegPct,feldPct];if(val)teile.push(okPct);
+    var score=Math.round(teile.reduce(function(a,b){return a+b;},0)/teile.length);
+    var sCol=_repCol(score);
+    // --- Render ---
+    function stat(ic,label,wert,sub){return '<div style="flex:1;min-width:118px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)"><div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px"><i class="ti '+ic+'"></i>'+label+'</div><div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:2px">'+wert+'</div>'+(sub?'<div style="font-size:10.5px;color:var(--faint)">'+sub+'</div>':'')+'</div>';}
+    var reifeLbl={crawl_fertig:'Rohtext da',claude_extrahiert:'extrahiert',claude_validiert:'validiert',bereit_fuer_publikation:'publikationsbereit',live:'live'}[sw.daten_reifegrad]||(sw.daten_reifegrad||'—');
+    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+      '<span style="font-weight:700;font-size:14px"><i class="ti ti-report-analytics"></i> Ergebnis-Report</span>'+
+      '<span style="display:flex;align-items:center;gap:9px"><span style="font-size:11px;color:var(--muted)">Reifegrad</span><span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--line);color:var(--ink)">'+esc(reifeLbl)+'</span>'+
+      '<span style="font-size:11px;color:var(--muted)">Gesamt</span><span style="font-size:15px;font-weight:800;color:'+sCol+'">'+score+'%</span></span></div>';
+    var statrow='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+
+      stat('ti-spider','Seiten gecrawlt',(seiten||'—'),(zeichen?Number(zeichen).toLocaleString('de-DE')+' Zeichen':''))+
+      stat('ti-database','Datenpunkte',datenN,konf3+'× Konfidenz 3')+
+      stat('ti-quote','Beleg-Quote',belegPct+'%',belegN+' / '+datenN+' mit Zitat')+
+      stat('ti-shield-check','Validierung',(val?okPct+'%':'—'),(val?val.anzahl_ok+' ok · '+val.anzahl_verdacht+' Verdacht · '+val.anzahl_falsch+' falsch':'noch nicht geprüft'))+
+      '</div>';
+    // Datenaufbereitung Tabelle
+    var kat='<div style="font-weight:600;font-size:12px;color:var(--muted);margin:2px 0 6px"><i class="ti ti-list-details"></i> Datenaufbereitung je Kategorie</div>';
+    kat+=cats.map(function(c){var bp=c.d.n?Math.round(c.d.b/c.d.n*100):0;return '<div style="display:flex;align-items:center;gap:10px;padding:6px 2px;border-top:1px solid var(--line)">'+
+      '<span style="flex:none;width:150px;font-size:12px;font-weight:600"><i class="ti '+c.i+'" style="color:var(--muted)"></i> '+c.t+'</span>'+
+      '<span style="flex:none;width:38px;text-align:right;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums">'+c.d.n+'</span>'+
+      '<span style="flex:1">'+_repBar(bp,_repCol(bp))+'</span>'+
+      '<span style="flex:none;width:74px;text-align:right;font-size:11px;color:var(--muted)">'+bp+'% belegt</span>'+
+    '</div>';}).join('');
+    // Validierung-Detail
+    var vhtml='';
+    if(val){
+      function chip(lab,n,col){return '<span style="font-size:11.5px;padding:3px 9px;border-radius:20px;background:'+col+'1a;color:'+col+';font-weight:700">'+n+' '+lab+'</span>';}
+      vhtml='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div style="font-weight:600;font-size:12px;color:var(--muted);margin-bottom:7px"><i class="ti ti-shield-check"></i> Anti-Halluzinations-Prüfung (Opus gegen Rohtext)</div>'+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">'+chip('OK',val.anzahl_ok,'var(--ok)')+chip('Verdacht',val.anzahl_verdacht,'var(--warn)')+chip('Falsch',val.anzahl_falsch,'var(--bad)')+chip('Dubletten',val.anzahl_duplikate,'var(--muted)')+
+        '<span style="flex:1;min-width:120px"></span><span style="font-size:11px;color:var(--faint)">geprüft: '+String(val.erstellt_am||'').slice(0,10)+'</span></div>'+
+        ((val.anzahl_falsch>0||val.anzahl_verdacht>0)?'<div style="font-size:11px;color:var(--muted);margin-top:7px"><i class="ti ti-info-circle"></i> Verdachts-/Falsch-Fälle stehen im Validierungs-Bericht; falsche Angaben werden beim Publizieren nicht verwendet.</div>':'<div style="font-size:11px;color:var(--ok);margin-top:7px"><i class="ti ti-circle-check"></i> Alle geprüften Datenpunkte sind belegt und widerspruchsfrei.</div>')+
+      '</div>';
+    }
+    // Feld-Befüllung
+    function feldGrid(list,titel){return '<div style="flex:1;min-width:220px"><div style="font-size:11.5px;font-weight:700;margin-bottom:6px">'+titel+' <span style="color:var(--muted);font-weight:500">'+fillGrp(list).done+'/'+list.length+'</span></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:5px">'+list.map(function(f){var ok=_repVoll(sw[f[0]]);return '<span style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:'+(ok?'var(--ink)':'var(--faint)')+';background:'+(ok?'var(--ok)0f':'transparent')+'"><i class="ti '+(ok?'ti-check':'ti-minus')+'" style="color:'+(ok?'var(--ok)':'var(--faint)')+'"></i> '+f[1]+'</span>';}).join('')+'</div></div>';}
+    var feld='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:12px;color:var(--muted)"><i class="ti ti-forms"></i> Feld-Befüllung (automatisch)</span><span style="font-size:11px;font-weight:700;color:'+_repCol(feldPct)+'">'+feldPct+'% gefüllt</span></div>'+
+      '<div style="display:flex;gap:18px;flex-wrap:wrap">'+feldGrid(txtF,'Steckbrief-Texte & Preis')+feldGrid(firF,'Firmendaten')+'</div>'+
+      '<div style="font-size:10.5px;color:var(--faint);margin-top:8px">Externe Bewertungen (G2/Capterra/Trustpilot) &amp; Affiliate-URL werden bewusst manuell gepflegt und zählen hier nicht mit.</div></div>';
+    box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--panel)">'+head+statrow+kat+vhtml+feld+'</div>';
+  }catch(e){box.innerHTML='';}
+}
 function meilensteinHtml(row){
   var ms=(row&&row._meilen)||[];if(!ms.length)return '';
   var manuell=ms.filter(function(m){return m.manuell;});
@@ -1952,7 +2038,7 @@ function pwsRender(){
     +_z('ti-world','Portal',(_liveOK?'<span style="color:#15803d">live</span>':'nicht live'),_liveOK,(_liveOK?"pwsEditor('distribution')":''),(_liveOK?'Social':''));
   var _warn=_belegOffen>0?'<div class="pws-hint" style="color:#b91c1c">🛡️ '+_belegOffen+' Aussage(n) ohne Beleg — in „Fakten" prüfen, sonst ist Veröffentlichen gesperrt.</div>':'';
   var _acts='<div class="slim-acts">'+(schlussOk(_swr)?pwsBtn((_art?'Artikel neu bauen':'Artikel jetzt bauen'),"artikelBauen('"+P.id+"')",'ti-sparkles',!_art):'<button class="pws-act" disabled title="Wird freigeschaltet, sobald der Schlusscheck grün ist"><i class="ti ti-sparkles"></i> Artikel bauen (ab „Schlusscheck")</button>')+((_art&&!_liveOK)?pwsBtn('Freigeben & live schalten','pwsPublish()','ti-cloud-upload',1):'')+(_liveOK?pwsBtn('Inhalt ansehen',"pwsEditor('content')",'ti-eye')+pwsBtn('Portal neu bauen',"runBuild('de')",'ti-hammer'):'')+'</div>';
-  setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);setTimeout(function(){try{ladeKosten(P.id);}catch(e){}},40);
+  setTimeout(function(){try{ladeJobStatus(P.id);}catch(e){}},30);setTimeout(function(){try{ladeKosten(P.id);}catch(e){}},40);setTimeout(function(){try{crawlReport(P.id);}catch(e){}},60);
   cv.innerHTML='<div class="pws-wrap"><div class="pws-head">'+
     '<button class="tb" onclick="route(\'software\')"><i class="ti ti-arrow-left"></i> Alle Produkte</button>'+
     '<span class="pws-logo"'+(_lg?' style="background:#fff"':'')+'>'+(_lg?'<img src="'+esc(_lg)+'" alt="" style="width:100%;height:100%;object-fit:contain">':mono)+'</span>'+
@@ -1967,6 +2053,7 @@ function pwsRender(){
     '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
     meilensteinHtml(_swr)+
     '<div id="pwsKosten"></div>'+
+    '<div id="pwsReport"></div>'+
     '</div>';
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
@@ -1982,7 +2069,7 @@ function procStep(i,steps,done){if(i>=steps.length){if(typeof done==="function")
 function procBody(steps){return '<div class="proc">'+steps.map((s,i)=>`<div class="pstep" id="ps${i}"><span class="pi"><i class="ti ${s[0]}"></i></span><span class="pl">${s[1]}</span><span class="ps">wartet</span></div>`).join("")+'</div>';}
 const CRAWL_STEPS=[["ti-map-search","Relevante Seiten ermitteln (Firecrawl Map)"],["ti-spider","19 Seiten crawlen"],["ti-sparkles","Inhalt bereinigen & extrahieren (Claude)"],["ti-category","KI: Kategorie zuordnen"],["ti-list-check","Funktionen · Preise · Integrationen erkennen"],["ti-book","Canonical-Mapping (Feature-Wörterbuch)"],["ti-checkup-list","Validierung &amp; Reifegrad setzen"]];
 function runCrawl(){const n=(dlgRow&&dlgRow.name)||"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
-function pwsCrawl(){if(!PWS)return;const n=(PWS.full&&PWS.full.name)||"";const sid=PWS.id;aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Startet die echte Pipeline (Firecrawl-Crawl + KI-Extraktion). Verursacht Kosten und läuft im Hintergrund. Danach stehen Funktionen, Preise &amp; Integrationen in den „Automatisch erzeugt"-Feldern.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Crawl starten</span>`);}
+function pwsCrawl(){if(!PWS)return;const n=(PWS.full&&PWS.full.name)||"";const sid=PWS.id;aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Ein Klick — dann läuft alles <b>vollautomatisch</b> im Hintergrund, ohne weitere Freigabe: Seiten crawlen → Fakten extrahieren → validieren → Firmendaten, Logo, Canonical-Zuordnung &amp; alle Steckbrief-Felder (Kurz-/Lange Beschreibung, Zielgruppe, Einstiegspreis …). Verursacht Kosten. Manuell bleiben nur Bilder, Videos, externe Bewertungen &amp; die Feature-Zuordnung offener Begriffe.</span></div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Vollautomatik starten</span>`);}
 // ===== Crawl-Status/Freigabe/Ergebnis-UI (live, 2-phasig mit URL-Freigabe) =====
 async function crawlDo(sid){
   if(!sid)return;
@@ -2005,7 +2092,7 @@ function crawlShow(name,body,foot){
 function crawlFootWait(){return '<span class="tb" onclick="closeAov()"><i class="ti ti-arrow-down"></i> Im Hintergrund weiterlaufen lassen</span>';}
 function crawlErrBox(msg){return '<div class="catr warn"><div class="h"><i class="ti ti-alert-triangle"></i> Fehler</div>'+esc(msg)+'</div>';}
 function crawlStepper(active,mode){
-  const steps=[["ti-file-text","Erfasst"],["ti-map-search","Seiten ermitteln"],["ti-checkbox","Deine Freigabe"],["ti-spider","Website crawlen"],["ti-list-check","Fakten extrahieren"],["ti-shield-check","Validieren"],["ti-check","Fertig"]];
+  const steps=[["ti-file-text","Erfasst"],["ti-map-search","Seiten ermitteln"],["ti-spider","Website crawlen"],["ti-list-check","Fakten extrahieren"],["ti-shield-check","Validieren"],["ti-check","Fertig"]];
   return '<div class="proc">'+steps.map(function(s,i){
     var cls,lab,ic;
     if(mode==='done'||i<active){cls='done';lab='fertig';ic='ti-check';}
@@ -2065,14 +2152,14 @@ function crawlRender(sid,row,phase){
     return;
   }
   if(phase==='validiert'){
-    crawlShow(nm,crawlStepper(6,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen in den Ergebnis-Tabs.<br><i class="ti ti-robot"></i> Firmendaten (Impressum) &amp; Logo werden automatisch nachgezogen (~1–2 Min).</div></div>',
+    crawlShow(nm,crawlStepper(5,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen in den Ergebnis-Tabs.<br><i class="ti ti-robot"></i> Firmendaten (Impressum), Logo, Canonical-Zuordnung &amp; alle Steckbrief-Felder werden automatisch nachgezogen (~1–2 Min) — danach ist alles gefüllt. Details siehe Ergebnis-Report unten.</div></div>',
       '<span class="tb primary" onclick="closeAov()"><i class="ti ti-check"></i> Fertig</span>');
     return;
   }
   if(phase==='extrakt'||phase==='validate'){
     var stg=(Date.now()-(st.stageStart||Date.now()));var es=Math.round(stg/1000);var vw='';
     if(stg>360000){vw='<div class="catr warn" style="margin-top:10px"><div class="h"><i class="ti ti-clock"></i> Dauert länger als üblich</div>Läuft noch (schwerer Opus-Lauf). Falls es hängt, prüfe die Status-Mail. Fenster kann geschlossen werden – läuft im Hintergrund weiter.</div>';}
-    crawlShow(nm,crawlStepper(phase==='extrakt'?4:5,'run')+crawlHint(phase,es)+vw,crawlFootWait());
+    crawlShow(nm,crawlStepper(phase==='extrakt'?3:4,'run')+crawlHint(phase,es)+vw,crawlFootWait());
     return;
   }
   // start / laeuft (Crawl-Stufe)
@@ -2082,7 +2169,7 @@ function crawlRender(sid,row,phase){
   if(scraping&&st.phaseB&&(Date.now()-st.phaseB>210000)){
     warn='<div class="catr warn" style="margin-top:10px"><div class="h"><i class="ti ti-clock"></i> Dauert länger als üblich</div>Der Crawl läuft noch. Falls nichts passiert, ist evtl. ein Fehler aufgetreten – prüfe die Crawl-Fehler-Mail. Du kannst das Fenster schließen; der Lauf läuft im Hintergrund weiter.</div>';
   }
-  crawlShow(nm,crawlStepper(scraping?3:1,'run')+crawlHint(scraping?'scrape':'start',el)+warn,crawlFootWait());
+  crawlShow(nm,crawlStepper(scraping?2:1,'run')+crawlHint(scraping?'scrape':'start',el)+warn,crawlFootWait());
 }
 function crawlMetaText(row){
   try{
