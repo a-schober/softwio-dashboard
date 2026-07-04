@@ -26,6 +26,7 @@
   .tb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid var(--line);background:var(--panel);border-radius:6px;color:var(--ink);font-size:12.5px;cursor:pointer}
   .tb:hover{background:var(--accent-soft);border-color:var(--accent)}.tb i{font-size:16px;color:var(--muted)}
   .tb.primary{border-color:var(--accent);color:var(--accent-ink)}.tb.primary i{color:var(--accent)}
+  .tb.crawl-cta{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;padding:0 18px;height:36px;box-shadow:0 2px 8px rgba(79,70,229,.35)}.tb.crawl-cta i{color:#fff}.tb.crawl-cta:hover{filter:brightness(1.08)}
   .view-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:0 12px;margin:0 0 12px;max-width:440px}
   .view-search i{color:var(--muted);font-size:16px}
   .view-search input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13px;padding:9px 0;outline:none}
@@ -501,7 +502,7 @@
     </div>
     <div class="dlg-form" id="dForm"></div>
   </div>
-  <div class="dlg-foot"><span class="tb" onclick="runCrawl()"><i class="ti ti-spider"></i> Crawl &amp; Anreichern</span><span class="tb" onclick="runValidate()"><i class="ti ti-checkup-list"></i> Validieren</span><span class="tb ok" onclick="runFreigabe()"><i class="ti ti-rosette-discount-check"></i> Freigeben</span><span class="right"><span class="tb" onclick="closeDlg()">Abbrechen</span><span class="tb primary" onclick="saveStamm()"><i class="ti ti-device-floppy"></i> Speichern</span></span></div>
+  <div class="dlg-foot"><span class="tb crawl-cta" onclick="runCrawl()" title="Ein Klick — Vollautomatik: crawlen, Fakten extrahieren, validieren, alle Felder befüllen"><i class="ti ti-spider"></i> Crawl &amp; Anreichern</span><span class="right"><span class="tb" onclick="closeDlg()">Abbrechen</span><span class="tb primary" onclick="saveStamm()"><i class="ti ti-device-floppy"></i> Speichern</span></span></div>
 </div></div>
 
 <div class="overlay" id="eov" onclick="if(event.target===this)closeEdit()"><div class="dlg edlg">
