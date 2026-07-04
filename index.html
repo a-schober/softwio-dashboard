@@ -1714,7 +1714,7 @@ async function ladeBilder(sid){const box=$("#bilderBox");if(!box)return;if(!sid)
     const ib='background:var(--panel2);border:1px solid var(--line);border-radius:5px;width:26px;height:26px;cursor:pointer;color:var(--ink);font-size:12px;line-height:1';
     box.innerHTML='<div class="img-grid">'+imgs.map(function(b,i){const dim=(b.breite&&b.hoehe)?b.breite+'×'+b.hoehe:'';const cap=b.beschreibung||b.dateiname||b.rolle||'Bild';const th=b.original_url?'<img src="'+esc(b.original_url)+'" referrerpolicy="no-referrer" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover">':'<i class="ti ti-photo"></i>';
       return '<div class="img-card" style="position:relative;display:flex;flex-direction:column">'
-        +'<div class="img-th">'+th+'</div>'
+        +'<div class="img-th"'+(b.original_url?' onclick="bildGross(this)" style="cursor:zoom-in"':'')+'>'+th+'</div>'
         +'<button title="Löschen" onclick="bilderDelete(\''+b.id+'\',\''+sid+'\')" style="position:absolute;top:5px;right:5px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1">&times;</button>'
         +'<div class="img-cap" title="'+esc(cap)+'">'+esc(cap)+'</div>'
         +'<div class="img-meta">'+esc([dim,b.mime].filter(Boolean).join(" · "))+'</div>'
@@ -1761,6 +1761,19 @@ async function screenshotsHolen(sid){
   }catch(e){toast('Screenshot-Suche fehlgeschlagen: '+(e&&e.message?e.message:e));}
   finally{if(btn){btn.disabled=false;btn.innerHTML=old||'<i class="ti ti-camera-plus"></i> Screenshots vom Hersteller holen';}}
 }
+function bildGross(el){
+  var url = typeof el==='string' ? el : ((el&&el.querySelector&&el.querySelector('img'))?el.querySelector('img').src:'');
+  if(!url)return;
+  var ov=document.getElementById('bildLightbox');
+  if(!ov){ov=document.createElement('div');ov.id='bildLightbox';ov.onclick=function(){bildGrossZu();};document.body.appendChild(ov);
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(8,10,14,.92);display:flex;align-items:center;justify-content:center;padding:2.5vmin;cursor:zoom-out';}
+  ov.innerHTML='<img src="'+esc(url)+'" referrerpolicy="no-referrer" alt="" style="max-width:96vw;max-height:96vh;width:auto;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 10px 50px rgba(0,0,0,.6)" onclick="event.stopPropagation()">'
+    +'<button title="Schließen (Esc)" onclick="event.stopPropagation();bildGrossZu()" style="position:fixed;top:14px;right:18px;background:rgba(255,255,255,.16);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:22px;line-height:1;cursor:pointer">&times;</button>';
+  ov.style.display='flex';
+  document.addEventListener('keydown',bildGrossEsc);
+}
+function bildGrossZu(){var ov=document.getElementById('bildLightbox');if(ov)ov.style.display='none';document.removeEventListener('keydown',bildGrossEsc);}
+function bildGrossEsc(e){if(e.key==='Escape')bildGrossZu();}
 function bildDim(f){return new Promise(function(res){const img=new Image();img.onload=function(){res({w:img.naturalWidth,h:img.naturalHeight});};img.onerror=function(){res({w:null,h:null});};img.src=URL.createObjectURL(f);});}
 async function bilderUpload(sid,files){if(!sid){toast("Keine Software-ID");return;}const list=[...files].filter(function(f){return f.type&&f.type.indexOf('image/')===0;});if(!list.length){toast("Keine Bilddateien gewählt");return;}toast("Lade "+list.length+" Bild(er) hoch …");
   const neuUrls=[];
