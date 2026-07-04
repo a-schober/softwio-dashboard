@@ -651,15 +651,19 @@ function schlussOk(sw){if(!sw||!sw._meilen)return false;var m=sw._meilen.find(fu
 async function ladeKosten(sid){
   var box=document.getElementById('pwsKosten');if(!box||!sid)return;
   try{
-    var q=await sb.from('kosten_log').select('schritt,anbieter,modell,input_tokens,output_tokens,kosten_usd,kosten_typ,erstellt_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(40);
+    var q=await sb.from('kosten_log').select('schritt,anbieter,modell,input_tokens,output_tokens,credits,kosten_usd,kosten_typ,erstellt_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(40);
     var rows=q.data||[];
     if(!rows.length){box.innerHTML='<div style="margin-top:14px;border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--panel);font-size:12px;color:var(--muted)"><i class="ti ti-coin"></i> Kosten: noch keine Daten erfasst — das Logging läuft ab jetzt automatisch mit.</div>';return;}
-    var totalUsd=rows.filter(function(r){return r.kosten_typ!=='max_unspezifiziert';}).reduce(function(s,r){return s+(+r.kosten_usd||0);},0);
+    var totalUsd=rows.filter(function(r){return r.anbieter!=='firecrawl'&&r.kosten_typ!=='max_unspezifiziert';}).reduce(function(s,r){return s+(+r.kosten_usd||0);},0);
+    var totalCr=rows.filter(function(r){return r.anbieter==='firecrawl';}).reduce(function(s,r){return s+(+r.credits||0);},0);
     var maxN=rows.filter(function(r){return r.kosten_typ==='max_unspezifiziert';}).length;
-    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:13px"><i class="ti ti-coin-euro"></i> Kosten je Schritt</span><span style="font-size:12px;color:var(--muted)">API gesamt: <b style="color:var(--ink)">$'+totalUsd.toFixed(4)+'</b>'+(maxN?' · <span style="color:var(--accent-ink)">'+maxN+'× Claude&nbsp;Max</span>':'')+'</span></div>';
+    var summe='API <b style="color:var(--ink)">$'+totalUsd.toFixed(4)+'</b>'+(totalCr?' · Firecrawl <b style="color:var(--ink)">'+totalCr+' Cr.</b>':'')+(maxN?' · <span style="color:var(--accent-ink)">'+maxN+'× Max</span>':'');
+    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:13px"><i class="ti ti-coin-euro"></i> Kosten je Schritt</span><span style="font-size:12px;color:var(--muted)">'+summe+'</span></div>';
     var body=rows.map(function(r){
-      var max=r.kosten_typ==='max_unspezifiziert';
-      var wert=max?'<span style="color:var(--accent-ink)" title="Über Claude-Max-Abo abgedeckt, keine API-Kosten">Max · n. spez.</span>':'$'+(+r.kosten_usd||0).toFixed(4);
+      var wert;
+      if(r.kosten_typ==='max_unspezifiziert')wert='<span style="color:var(--accent-ink)" title="Über Claude-Max-Abo abgedeckt, keine API-Kosten">Max · n. spez.</span>';
+      else if(r.anbieter==='firecrawl')wert='<span title="Firecrawl-Credits (Schätzung)">'+(+r.credits||0)+' Cr.</span>';
+      else wert='$'+(+r.kosten_usd||0).toFixed(4);
       var tok=(r.input_tokens||r.output_tokens)?((r.input_tokens||0).toLocaleString('de-DE')+' / '+(r.output_tokens||0).toLocaleString('de-DE')):'—';
       var zeit=String(r.erstellt_am||'').slice(0,16).replace('T',' ');
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-top:1px solid var(--line);font-size:11.5px">'+
@@ -1871,6 +1875,7 @@ async function artikelBauen(sid){
   if(!schlussOk(sw)){ toast('Artikel-Bau erst, wenn „Schlusscheck" grün ist – Stammdaten, Fakten, Zuordnung, Belege & Freigaben müssen fertig sein.'); return; }
   try{
     await dbW('create','content_jobs',{software_id:sid,markt_id:'de',angefordert_von:'cockpit'});
+    try{sb.functions.invoke('kosten-log',{body:{software_id:sid,schritt:'content-build (Max)',kosten_typ:'max_unspezifiziert',meta:{markt:'de',angefordert_von:'cockpit'}}});}catch(_e){}
     toast('In die Bau-Warteschlange gelegt ✓ — der Runner erzeugt den Entwurf (0 Credits, einige Minuten). Danach hier prüfen & freigeben.');
     try{ladeJobStatus(sid);}catch(e){}
   }catch(e){
