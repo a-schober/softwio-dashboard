@@ -467,6 +467,7 @@
       <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch <span class="cnt" id="cntWoerterbuch"></span></div>
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
+      <div class="nav" data-v="preisreview"><i class="ti ti-currency-euro"></i> Preis-Review <span class="bdg" id="prBadge" style="display:none"></span></div>
       <div class="grp">System</div>
       <div class="nav" data-v="einstellungen"><i class="ti ti-settings"></i> Einstellungen</div>
     </aside>
@@ -1055,10 +1056,66 @@ function automationenView(){const cv=$("#customview");if(!cv)return;
     '</div>';
 }
 function autoCopy(i){const el=document.getElementById('autocmd'+i);if(!el)return;const t=el.textContent||'';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('Befehl kopiert ✓');},function(){toast('Kopieren nicht möglich');});}else{toast('Kopieren nicht möglich');}}
+async function preisreviewView(){
+  const cv=$("#customview");if(!cv)return;
+  cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Preis-Review …</div>';
+  try{
+    const [tR,sR,aR]=await Promise.all([
+      sb.from('preise').select('software_id').eq('typ','tarif'),
+      sb.from('software').select('id,name,kategorie,nutzer_modell,nutzer_modell_quelle,extra_nutzer_preis_netto').order('name'),
+      sb.from('preise').select('software_id,name,preis_netto,abrechnung').eq('typ','addon')
+    ]);
+    const mitTarif=new Set((tR.data||[]).map(function(x){return x.software_id;}));
+    const urx=/(benutzer|nutzer|user|seat|mitarbeiter|platz|lizenz)/i;
+    const addonBySw={};(aR.data||[]).forEach(function(a){if((a.preis_netto||0)>0&&(a.abrechnung||'monatlich')==='monatlich'&&urx.test(a.name||'')){if(!addonBySw[a.software_id])addonBySw[a.software_id]={name:a.name,preis:a.preis_netto};}});
+    const rows=(sR.data||[]).filter(function(s){return mitTarif.has(s.id);}).map(function(s){return {id:s.id,name:s.name,kat:s.kategorie||'',modell:s.nutzer_modell||'unbekannt',quelle:s.nutzer_modell_quelle||'',addon:addonBySw[s.id]||null};});
+    const offen=rows.filter(function(r){return r.modell==='unbekannt';});
+    const klar=rows.filter(function(r){return r.modell!=='unbekannt';});
+    var bd=document.getElementById('prBadge');if(bd){bd.textContent=offen.length;bd.style.display=offen.length?'':'none';}
+    cv.innerHTML='<div style="max-width:980px;margin:0 auto;padding:8px 4px 48px">'+
+      '<div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px;color:var(--muted);margin-bottom:18px;line-height:1.55"><i class="ti ti-info-circle"></i> Für den <b style="color:var(--ink)">Szenario-Preisvergleich</b> muss je Produkt das <b style="color:var(--ink)">Nutzer-Preismodell</b> belegt sein. Konnte die Automatik es nicht sicher bestimmen (<b>unbekannt</b>), erscheint es hier. Bis zur Bestätigung zeigt der Vergleich fail-safe „nicht vergleichbar" – nie eine falsche Zahl.<span style="display:block;margin-top:10px"><button class="tb" onclick="prBuild()"><i class="ti ti-hammer"></i> Portal neu bauen</button> <button class="tb" onclick="prSweep()"><i class="ti ti-refresh"></i> Alle neu anreichern (Sweep)</button></span></div>'+
+      '<div style="font-weight:700;font-size:14px;margin:6px 0 10px">Bestätigung nötig <span style="color:var(--faint);font-weight:400">('+offen.length+')</span></div>'+
+      (offen.length?offen.map(prCard).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0 18px">Alles bestätigt – nichts offen. ✓</div>')+
+      '<div style="font-weight:700;font-size:14px;margin:22px 0 10px">Bereits geklärt <span style="color:var(--faint);font-weight:400">('+klar.length+')</span></div>'+
+      (klar.length?klar.map(prKlar).join(''):'<div style="color:var(--faint);font-size:12.5px">—</div>')+
+    '</div>';
+  }catch(e){cv.innerHTML='<div style="padding:24px;color:#e11d48">Fehler: '+esc(e&&e.message?e.message:e)+'</div>';}
+}
+function prCard(r){
+  return '<div style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--panel)">'+
+    '<div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">'+
+      '<div><div style="font-weight:700;font-size:15px">'+esc(r.name)+' <span style="font-weight:400;color:var(--faint);font-size:12.5px">'+esc(r.kat)+'</span></div>'+
+        '<div style="font-size:12.5px;color:var(--muted);margin-top:3px">'+(r.addon?('Pro-Nutzer-Add-on erkannt: <b>'+esc(r.addon.name)+' · '+(+r.addon.preis).toFixed(2).replace(".",",")+' €</b>'):'Kein Pro-Nutzer-Add-on gefunden.')+'</div></div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<button class="tb primary" onclick="prSet(\''+r.id+'\',\'pauschal\')"><i class="ti ti-users"></i> Pauschal (Nutzer inkl.)</button>'+
+        (r.addon?('<button class="tb" onclick="prSet(\''+r.id+'\',\'pro_nutzer\')"><i class="ti ti-user-plus"></i> Pro Nutzer</button>'):('<span style="display:inline-flex;gap:6px;align-items:center"><input id="prP'+r.id+'" placeholder="€/Nutzer" style="width:92px" type="number" step="0.01"><button class="tb" onclick="prSetPro(\''+r.id+'\')"><i class="ti ti-user-plus"></i> Pro Nutzer</button></span>'))+
+        '<button class="tb" title="Automatik erneut laufen lassen" onclick="prNachlauf(\''+r.id+'\',this)"><i class="ti ti-refresh"></i></button>'+
+      '</div>'+
+    '</div></div>';
+}
+function prKlar(r){
+  var lbl=r.modell==='pauschal'?'Pauschal (Nutzer inkl.)':(r.modell==='pro_nutzer'?'Pro Nutzer':r.modell);
+  return '<div style="display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:9px;padding:9px 13px;margin-bottom:7px;background:var(--panel)">'+
+    '<div style="font-size:13px"><b>'+esc(r.name)+'</b> <span style="color:var(--faint)">'+esc(r.kat)+'</span> — <span style="color:#16a34a">'+esc(lbl)+'</span>'+(r.quelle?'<span style="display:block;color:var(--faint);font-size:11.5px;margin-top:2px">'+esc(r.quelle)+'</span>':'')+'</div>'+
+    '<button class="tb" onclick="prReset(\''+r.id+'\')" title="Auf unbekannt zurücksetzen"><i class="ti ti-arrow-back-up"></i></button>'+
+  '</div>';
+}
+async function prSet(id,modell,preis){
+  var patch={nutzer_modell:modell,nutzer_modell_quelle:'Manuell im Cockpit bestaetigt ('+new Date().toISOString().slice(0,10)+')'};
+  if(modell==='pro_nutzer')patch.extra_nutzer_preis_netto=(preis!=null?preis:null);
+  if(modell==='pauschal')patch.extra_nutzer_preis_netto=null;
+  try{await dbW('update','software',id,patch);toast('Gespeichert ✓ – „Portal neu bauen" nicht vergessen');await preisreviewView();}catch(e){toast('Fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+function prSetPro(id){var el=document.getElementById('prP'+id);var v=el&&el.value?parseFloat(el.value):null;if(!v||v<=0){toast('Bitte gültigen €-Betrag pro Nutzer eingeben');return;}prSet(id,'pro_nutzer',Math.round(v*100)/100);}
+async function prReset(id){try{await dbW('update','software',id,{nutzer_modell:'unbekannt',nutzer_modell_quelle:null,extra_nutzer_preis_netto:null});toast('Zurückgesetzt');await preisreviewView();}catch(e){toast('Fehlgeschlagen');}}
+async function prNachlauf(id,btn){if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader spin"></i>';}try{await sb.functions.invoke('anreicherung-preis-nachlauf',{body:{software_id:id}});toast('Anreicherung gelaufen ✓');await preisreviewView();}catch(e){toast('Fehlgeschlagen: '+(e&&e.message?e.message:e));if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh"></i>';}}}
+async function prSweep(){if(!confirm('Alle Produkte neu anreichern? Kann ein bis zwei Minuten dauern.'))return;toast('Sweep läuft …');try{await sb.functions.invoke('anreicherung-preis-nachlauf',{body:{}});toast('Sweep fertig ✓');await preisreviewView();}catch(e){toast('Sweep fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+async function prBuild(){try{await sb.functions.invoke('portal-build-ausloesen',{body:{markt_id:'de'}});toast('Portal wird neu gebaut (~1–2 Min)');}catch(e){toast('Build-Trigger fehlgeschlagen');}}
 function route(key){CUR=key;try{if(location.hash.slice(1)!==key)history.replaceState(null,'','#'+key);}catch(e){}document.querySelectorAll("#side .nav").forEach(n=>n.classList.toggle("active",n.dataset.v===key));
   if(key==="wbinbox"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-inbox"></i> <b>Feature-Inbox</b> <span class="sp">›</span> offene Zuordnungen aus Crawls & Videos';wbView();return;}
   if(key==="logos"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-photo"></i> <b>Logos</b> <span class="sp">›</span> Software- &amp; Integrations-Logos (self-hosted)';logosView();return;}
   if(key==="automationen"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-robot"></i> <b>Lokale Automatisierungen</b> <span class="sp">›</span> manuell über Claude Max ausführbar';automationenView();return;}
+  if(key==="preisreview"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-currency-euro"></i> <b>Preis-Review</b> <span class="sp">›</span> Nutzer-Preismodell für den Szenario-Vergleich bestätigen';preisreviewView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
 
 // ---- YouTube-Tool ----
