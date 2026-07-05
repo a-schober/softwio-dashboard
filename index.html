@@ -1088,13 +1088,14 @@ function prCard(r){
         '<div style="font-size:12.5px;color:var(--muted);margin-top:3px">'+(r.addon?('Pro-Nutzer-Add-on erkannt: <b>'+esc(r.addon.name)+' · '+(+r.addon.preis).toFixed(2).replace(".",",")+' €</b>'):'Kein Pro-Nutzer-Add-on gefunden.')+'</div></div>'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
         '<button class="tb primary" onclick="prSet(\''+r.id+'\',\'pauschal\')"><i class="ti ti-users"></i> Pauschal (Nutzer inkl.)</button>'+
+        '<button class="tb" title="Nutzerzahl über die Tarifstufe gestaffelt (kein Pro-Nutzer-Preis)" onclick="prSet(\''+r.id+'\',\'tarif_gestaffelt\')"><i class="ti ti-stack-2"></i> Tarif-gestaffelt</button>'+
         (r.addon?('<button class="tb" onclick="prSet(\''+r.id+'\',\'pro_nutzer\')"><i class="ti ti-user-plus"></i> Pro Nutzer</button>'):('<span style="display:inline-flex;gap:6px;align-items:center"><input id="prP'+r.id+'" placeholder="€/Nutzer" style="width:92px" type="number" step="0.01"><button class="tb" onclick="prSetPro(\''+r.id+'\')"><i class="ti ti-user-plus"></i> Pro Nutzer</button></span>'))+
         '<button class="tb" title="Automatik erneut laufen lassen" onclick="prNachlauf(\''+r.id+'\',this)"><i class="ti ti-refresh"></i></button>'+
       '</div>'+
     '</div></div>';
 }
 function prKlar(r){
-  var lbl=r.modell==='pauschal'?'Pauschal (Nutzer inkl.)':(r.modell==='pro_nutzer'?'Pro Nutzer':r.modell);
+  var lbl=r.modell==='pauschal'?'Pauschal (Nutzer inkl.)':(r.modell==='pro_nutzer'?'Pro Nutzer':(r.modell==='tarif_gestaffelt'?'Tarif-gestaffelt (Nutzer je Stufe)':r.modell));
   return '<div style="display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:9px;padding:9px 13px;margin-bottom:7px;background:var(--panel)">'+
     '<div style="font-size:13px"><b>'+esc(r.name)+'</b> <span style="color:var(--faint)">'+esc(r.kat)+'</span> — <span style="color:#16a34a">'+esc(lbl)+'</span>'+(r.quelle?'<span style="display:block;color:var(--faint);font-size:11.5px;margin-top:2px">'+esc(r.quelle)+'</span>':'')+'</div>'+
     '<button class="tb" onclick="prReset(\''+r.id+'\')" title="Auf unbekannt zurücksetzen"><i class="ti ti-arrow-back-up"></i></button>'+
@@ -1102,8 +1103,7 @@ function prKlar(r){
 }
 async function prSet(id,modell,preis){
   var patch={nutzer_modell:modell,nutzer_modell_quelle:'Manuell im Cockpit bestaetigt ('+new Date().toISOString().slice(0,10)+')'};
-  if(modell==='pro_nutzer')patch.extra_nutzer_preis_netto=(preis!=null?preis:null);
-  if(modell==='pauschal')patch.extra_nutzer_preis_netto=null;
+  patch.extra_nutzer_preis_netto=(modell==='pro_nutzer'&&preis!=null)?preis:null;
   try{await dbW('update','software',id,patch);toast('Gespeichert ✓ – „Portal neu bauen" nicht vergessen');await preisreviewView();}catch(e){toast('Fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 function prSetPro(id){var el=document.getElementById('prP'+id);var v=el&&el.value?parseFloat(el.value):null;if(!v||v<=0){toast('Bitte gültigen €-Betrag pro Nutzer eingeben');return;}prSet(id,'pro_nutzer',Math.round(v*100)/100);}
