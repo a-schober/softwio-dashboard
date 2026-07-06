@@ -2071,7 +2071,7 @@ async function artikelBauen(sid){
   var pct=sw?(sw.pct||0):0;
   if(!schlussOk(sw)){ toast('Artikel-Bau erst, wenn „Schlusscheck" grün ist – Stammdaten, Fakten, Zuordnung, Belege & Freigaben müssen fertig sein.'); return; }
   try{
-    await dbW('create','content_jobs',{software_id:sid,markt_id:'de',angefordert_von:'cockpit'});
+    await dbW('create','content_jobs',null,{software_id:sid,markt_id:'de',angefordert_von:'cockpit'});
     try{sb.functions.invoke('kosten-log',{body:{software_id:sid,schritt:'content-build (Max)',kosten_typ:'max_unspezifiziert',meta:{markt:'de',angefordert_von:'cockpit'}}});}catch(_e){}
     toast('In die Bau-Warteschlange gelegt ✓ — der Runner erzeugt den Entwurf (0 Credits, einige Minuten). Danach hier prüfen & freigeben.');
     try{ladeJobStatus(sid);}catch(e){}
