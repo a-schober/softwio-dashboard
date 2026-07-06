@@ -1162,7 +1162,8 @@ function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){y
     <button class="tb primary" onclick="ytSucheStart()"><i class="ti ti-search"></i> Suchen</button>
     <span class="st" id="ytStatus"></span>
   </div>
-  <div class="yt-sub" style="justify-content:flex-end">
+  <div class="yt-sub" style="justify-content:space-between;align-items:center">
+    <button class="tb" id="ytAllBtn" onclick="ytAll()" hidden><i class="ti ti-checks"></i> <span id="ytAllTxt">Alle auswählen</span></button>
     <div class="yt-sort">Sortieren <select onchange="ytSort=this.value;ytSucheStart()"><option value="relevance">Relevanz</option><option value="date">Neueste</option><option value="viewCount">Meistgesehen</option><option value="rating">Top bewertet</option></select></div>
   </div>
   <div class="yt-bar" id="ytBar" hidden>
@@ -1247,7 +1248,10 @@ function ytCards(){
 function ytGrid(){const g=$("#ytGrid");if(g)g.innerHTML=ytCards();ytBar();}
 function ytToggle(id){if(ytDone.has(id)){toast("Dieses Video ist bereits zugeordnet – übersprungen");return;}ytSel.has(id)?ytSel.delete(id):ytSel.add(id);ytGrid();}
 function ytClear(){ytSel=new Set();ytGrid();}
-function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}}
+function ytSelectable(v){if(!v||v.art!=="video")return false;var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl");return !(aus||wart);}
+function ytAll(){var alle=ytListe.filter(ytSelectable);if(!alle.length){toast("Keine markierbaren Videos");return;}var offen2=alle.filter(function(v){return !ytSel.has(v.id);});if(offen2.length){offen2.forEach(function(v){ytSel.add(v.id);});toast(offen2.length+" Videos ausgewählt");}else{alle.forEach(function(v){ytSel.delete(v.id);});toast("Auswahl aufgehoben");}ytGrid();}
+function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}
+  const ab=$("#ytAllBtn");if(ab){const sel=ytListe.filter(ytSelectable);ab.hidden=sel.length===0;const allDone=sel.length>0&&sel.every(function(v){return ytSel.has(v.id);});const t=$("#ytAllTxt");if(t)t.textContent=(allDone?"Auswahl aufheben (":"Alle auswählen (")+sel.length+")";}}
 function ytCopy(id){navigator.clipboard&&navigator.clipboard.writeText("/watch https://www.youtube.com/watch?v="+id);toast("/watch-Link kopiert");}
 function ytCopyAll(){const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");navigator.clipboard&&navigator.clipboard.writeText(t);toast(ytSel.size+" /watch-Links kopiert");}
 async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!ytSel.size){toast("Bitte Videos markieren");return;}if(!sid){toast("Keine Software-ID");return;}
@@ -1951,12 +1955,12 @@ async function pwsOpen(id){
       sb.from('integrationen').select('integrations_id,integrations_name,integrations_typ,kategorie,beschreibung').eq('software_id',id),
       sb.from('anwendungsfaelle').select('anwendungsfall_id,titel,zielgruppe,beschreibung,mehrwert').eq('software_id',id),
       sb.from('quellen').select('id').eq('software_id',id),
-      sb.from('bewertungs_synthesen').select('id').eq('software_id',id).limit(1),
+      sb.from('bewertungs_synthesen').select('id,anzahl_bewertungen').eq('software_id',id).limit(1),
       sb.from('freigaben').select('id,status').eq('software_id',id),
       sb.from('inhalts_artikel').select('id,inhalts_status').eq('software_id',id).limit(1),
       sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id)
     ]);
-    PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
+    PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
     PWS.beleg=pwsBelegAus((res[9]&&res[9].data)||[]);
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
@@ -1964,7 +1968,7 @@ async function pwsOpen(id){
     PWS.bilderN=0;PWS.videoN=0;
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
-  }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,freigaben:[],artikel:null};}
+  }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
   if(CUR!=='produkt')return;
   pwsRender();
 }
@@ -2138,7 +2142,7 @@ function pwsRender(){
   var _eingabe=_z('ti-id-badge-2','Stammdaten',(doneMap.anlegen?'vollständig':'unvollständig'),!!doneMap.anlegen,"pwsEditor('stammdaten')",'bearbeiten')
     +_z('ti-photo','Bilder / Screenshots',((P.bilderN||0)+' Bilder'),(P.bilderN||0)>0,"pwsEditor('bilder')",'verwalten')
     +_z('ti-brand-youtube','Videos',((P.videoN||0)+' Videos'),(P.videoN||0)>0,"pwsEditor('videos')",'verwalten')
-    +_z('ti-star','Bewertungen & Community',(P.synthese?'ausgewertet':((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
+    +_z('ti-star','Bewertungen & Community',(P.synthese?((P.syntheseN||0)>0?(P.syntheseN+' ausgewertet'):'ausgewertet'):((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
   var _fWert=_offFunk>0?('<span style="color:#b45309">⚠ '+_offFunk+' zuordnen</span>'):(_funkN+' Funktionen · '+_preiseN+' Tarife');
   var _ergebnis=_z('ti-database','Fakten (SSoT)',_fWert,(_offFunk===0&&_funkN>0),"pwsEditor('funktionen')",(_offFunk>0?'zuordnen':'ansehen'))
     +_z('ti-file-text','Artikel-Entwurf',(_art?esc(artStatusLabel(_artStatus)):'noch nicht erzeugt'),!!_art,"pwsEditor('content')",(_art?'ansehen':''))
