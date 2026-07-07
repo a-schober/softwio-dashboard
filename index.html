@@ -2518,15 +2518,20 @@ function lgResolve(name){const n=lgNorm(name);const map=lgDomMap();const cands=[
   if(n.length>=3){push(n+'.com',true);push(n+'.de',true);}
   return cands;}
 async function logosAutoAll(){
-  const missing=LG_INT.filter(r=>!r.logo);
-  if(!missing.length){toast('Keine fehlenden Integrationen');return;}
-  if(!confirm('Für '+missing.length+' Integrationen ohne Logo automatisch Domains auflösen und Logos von logo.dev holen?\n\nNur echte Treffer werden gespeichert. Geratene Domains werden mit „⚠ geraten – prüfen" markiert.'))return;
+  const isSW=LG_TAB==='software';
+  const list=isSW?LG_SW:LG_INT;
+  const missing=list.filter(r=>!r.logo);
+  if(!missing.length){toast('Keine fehlenden Einträge');return;}
+  if(!confirm('Für '+missing.length+(isSW?' Software-Produkte':' Integrationen')+' ohne Logo automatisch Logos von logo.dev holen?\n\n'+(isSW?'Domain kommt aus der Hersteller-URL (verlässlich).':'Domains werden aus dem Namen aufgelöst; Geratene werden mit „⚠ geraten – prüfen" markiert.')+'\nNur echte Treffer werden gespeichert.'))return;
   const cv=$("#customview");
-  const items=missing.map(r=>({name_norm:r.key,anzeige_name:r.name,cands:lgResolve(r.name)}));
+  const items=missing.map(r=>{
+    const cands=isSW?(r.domain?[{d:r.domain,guess:false}]:lgResolve(r.name)):lgResolve(r.name);
+    return isSW?{id:r.key,anzeige_name:r.name,cands:cands}:{name_norm:r.key,anzeige_name:r.name,cands:cands};
+  });
   const CH=25;let geholt=0,offen=0,geraten=0;
   for(let i=0;i<items.length;i+=CH){
     if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)"><i class="ti ti-loader"></i> Hole Logos … '+Math.min(i+CH,items.length)+' / '+items.length+' geprüft</div>';
-    try{const rr=await sb.functions.invoke('integration-logo',{body:{action:'bulk',target:'integration',items:items.slice(i,i+CH)}});
+    try{const rr=await sb.functions.invoke('integration-logo',{body:{action:'bulk',target:isSW?'software':'integration',items:items.slice(i,i+CH)}});
       const d=rr&&rr.data;if(d&&d.error)throw new Error(d.error);
       if(d&&d.geholt){geholt+=d.geholt.length;geraten+=d.geholt.filter(x=>x.guess).length;}
       if(d&&d.offen){offen+=d.offen.length;}
@@ -2551,7 +2556,7 @@ function logosRender(){const cv=$("#customview");if(!cv)return;const list=LG_TAB
   let h='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-photo"></i></div><div><h2>Logos</h2><p>Echte Hersteller-Logos (self-hosted). Pro Eintrag: <b>logo.dev holen</b> (Domain), eigenes <b>hochladen</b> oder <b>entfernen</b>. Fehlt eins, zeigt das Portal ein Monogramm.</p></div></div>';
   h+='<div style="display:flex;gap:8px;margin-bottom:12px">'+[['software','Software'],['integration','Integrationen']].map(t=>'<span class="tb'+(LG_TAB===t[0]?' primary':'')+'" onclick="lgTab(\''+t[0]+'\')">'+t[1]+'</span>').join('')+'</div>';
   h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'+['fehlt','vorhanden','alle'].map(f=>'<span class="tb'+(LG_FILTER===f?' primary':'')+'" onclick="lgFilter(\''+f+'\')">'+(f==='fehlt'?'Fehlende ('+fehlt+')':f==='vorhanden'?'Vorhanden ('+has+')':'Alle ('+list.length+')')+'</span>').join('')+'<input value="'+esc(LG_Q)+'" oninput="LG_Q=this.value;logosRender()" placeholder="Suchen …" style="margin-left:auto;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:12.5px;max-width:240px"></div>';
-  if(LG_TAB==='integration'&&fehlt>0){h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 14px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"><i class="ti ti-wand" style="color:var(--accent)"></i><div style="flex:1;min-width:0;font-size:12px;color:var(--muted)">Domains automatisch auflösen und Logos von logo.dev holen. Nur echte Treffer werden gespeichert; geratene werden markiert.</div><button class="tb primary" onclick="logosAutoAll()"><i class="ti ti-download"></i> Alle '+fehlt+' fehlenden automatisch holen</button></div>';}
+  if(fehlt>0){h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 14px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"><i class="ti ti-wand" style="color:var(--accent)"></i><div style="flex:1;min-width:0;font-size:12px;color:var(--muted)">'+(LG_TAB==='software'?'Logos von logo.dev anhand der Hersteller-URL holen (verlässlich).':'Domains aus dem Namen auflösen und Logos von logo.dev holen; geratene werden markiert.')+' Nur echte Treffer werden gespeichert.</div><button class="tb primary" onclick="logosAutoAll()"><i class="ti ti-download"></i> Alle '+fehlt+' fehlenden automatisch holen</button></div>';}
   if(!vis.length){h+='<div class="empty-tab"><i class="ti ti-photo-off"></i><b>Keine Einträge</b><div class="d">für diese Auswahl</div></div>';}
   else{h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px">'+vis.map(logoCard).join('')+'</div>';}
   cv.innerHTML=h;
