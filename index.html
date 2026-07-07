@@ -818,8 +818,10 @@ async function ladeSW(){
       sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am'),
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id'),
-      sb.from('ssot_verifikation').select('software_id,status')
+      sb.from('ssot_verifikation').select('software_id,status'),
+      sb.from('content_refresh').select('software_id,status,zusammenfassung')
     ]);
+    const refreshMap={};(qs[10].data||[]).forEach(function(x){refreshMap[x.software_id]={status:x.status,info:x.zusammenfassung};});
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
     (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
     (qs[2].data||[]).forEach(function(x){_g(x.software_id).preise++;});
@@ -831,11 +833,12 @@ async function ladeSW(){
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
 function ageOf(r){var sw=('veroeffAm' in r);var base=sw?r.veroeffAm:r.geprueft;if(!base)return{t:null,lab:sw?"Nicht veröffentlicht":"Neu",c:"n"};const t=Math.round((HEUTE-new Date(base))/86400000);return{t:t,lab:t<90?"Aktuell (0-89 T)":t<180?"Bald fällig (90-179 T)":"Überfällig (180+ T)",c:t<90?"g":t<180?"a":"r"};}
+function refreshPill(r){var s=r&&r.refreshStatus;if(!s||s==='erledigt')return '';var M={faellig:['⟳ fällig','n'],crawl_laeuft:['⟳ Crawl läuft','a'],pruefen:['⟳ prüfen','a'],freigabe_noetig:['⟳ Freigabe','a'],fehler:['⟳ Fehler','r'],unveraendert:['✓ geprüft','g']};var e=M[s];if(!e)return '';return ' <span class="age-b '+e[1]+'" title="Auto-Aktualisierung: '+esc(r.refreshInfo||s)+'">'+e[0]+'</span>';}
 
 const VIEWS={
  software:{ic:"ti-apps",t:"Software",d:"",newL:"Neue Software",detail:"rich",ctx:true,
@@ -889,7 +892,7 @@ function disp(v,r,c){const x=r[c.k];if(c.ty==="beleg")return r.belegHat?(r.beleg
 function pillCls(t){t=(t||"").toLowerCase();if(["aktiv","live","erfolgreich","ja","ausgewertet","fertig","erledigt"].includes(t))return"pg";if(["läuft","offen","wartet","vorbereitet","in arbeit","gerade eben"].includes(t))return"pa";if(["fehler","konflikt"].includes(t))return"pr";return"pn";}
 function cellHtml(v,r,c){const x=r[c.k];
   if(c.ty==="beleg"){if(!r.belegHat)return '<span class="pn">ungeprüft</span>';return r.belegOffen>0?'<span class="age-b r"><i class="ti ti-alert-triangle" style="font-size:9px"></i> '+r.belegOffen+' offen</span>':'<span class="age-b g"><i class="ti ti-shield-check" style="font-size:9px"></i> belegt</span>';}
-  if(c.ty==="age"){const a=ageOf(r);return a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';}
+  if(c.ty==="age"){const a=ageOf(r);var base=a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';return base+refreshPill(r);}
   if(c.ty==="nw"){const a=nwOf(r);return a.v==null?'<span class="pn">—</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>';}
   if(c.ty==="name"){const h=r._hue||"#64748b";const ini=String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase();const lg=r._logo?`<span class="logo" style="background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="${r._logo}" alt="" style="width:100%;height:100%;object-fit:contain"></span>`:`<span class="logo" style="background:${h}">${ini}</span>`;return `<div class="nm">${lg}${x}</div>`;}
   if(c.ty==="badge")return `<span class="b-cat">${x}</span>`;
