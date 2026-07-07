@@ -2208,6 +2208,69 @@ function pwsPanel(P,st){
   return h+'<div class="pws-p-body"><div id="pwsStatus">'+pwsBody(P,st)+'</div>'+editor+'</div><div id="pwsFootWrap">'+pwsFoot(P,st)+'</div>';
 }
 function artStatusLabel(s){var M={live:'live',wartet_auf_native_review:'Entwurf — bitte prüfen',entwurf:'Entwurf',in_bearbeitung:'in Arbeit',native_review_abgeschlossen:'geprüft',archiviert:'archiviert',manuelle_pruefung_noetig:'Prüfung nötig'};return M[s]||s||'—';}
+var PWS_FLOW_STYLE='<style>.pws-flow{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);margin:14px 0}.pfs{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}.pfs:last-child{border-bottom:none}.pfs .pfic{flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--panel2,#eef1f5);color:var(--faint);border:1px solid var(--line)}.pfs.done .pfic{background:rgba(22,163,74,.14);color:#15803d;border-color:transparent}.pfs.current .pfic{background:rgba(79,70,229,.14);color:#4f46e5;border-color:transparent}.pfs .pfbd{flex:1;min-width:0}.pfs .pftt{font-size:14px;font-weight:600;color:var(--ink)}.pfs .pfsb{font-size:12.5px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}.pfs .pfrt{flex:none;font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px;white-space:nowrap}.pf-tag{font-size:10px;padding:1px 7px;border-radius:7px;background:var(--panel2,#eef1f5);color:var(--muted);margin-left:6px;font-weight:600;vertical-align:1px}.pf-act{margin-top:9px}.pfs.current{background:rgba(79,70,229,.06)}.pfs.open:hover,.pfs.done:hover{background:var(--panel2,#f8fafc)}</style>';
+function pwsStepperHtml(P){
+ try{
+  var f=P.full||{};
+  var funk=P.funk||[],preise=P.preise||[],integ=P.integ||[];
+  var funkN=funk.length,preiseN=preise.length,integN=integ.length;
+  var offFunk=funk.filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
+  var art=P.artikel,artStatus=art?art.inhalts_status:null,liveOK=artStatus==='live';
+  var quellenN=(P.quellen||[]).length,synth=!!P.synthese,logo=!!f.logo_pfad;
+  var bilderN=P.bilderN||0,videoN=P.videoN||0,videoA=P.videoAusgewertet||0;
+  var freiOffen=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden';}).length;
+  var belegOffen=(P.beleg&&P.beleg.unbelegt)||0;
+  var swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});
+  var lua=art&&art.letztes_update_am;var age=lua?Math.round((Date.now()-new Date(lua))/86400000):null;
+  var rst=P.refresh&&P.refresh.status,rsum=(P.refresh&&P.refresh.zusammenfassung)||'';
+  var done={};
+  done.anlegen=!!(f.name&&f.hersteller&&f.hersteller_url&&f.kategorie);
+  done.sammeln=funkN>0||preiseN>0;
+  done.ordnen=offFunk===0&&funkN>0&&preiseN>0;
+  done.belegen=quellenN>0&&synth&&logo;
+  done.medien=bilderN>0||videoN>0;
+  done.pruefen=freiOffen===0&&belegOffen===0&&done.sammeln;
+  done.schluss=done.anlegen&&done.sammeln&&done.ordnen&&done.belegen&&done.pruefen;
+  done.veroeffentlichen=liveOK;
+  var belSum=done.belegen?'Quellen, Bewertungen und Logo vorhanden':('Fehlt noch: '+[quellenN>0?null:'Quellen',synth?null:'Bewertungen',logo?null:'Logo'].filter(Boolean).join(', '));
+  var prSum;if(!done.sammeln)prSum='Erst Fakten sammeln (Schritt 2)';else if(done.pruefen)prSum='Keine offenen Freigaben, alle Aussagen belegt';else{var pp=[];if(freiOffen>0)pp.push(freiOffen+' offene Freigabe(n)');if(belegOffen>0)pp.push(belegOffen+' unbelegte Aussage(n)');prSum=pp.length?pp.join(' · '):'Bereit zum Prüfen';}
+  var vSum,vAct=null;
+  if(liveOK){vSum='Live veröffentlicht';vAct=["pwsEditor('content')",'Inhalt ansehen','ti-eye'];}
+  else if(art){vSum='Entwurf vorhanden ('+esc(artStatusLabel(artStatus))+') – bitte prüfen &amp; freigeben';vAct=["pwsPublish()",'Freigeben & live schalten','ti-cloud-upload'];}
+  else if(schlussOk(swr)){vSum='Bereit – der Artikel kann automatisch gebaut werden (0 Credits)';vAct=["artikelBauen('"+P.id+"')",'Artikel jetzt bauen','ti-sparkles'];}
+  else{vSum='Wird freigeschaltet, sobald der Schlusscheck grün ist';vAct=null;}
+  var pflegeSum,pflegeAct=null;
+  if(!liveOK)pflegeSum='Erst nach der Veröffentlichung aktiv';
+  else if(rst==='pruefen'){pflegeSum='Aktualisierung wartet auf Prüfung: '+esc(rsum);pflegeAct=["pwsTab('content')",'Entwurf prüfen','ti-file-text'];}
+  else if(rst==='crawl_laeuft'||rst==='faellig'){pflegeSum='Aktualisierung läuft … (Re-Crawl &amp; Faktenvergleich)';}
+  else{pflegeSum='Content-Alter '+(age!=null?(age+' Tage'):'—')+(rst==='unveraendert'?' · zuletzt geprüft, keine Änderung':'');pflegeAct=["pwsAktualisieren('"+P.id+"')",'Jetzt aktualisieren','ti-refresh'];}
+  if(rst==='crawl_laeuft'||rst==='faellig'){setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000);}
+  var FLOW=[
+   {k:'anlegen',n:1,t:'Angelegt',pflicht:1,info:'Stammdaten: Name, Hersteller, Website-URL und Kategorie. Basis für alles Weitere.',sum:done.anlegen?'Name, Hersteller, URL und Kategorie sind erfasst':'Stammdaten noch unvollständig',act:["pwsEditor('stammdaten')",done.anlegen?'Stammdaten ansehen':'Stammdaten ausfüllen','ti-id-badge-2']},
+   {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Automatischer Crawl der Hersteller-Website (Firecrawl + KI): Funktionen, Preise und Integrationen werden ausgelesen. Du musst hier nichts tun.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider']},
+   {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check']},
+   {k:'belegen',n:4,t:'Belegen',pflicht:1,info:'Bewertungen, Quellen und Logo ergänzen. Ziel: jede Aussage ist durch eine echte Quelle belegt (Anti-Halluzination).',sum:belSum,act:["pwsEditor('bewertungen')",'Bewertungen & Belege','ti-star']},
+   {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0)?(bilderN+' Bilder · '+videoN+' Videos'+(videoA>0?(' · '+videoA+' ausgewertet'):'')):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder & Videos','ti-photo']},
+   {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Offene Freigaben/Grenzfälle entscheiden und den Anti-Halluzinations-Check bestehen: jede Aussage braucht ein wörtliches Quell-Zitat. Veröffentlichen ist gesperrt, solange hier etwas offen ist.',sum:prSum,act:["route('freigaben')",'Freigaben öffnen','ti-checkbox']},
+   {k:'schluss',n:7,t:'Schlusscheck',pflicht:0,auto:1,info:'Nur Status: zeigt, ob alle Pflichtschritte erledigt sind. 100 % = bereit zur Veröffentlichung.',sum:done.schluss?'Alle Pflichtschritte erledigt – bereit zum Veröffentlichen':'Noch nicht alle Pflichtschritte erledigt',act:null},
+   {k:'veroeffentlichen',n:8,t:'Veröffentlichen',pflicht:1,info:'Artikel automatisch bauen (0 Credits), prüfen und live schalten. Danach baut das Portal automatisch – nur live-Artikel erscheinen im Portal.',sum:vSum,act:vAct},
+   {k:'pflege',n:9,t:'Aktuell halten',pflicht:0,dauer:1,info:'Die Aktualität wird laufend gesichert. Bei 180 Tagen ohne Update wird automatisch neu gecrawlt und verglichen; bei Preisänderungen bekommst du einen Entwurf zur Prüfung.',sum:pflegeSum,act:pflegeAct}
+  ];
+  var cur=null;for(var i=0;i<FLOW.length;i++){if(FLOW[i].pflicht&&!done[FLOW[i].k]){cur=FLOW[i].k;break;}}
+  if(!cur&&liveOK)cur='pflege';
+  var rows=FLOW.map(function(s){
+    var isDone=(s.k==='pflege')?false:!!done[s.k];
+    var state=isDone?'done':(s.k===cur?'current':((s.k==='pflege'&&!liveOK)?'locked':'open'));
+    var ic=state==='done'?'<i class="ti ti-check"></i>':(state==='current'?String(s.n):(s.dauer?'<i class="ti ti-refresh"></i>':(state==='locked'?'<i class="ti ti-lock"></i>':'<i class="ti ti-circle"></i>')));
+    var badge=state==='done'?'<span class="pfrt" style="background:rgba(22,163,74,.14);color:#15803d">fertig</span>':(state==='current'?'<span class="pfrt" style="background:#4f46e5;color:#fff">jetzt dran</span>':(state==='locked'?'<span class="pfrt" style="color:var(--faint)">gesperrt</span>':(s.dauer?'<span class="pfrt" style="color:var(--muted)">läuft dauerhaft</span>':'<span class="pfrt" style="color:var(--faint)">später</span>')));
+    var tags=(s.auto?'<span class="pf-tag">automatisch</span>':'')+((!s.pflicht&&!s.auto&&!s.dauer)?'<span class="pf-tag">optional</span>':'')+(s.dauer?'<span class="pf-tag">dauerhaft</span>':'');
+    var act=(state==='current'&&s.act)?'<div class="pf-act">'+pwsBtn(s.act[1],s.act[0],s.act[2]||'ti-arrow-right',1)+'</div>':'';
+    var rowClick=(state!=='current'&&state!=='locked'&&s.act)?(' style="cursor:pointer" onclick="'+s.act[0]+'"'):'';
+    return '<div class="pfs '+state+'"'+rowClick+'><span class="pfic">'+ic+'</span><div class="pfbd"><div class="pftt">'+s.n+'. '+esc(s.t)+' '+infoH(s.info)+tags+'</div><div class="pfsb">'+s.sum+'</div>'+act+'</div>'+badge+'</div>';
+  }).join('');
+  return PWS_FLOW_STYLE+'<div class="pws-flow">'+rows+'</div>';
+ }catch(_e){return '<div class="pws-hint" style="color:#b91c1c">Ablauf-Ansicht Fehler: '+esc(String((_e&&_e.message)||_e))+'</div>';}
+}
 function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
   const P=PWS,f=P.full||{};const stages=pwsStages(P);
@@ -2244,14 +2307,8 @@ function pwsRender(){
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
     '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+'% fertig</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
     '</div>'+
-    '<div class="slim-body">'+
-    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-forms"></i> Deine Eingaben <small>das füllst nur du</small></div>'+_eingabe+'</div>'+
-    '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'<div style="display:flex;justify-content:flex-end;padding:9px 8px 2px"><button class="tb" onclick="pwsCrawl()" title="Startet Firecrawl-Crawl + KI-Extraktion – füllt Funktionen, Preise &amp; Integrationen aus der Hersteller-Website"><i class="ti ti-spider"></i> Fakten aus Website crawlen</button></div></div>'+
-    '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+pwsRefreshBanner(P)+
-    '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
-    meilensteinHtml(_swr)+
-    '<div id="pwsKosten"></div>'+
-    '<div id="pwsReport"></div>'+
+    pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div>'+
+    '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:6px 2px"><i class="ti ti-tool"></i> Technische Details &amp; Report (optional)</summary><div style="padding-top:6px">'+meilensteinHtml(_swr)+'<div id="pwsKosten"></div><div id="pwsReport"></div></div></details>'+
     '</div>';
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
