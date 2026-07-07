@@ -802,6 +802,7 @@ async function ladeSW(){
   if(error){ if(typeof toast==="function")toast("Laden fehlgeschlagen: "+error.message); return; }
   let logoMap={};
   let asMap={};
+  let veroeffMap={};
   const sig={};
   const swMeta={};
   const belegMap={};
@@ -814,7 +815,7 @@ async function ladeSW(){
       sb.from('quellen').select('software_id'),
       sb.from('bewertungs_synthesen').select('software_id'),
       sb.from('freigaben').select('software_id,status'),
-      sb.from('inhalts_artikel').select('software_id,inhalts_status'),
+      sb.from('inhalts_artikel').select('software_id,inhalts_status,erstveroeffentlicht_am'),
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id'),
       sb.from('ssot_verifikation').select('software_id,status')
@@ -825,20 +826,20 @@ async function ladeSW(){
     (qs[3].data||[]).forEach(function(x){_g(x.software_id).quellen++;});
     (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
     (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
-    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live')_g(x.software_id).artikel=true;});
+    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;if(x.erstveroeffentlicht_am)veroeffMap[x.software_id]=x.erstveroeffentlicht_am;}});
     (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
-function ageOf(r){if(!r.geprueft)return{t:null,lab:"Neu",c:"n"};const t=Math.round((HEUTE-new Date(r.geprueft))/86400000);return{t:t,lab:t<90?"Aktuell (0-89 T)":t<180?"Bald fällig (90-179 T)":"Überfällig (180+ T)",c:t<90?"g":t<180?"a":"r"};}
+function ageOf(r){var sw=('veroeffAm' in r);var base=sw?r.veroeffAm:r.geprueft;if(!base)return{t:null,lab:sw?"Nicht veröffentlicht":"Neu",c:"n"};const t=Math.round((HEUTE-new Date(base))/86400000);return{t:t,lab:t<90?"Aktuell (0-89 T)":t<180?"Bald fällig (90-179 T)":"Überfällig (180+ T)",c:t<90?"g":t<180?"a":"r"};}
 
 const VIEWS={
  software:{ic:"ti-apps",t:"Software",d:"",newL:"Neue Software",detail:"rich",ctx:true,
-   cols:[{k:"name",t:"Software",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"hersteller",t:"Hersteller",ty:"text"},{k:"markt",t:"Markt",ty:"text",w:64},{k:"ltd",t:"AppSumo",ty:"ltd",w:92},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"funk",t:"Fkt.",ty:"num",w:64},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"beleg",t:"Belege",ty:"beleg",w:118},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Aktualität",ty:"age",w:140},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
+   cols:[{k:"name",t:"Software",ty:"name"},{k:"kat",t:"Kategorie",ty:"badge"},{k:"hersteller",t:"Hersteller",ty:"text"},{k:"markt",t:"Markt",ty:"text",w:64},{k:"ltd",t:"AppSumo",ty:"ltd",w:92},{k:"angelegt",t:"Angelegt",ty:"date",w:104},{k:"funk",t:"Fkt.",ty:"num",w:64},{k:"pct",t:"Fortschritt",ty:"pct",w:150},{k:"beleg",t:"Belege",ty:"beleg",w:118},{k:"status",t:"Reifegrad",ty:"status"},{k:"geprueft",t:"Geprüft",ty:"date",w:104},{k:"age",t:"Content-Alter",ty:"age",w:150},{k:"nw",t:"NeuronWriter",ty:"nw",w:122}],
    rows:SW},
  kategorien:{ic:"ti-category",t:"Kategorien",d:"Kategorien steuern Portal-Navigation, Hub-Seiten und URL-Slugs. Umbenennen wirkt auf alle zugeordneten Programme.",newL:"Neue Kategorie",
    cols:[{k:"name",t:"Kategorie",ty:"text"},{k:"slug",t:"Slug",ty:"text"},{k:"anzahl",t:"Software",ty:"num",w:80},{k:"reihenfolge",t:"Reihenfolge",ty:"num",w:96},{k:"sichtbar",t:"Sichtbar",ty:"bool",w:90}],
@@ -879,7 +880,7 @@ const VIEWS={
 };
 Object.values(VIEWS).forEach(v=>{v.cols.forEach(c=>c.vis=true);v._sort={k:v.cols[0].k,d:1};v._filt={};});
 // Übersicht schlank: selten genutzte Spalten standardmäßig ausblenden (per "Spalten" wieder einblendbar)
-(function(){try{var sc=(VIEWS.software&&VIEWS.software.cols)||[];sc.forEach(function(c){if(['hersteller','markt','ltd','angelegt','funk','beleg','geprueft','age','nw'].indexOf(c.k)>=0)c.vis=false;});}catch(e){}})();
+(function(){try{var sc=(VIEWS.software&&VIEWS.software.cols)||[];sc.forEach(function(c){if(['hersteller','markt','ltd','angelegt','funk','beleg','geprueft','nw'].indexOf(c.k)>=0)c.vis=false;});}catch(e){}})();
 VIEWS.software._sort={k:"pct",d:-1};
 
 let CUR="software";const $=s=>document.querySelector(s);const dec=decodeURIComponent;
