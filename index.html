@@ -2206,6 +2206,8 @@ async function crawlDo(sid){
   if(!sid)return;
   window._crawlState={sid:sid,started:Date.now(),phaseB:0,cleared:false,name:'',stage:'',stageStart:0};
   crawlShow('',crawlStepper(1,'run')+crawlHint('start'),crawlFootWait());
+  // Fakten-Stand VOR dem Crawl sichern -> nach dem Crawl Vorher/Nachher-Diff moeglich
+  try{await sb.rpc('ssot_snapshot_erzeugen',{p_sid:sid,p_anlass:'vor_crawl'});}catch(e){}
   try{
     const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});
     if(r&&r.error)throw new Error(r.error.message||'Fehler');
@@ -2292,8 +2294,9 @@ function crawlRender(sid,row,phase){
     return;
   }
   if(phase==='validiert'){
-    crawlShow(nm,crawlStepper(5,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen in den Ergebnis-Tabs.<br><i class="ti ti-robot"></i> Firmendaten (Impressum), Logo, Canonical-Zuordnung &amp; alle Steckbrief-Felder werden automatisch nachgezogen (~1–2 Min) — danach ist alles gefüllt. Details siehe Ergebnis-Report unten.</div></div>',
+    crawlShow(nm,crawlStepper(5,'done')+'<div class="catr ok"><div class="h"><i class="ti ti-check"></i> Fertig &amp; validiert</div>Fakten extrahiert und gegen den Rohtext geprüft (Anti-Halluzinations-Gate).'+crawlMetaText(row)+'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Reifegrad → <b>claude_validiert</b>. Funktionen, Preise &amp; Co. stehen in den Ergebnis-Tabs.<br><i class="ti ti-robot"></i> Firmendaten (Impressum), Logo, Canonical-Zuordnung &amp; alle Steckbrief-Felder werden automatisch nachgezogen (~1–2 Min) — danach ist alles gefüllt. Details siehe Ergebnis-Report unten.</div></div><div id="crawlDiff" style="margin-top:10px"></div>',
       '<span class="tb primary" onclick="closeAov()"><i class="ti ti-check"></i> Fertig</span>');
+    setTimeout(function(){try{pwsFaktenDiff(sid);}catch(e){}},60);
     return;
   }
   if(phase==='extrakt'||phase==='validate'){
@@ -2310,6 +2313,25 @@ function crawlRender(sid,row,phase){
     warn='<div class="catr warn" style="margin-top:10px"><div class="h"><i class="ti ti-clock"></i> Dauert länger als üblich</div>Der Crawl läuft noch. Falls nichts passiert, ist evtl. ein Fehler aufgetreten – prüfe die Crawl-Fehler-Mail. Du kannst das Fenster schließen; der Lauf läuft im Hintergrund weiter.</div>';
   }
   crawlShow(nm,crawlStepper(scraping?2:1,'run')+crawlHint(scraping?'scrape':'start',el)+warn,crawlFootWait());
+}
+async function pwsFaktenDiff(sid){
+  var box=document.getElementById('crawlDiff'); if(!box)return;
+  box.innerHTML='<div style="font-size:12px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> Änderungen zum letzten Stand werden ermittelt …</div>';
+  var d=null; try{const r=await sb.functions.invoke('ssot-diff',{body:{software_id:sid}});d=r&&r.data;}catch(e){}
+  box=document.getElementById('crawlDiff'); if(!box)return;
+  if(!d||d.error||!d.hat_snapshot){box.innerHTML='';return;}
+  if(!d.hat_aenderungen){box.innerHTML='<div class="catr ok" style="margin-top:0"><div class="h"><i class="ti ti-equal"></i> Keine Faktenänderungen</div>Der Hersteller-Stand entspricht dem letzten Crawl.</div>';return;}
+  var g=d.diff||{};var P=g.preise||{};var F=g.funktionen||{};var I=g.integrationen||{};
+  function chips(items,col){return (items||[]).map(function(x){return '<span style="display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;background:'+col+'1a;color:'+col+'">'+esc(String(x))+'</span>';}).join('');}
+  function block(titel,inhalt){return inhalt?'<div style="margin-top:8px"><div style="font-size:11.5px;font-weight:700;color:var(--ink);margin-bottom:2px">'+titel+'</div>'+inhalt+'</div>':'';}
+  var preiseH='';
+  (P.geaendert||[]).forEach(function(c){preiseH+='<div style="font-size:12px;margin:2px 0"><b>'+esc(c.tarif)+':</b> <span style="color:var(--muted)">'+esc(c.alt)+'</span> → <b style="color:#d97706">'+esc(c.neu)+'</b></div>';});
+  if(P.einstiegspreis)preiseH+='<div style="font-size:12px;margin:2px 0"><b>Einstiegspreis:</b> <span style="color:var(--muted)">'+esc(P.einstiegspreis.alt)+'</span> → <b style="color:#d97706">'+esc(P.einstiegspreis.neu)+'</b></div>';
+  if((P.neu||[]).length)preiseH+='<div style="font-size:12px;margin:2px 0">Neue Tarife: '+chips(P.neu,'#16a34a')+'</div>';
+  if((P.entfernt||[]).length)preiseH+='<div style="font-size:12px;margin:2px 0">Entfernte Tarife: '+chips(P.entfernt,'#e11d48')+'</div>';
+  var funkH=((F.neu&&F.neu.length)?'<div style="font-size:12px">Neu: '+chips(F.neu,'#16a34a')+'</div>':'')+((F.entfernt&&F.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(F.entfernt,'#e11d48')+'</div>':'');
+  var integH=((I.neu&&I.neu.length)?'<div style="font-size:12px">Neu: '+chips(I.neu,'#16a34a')+'</div>':'')+((I.entfernt&&I.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(I.entfernt,'#e11d48')+'</div>':'');
+  box.innerHTML='<div class="catr" style="margin-top:0;border-left:4px solid var(--accent)"><div class="h"><i class="ti ti-git-compare"></i> Das hat sich beim Hersteller geändert</div><div style="font-size:12px;color:var(--muted);margin:2px 0 4px">'+esc(d.zusammenfassung||'')+' · Basis: Stand '+(d.snapshot_am?String(d.snapshot_am).slice(0,10):'—')+'</div>'+block('Preise & Tarife',preiseH)+block('Funktionen',funkH)+block('Integrationen',integH)+'</div>';
 }
 function crawlMetaText(row){
   try{
