@@ -2142,6 +2142,9 @@ function pwsRender(){
   var _offFunk=(P.funk||[]).filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
   var _funkN=(P.funk||[]).length,_preiseN=(P.preise||[]).length;
   var _art=P.artikel,_artStatus=_art?_art.inhalts_status:null,_liveOK=_artStatus==='live';
+  var _nw=_art?(_art.nw_punktzahl_v3!=null?_art.nw_punktzahl_v3:(_art.nw_punktzahl_v2!=null?_art.nw_punktzahl_v2:_art.nw_punktzahl_v1)):null;
+  var _nwSoll=_art?_art.nw_soll_punktzahl:null;
+  var _nwPill=(_nw==null)?'':('<span title="NeuronWriter-Score (Ist) vs. Soll = Median der rankenden Top-10" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:1px 8px;border-radius:999px;margin-left:8px;'+((_nwSoll!=null?(_nw>=_nwSoll):(_nw>=65))?'background:rgba(22,163,74,.14);color:#15803d':'background:rgba(180,83,9,.14);color:#b45309')+'"><i class="ti ti-seo"></i> NeuronWriter '+_nw+(_nwSoll!=null?(' / Soll '+_nwSoll):'')+'</span>');
   var _belegOffen=(P.beleg&&P.beleg.unbelegt)||0;
   function _z(icon,label,wert,ok,action,actLabel){return '<div class="slim-row'+(action?' clk':'')+'"'+(action?' onclick="'+action+'"':'')+'><span class="slim-ic '+(ok?'ok':(ok===false?'no':''))+'"><i class="ti '+icon+'"></i></span><span class="slim-l">'+esc(label)+'</span><span class="slim-v">'+wert+'</span>'+(action?'<button class="tb slim-b" onclick="event.stopPropagation();'+action+'">'+esc(actLabel||'öffnen')+'</button>':'')+'</div>';}
   var _eingabe=_z('ti-id-badge-2','Stammdaten',(doneMap.anlegen?'vollständig':'unvollständig'),!!doneMap.anlegen,"pwsEditor('stammdaten')",'bearbeiten')
@@ -2150,7 +2153,7 @@ function pwsRender(){
     +_z('ti-star','Bewertungen & Community',(P.synthese?((P.syntheseN||0)>0?(P.syntheseN+' ausgewertet'):'ausgewertet'):((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
   var _fWert=_offFunk>0?('<span style="color:#b45309">⚠ '+_offFunk+' zuordnen</span>'):(_funkN+' Funktionen · '+_preiseN+' Tarife');
   var _ergebnis=_z('ti-database','Fakten (SSoT)',_fWert,(_offFunk===0&&_funkN>0),"pwsEditor('funktionen')",(_offFunk>0?'zuordnen':'ansehen'))
-    +_z('ti-file-text','Artikel-Entwurf',(_art?esc(artStatusLabel(_artStatus)):'noch nicht erzeugt'),!!_art,"pwsEditor('content')",(_art?'ansehen':''))
+    +_z('ti-file-text','Artikel-Entwurf',(_art?(esc(artStatusLabel(_artStatus))+_nwPill):'noch nicht erzeugt'),!!_art,"pwsEditor('content')",(_art?'ansehen':''))
     +_z('ti-world','Portal',(_liveOK?'<span style="color:#15803d">live</span>':'nicht live'),_liveOK,(_liveOK?"pwsEditor('distribution')":''),(_liveOK?'Social':''));
   var _warn=_belegOffen>0?'<div class="pws-hint" style="color:#b91c1c">🛡️ '+_belegOffen+' Aussage(n) ohne Beleg — in „Fakten" prüfen, sonst ist Veröffentlichen gesperrt.</div>':'';
   var _acts='<div class="slim-acts">'+(schlussOk(_swr)?pwsBtn((_art?'Artikel neu bauen':'Artikel jetzt bauen'),"artikelBauen('"+P.id+"')",'ti-sparkles',!_art):'<button class="pws-act" disabled title="Wird freigeschaltet, sobald der Schlusscheck grün ist"><i class="ti ti-sparkles"></i> Artikel bauen (ab „Schlusscheck")</button>')+((_art&&!_liveOK)?pwsBtn('Freigeben & live schalten','pwsPublish()','ti-cloud-upload',1):'')+(_liveOK?pwsBtn('Inhalt ansehen',"pwsEditor('content')",'ti-eye')+pwsBtn('Portal neu bauen',"runBuild('de')",'ti-hammer'):'')+'</div>';
