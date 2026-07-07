@@ -618,7 +618,7 @@ let SW=[];
 const REIFE={erfasst:"neu",crawl_fehler:"fehler",crawl_fertig:"crawl",claude_extrahiert:"extrahiert",claude_validiert:"angereichert",bereit_fuer_publikation:"bewertet",veroeffentlicht:"live"};
 const REIFE_PCT={neu:10,fehler:10,crawl:25,extrahiert:50,angereichert:70,bewertet:90,live:100};
 function mapRow(r,i){
-  const st = r.veroeffentlichungs_status==="veroeffentlicht" ? "live" : (REIFE[r.daten_reifegrad]||"neu");
+  const st = (r.veroeffentlichungs_status==="vollveroeffentlicht"||r.veroeffentlichungs_status==="teilveroeffentlicht"||r.daten_reifegrad==="veroeffentlicht") ? "live" : (REIFE[r.daten_reifegrad]||"neu");
   return { id:r.id, name:r.name, kat:r.kategorie||"", hersteller:r.hersteller||"", markt:"",
     angelegt:(r.erstellt_am||"").slice(0,10), funk:r.anz_funktionen||0, pct:REIFE_PCT[st]||0,
     status:st, geprueft:(r.letzte_pruefung_am||"").slice(0,10), nw:r.neuronwriter_score, ltd:!!r.hat_ltd,
@@ -835,7 +835,7 @@ async function ladeSW(){
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;m.nwSoll=(sollMap[r.id]!=null?sollMap[r.id]:null);var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);if(sig[r.id]&&sig[r.id].artikel)m.status='live';m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;m.nwSoll=(sollMap[r.id]!=null?sollMap[r.id]:null);var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
