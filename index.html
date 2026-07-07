@@ -2491,12 +2491,56 @@ async function lgNormalize(file){
     return {dataBase64:dataUrl.split(',')[1],ext:ext,contentType:mime};
   }finally{URL.revokeObjectURL(url);}
 }
+/* Kuratierte Namen→Domain-Karte (eindeutige Marken) + Substring-Familien + Namens-Guess.
+   Reihenfolge der Kandidaten: exakt kuratiert → Marken-Familie → geratene <slug>.com/.de.
+   logo.dev liefert bei Fehlgriff nichts (fallback=404) → es wird NIE ein falsches Logo gespeichert. */
+const LG_DOMAIN_MAP=[
+  ["Acronis","acronis.com"],["Alipay","alipay.com"],["American Express","americanexpress.com"],["Apache","apache.org"],["Apple Mail","apple.com"],
+  ["Big Cartel","bigcartel.com"],["Billbee","billbee.io"],["Billbee API","billbee.io"],["BuchhaltungsButler","buchhaltungsbutler.de"],
+  ["CentralStationCRM","centralstationcrm.de"],["Cloudflare","cloudflare.com"],["Contact Form 7","contactform7.com"],["Contao","contao.org"],
+  ["DATEV","datev.de"],["Deutsche Post","deutschepost.de"],["Deutsche Post Fulfillment","deutschepost.de"],["DHL","dhl.de"],["DHL Express","dhl.com"],
+  ["Docker","docker.com"],["Docker / Podman","docker.com"],["DPD","dpd.com"],["Dropscan","dropscan.de"],["Drupal","drupal.org"],
+  ["Ecwid","ecwid.com"],["Elster-Schnittstelle","elster.de"],["ELSTER","elster.de"],["ePages","epages.com"],["Etsy","etsy.com"],
+  ["Facebook / TikTok / Instagram","facebook.com"],["FastBill","fastbill.com"],["Gambio","gambio.com"],["GitHub","github.com"],["GitLab","gitlab.com"],
+  ["GLS","gls-group.com"],["Gmail","google.com"],["Google Ads","google.com"],["Google AdSense","google.com"],["Google Analytics","google.com"],
+  ["Google Mail","google.com"],["Google Workspace / Gemini","google.com"],["Gutenberg","wordpress.org"],["Hermes","myhermes.de"],
+  ["IT-Recht Kanzlei München","it-recht-kanzlei.de"],["Jenkins","jenkins.io"],["Jimdo","jimdo.com"],["Joomla!","joomla.org"],
+  ["Kaufland Global Marketplace","kaufland.de"],["Klarna","klarna.com"],["Kontist","kontist.com"],["Kontolino!","kontolino.de"],["Kubernetes","kubernetes.io"],
+  ["Klarna","klarna.com"],["Let's Encrypt","letsencrypt.org"],["Lexware","lexware.de"],["PayPal","paypal.com"],["Shopify","shopify.com"],
+  ["Stripe","stripe.com"],["Make","make.com"],["Zapier","zapier.com"],["WooCommerce","woocommerce.com"],["sevDesk","sevdesk.de"]
+];
+const LG_FAMILIE=[["amazon","amazon.de"],["google","google.com"],["paypal","paypal.com"],["shopify","shopify.com"],["woocommerce","woocommerce.com"],["datev","datev.de"],["lexware","lexware.de"],["billbee","billbee.io"],["deutschepost","deutschepost.de"],["elster","elster.de"],["kaufland","kaufland.de"]];
+let LG_DOM=null;
+function lgDomMap(){if(LG_DOM)return LG_DOM;LG_DOM={};LG_DOMAIN_MAP.forEach(p=>{LG_DOM[lgNorm(p[0])]=p[1];});return LG_DOM;}
+function lgResolve(name){const n=lgNorm(name);const map=lgDomMap();const cands=[];const push=(d,g)=>{if(d&&!cands.some(c=>c.d===d))cands.push({d:d,guess:g});};
+  if(map[n])push(map[n],false);
+  LG_FAMILIE.forEach(f=>{if(n.indexOf(f[0])>=0)push(f[1],false);});
+  if(n.length>=3){push(n+'.com',true);push(n+'.de',true);}
+  return cands;}
+async function logosAutoAll(){
+  const missing=LG_INT.filter(r=>!r.logo);
+  if(!missing.length){toast('Keine fehlenden Integrationen');return;}
+  if(!confirm('Für '+missing.length+' Integrationen ohne Logo automatisch Domains auflösen und Logos von logo.dev holen?\n\nNur echte Treffer werden gespeichert. Geratene Domains werden mit „⚠ geraten – prüfen" markiert.'))return;
+  const cv=$("#customview");
+  const items=missing.map(r=>({name_norm:r.key,anzeige_name:r.name,cands:lgResolve(r.name)}));
+  const CH=25;let geholt=0,offen=0,geraten=0;
+  for(let i=0;i<items.length;i+=CH){
+    if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)"><i class="ti ti-loader"></i> Hole Logos … '+Math.min(i+CH,items.length)+' / '+items.length+' geprüft</div>';
+    try{const rr=await sb.functions.invoke('integration-logo',{body:{action:'bulk',target:'integration',items:items.slice(i,i+CH)}});
+      const d=rr&&rr.data;if(d&&d.error)throw new Error(d.error);
+      if(d&&d.geholt){geholt+=d.geholt.length;geraten+=d.geholt.filter(x=>x.guess).length;}
+      if(d&&d.offen){offen+=d.offen.length;}
+    }catch(e){/* Batch übersprungen, weiter */}
+  }
+  toast(geholt+' Logos geholt'+(geraten?' ('+geraten+' geraten – bitte prüfen)':'')+' · '+offen+' weiter offen');
+  await logosView();
+}
 async function logosView(){const cv=$("#customview");if(cv)cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Logos …</div>';
   try{const r=await Promise.all([sb.from('software').select('id,name,hersteller_url,logo_pfad').order('name'),sb.from('integrationen').select('integrations_name'),sb.from('integration_logos').select('name_norm,logo_pfad,domain,quelle')]);
     LG_SW=(r[0].data||[]).map(s=>({key:s.id,name:s.name,domain:lgDom(s.hersteller_url),pfad:s.logo_pfad,logo:lgPub('software-logos',s.logo_pfad),kind:'software'}));
     const m=new Map();(r[1].data||[]).forEach(x=>{const n=lgNorm(x.integrations_name);if(n&&!m.has(n))m.set(n,x.integrations_name);});
     LG_POOL={};(r[2].data||[]).forEach(l=>{LG_POOL[l.name_norm]=l;});
-    LG_INT=[...m.entries()].map(([n,an])=>{const l=LG_POOL[n];return {key:n,name:an,domain:(l&&l.domain)||'',pfad:l&&l.logo_pfad,logo:lgPub('integration-logos',l&&l.logo_pfad),kind:'integration'};}).sort((a,b)=>a.name.localeCompare(b.name,'de'));
+    LG_INT=[...m.entries()].map(([n,an])=>{const l=LG_POOL[n];return {key:n,name:an,domain:(l&&l.domain)||'',pfad:l&&l.logo_pfad,logo:lgPub('integration-logos',l&&l.logo_pfad),quelle:(l&&l.quelle)||'',kind:'integration'};}).sort((a,b)=>a.name.localeCompare(b.name,'de'));
   }catch(e){if(cv)cv.innerHTML='<div style="padding:32px;color:#e11d48">Laden fehlgeschlagen: '+esc(String(e&&e.message?e.message:e))+'</div>';return;}
   logosRender();
 }
@@ -2507,6 +2551,7 @@ function logosRender(){const cv=$("#customview");if(!cv)return;const list=LG_TAB
   let h='<div class="intro" style="margin:-14px -16px 14px"><div class="ic"><i class="ti ti-photo"></i></div><div><h2>Logos</h2><p>Echte Hersteller-Logos (self-hosted). Pro Eintrag: <b>logo.dev holen</b> (Domain), eigenes <b>hochladen</b> oder <b>entfernen</b>. Fehlt eins, zeigt das Portal ein Monogramm.</p></div></div>';
   h+='<div style="display:flex;gap:8px;margin-bottom:12px">'+[['software','Software'],['integration','Integrationen']].map(t=>'<span class="tb'+(LG_TAB===t[0]?' primary':'')+'" onclick="lgTab(\''+t[0]+'\')">'+t[1]+'</span>').join('')+'</div>';
   h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'+['fehlt','vorhanden','alle'].map(f=>'<span class="tb'+(LG_FILTER===f?' primary':'')+'" onclick="lgFilter(\''+f+'\')">'+(f==='fehlt'?'Fehlende ('+fehlt+')':f==='vorhanden'?'Vorhanden ('+has+')':'Alle ('+list.length+')')+'</span>').join('')+'<input value="'+esc(LG_Q)+'" oninput="LG_Q=this.value;logosRender()" placeholder="Suchen …" style="margin-left:auto;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:12.5px;max-width:240px"></div>';
+  if(LG_TAB==='integration'&&fehlt>0){h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 14px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"><i class="ti ti-wand" style="color:var(--accent)"></i><div style="flex:1;min-width:0;font-size:12px;color:var(--muted)">Domains automatisch auflösen und Logos von logo.dev holen. Nur echte Treffer werden gespeichert; geratene werden markiert.</div><button class="tb primary" onclick="logosAutoAll()"><i class="ti ti-download"></i> Alle '+fehlt+' fehlenden automatisch holen</button></div>';}
   if(!vis.length){h+='<div class="empty-tab"><i class="ti ti-photo-off"></i><b>Keine Einträge</b><div class="d">für diese Auswahl</div></div>';}
   else{h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:10px">'+vis.map(logoCard).join('')+'</div>';}
   cv.innerHTML=h;
@@ -2514,7 +2559,7 @@ function logosRender(){const cv=$("#customview");if(!cv)return;const list=LG_TAB
 function logoCard(r){const ini=(r.name.match(/[A-Za-z0-9]/g)||['?']).slice(0,2).join('').toUpperCase();
   const ic=r.logo?'<span class="logo" style="width:34px;height:34px;background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="'+r.logo+'" style="width:100%;height:100%;object-fit:contain"></span>':'<span class="logo" style="width:34px;height:34px;background:#64748b">'+ini+'</span>';
   return '<div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--panel)">'+ic+
-    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.name)+'</div><div style="font-size:11px;color:'+(r.logo?'var(--ok)':'var(--faint)')+'">'+(r.logo?'✓ Logo':(r.domain?esc(r.domain):'kein Logo'))+'</div></div>'+
+    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.name)+'</div><div style="font-size:11px;color:'+(r.logo?(r.quelle==='logo.dev-raten'?'#d97706':'var(--ok)'):'var(--faint)')+'">'+(r.logo?(r.quelle==='logo.dev-raten'?'⚠ geraten – prüfen':'✓ Logo'):(r.domain?esc(r.domain):'kein Logo'))+'</div></div>'+
     '<span class="mini2" onclick="logoHolen(\''+r.kind+'\',\''+esc(r.key)+'\')">logo.dev</span>'+
     '<span class="mini2" onclick="logoUpload(\''+r.kind+'\',\''+esc(r.key)+'\')">⬆</span>'+
     (r.logo?'<span class="mini2" onclick="logoDel(\''+r.kind+'\',\''+esc(r.key)+'\')">🗑</span>':'')+
