@@ -1959,7 +1959,7 @@ async function pwsOpen(id){
       sb.from('quellen').select('id').eq('software_id',id),
       sb.from('bewertungs_synthesen').select('id,anzahl_bewertungen').eq('software_id',id).limit(1),
       sb.from('freigaben').select('id,status').eq('software_id',id),
-      sb.from('inhalts_artikel').select('id,inhalts_status').eq('software_id',id).limit(1),
+      sb.from('inhalts_artikel').select('id,inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,nw_soll_punktzahl').eq('software_id',id).limit(1),
       sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
