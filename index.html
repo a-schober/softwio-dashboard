@@ -815,7 +815,7 @@ async function ladeSW(){
       sb.from('quellen').select('software_id'),
       sb.from('bewertungs_synthesen').select('software_id'),
       sb.from('freigaben').select('software_id,status'),
-      sb.from('inhalts_artikel').select('software_id,inhalts_status,erstveroeffentlicht_am'),
+      sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am'),
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id'),
       sb.from('ssot_verifikation').select('software_id,status')
@@ -826,7 +826,7 @@ async function ladeSW(){
     (qs[3].data||[]).forEach(function(x){_g(x.software_id).quellen++;});
     (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
     (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
-    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;if(x.erstveroeffentlicht_am)veroeffMap[x.software_id]=x.erstveroeffentlicht_am;}});
+    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
     (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
