@@ -1966,7 +1966,7 @@ async function pwsOpen(id){
       sb.from('quellen').select('id').eq('software_id',id),
       sb.from('bewertungs_synthesen').select('id,anzahl_bewertungen').eq('software_id',id).limit(1),
       sb.from('freigaben').select('id,status').eq('software_id',id),
-      sb.from('inhalts_artikel').select('id,inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,nw_soll_punktzahl').eq('software_id',id).limit(1),
+      sb.from('inhalts_artikel').select('id,inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,nw_soll_punktzahl,letztes_update_am').eq('software_id',id).limit(1),
       sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
@@ -1978,6 +1978,7 @@ async function pwsOpen(id){
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
     PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
+    PWS.refresh=null;try{const _cr=await sb.from('content_refresh').select('status,zusammenfassung,diff,notiz,geaendert_am').eq('software_id',id).eq('markt_id','de').maybeSingle();PWS.refresh=(_cr&&_cr.data)||null;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
   if(CUR!=='produkt')return;
   pwsRender();
@@ -2130,7 +2131,52 @@ function pwsBody(P,st){
     return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+bb+ab+pwsRow(true,'Crawl-Status','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));}
   if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
   if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});var swpct=_swr?(_swr.pct||0):0;setTimeout(function(){try{ladeJobStatus(P.id,liveOK);}catch(e){}},30);var acts='<div class="pws-acts">'+((swpct>=100)?pwsBtn((hasArt?'Artikel neu bauen (Auto)':'Artikel automatisch bauen'),'artikelBauen(\''+P.id+'\')','ti-sparkles',(!hasArt)):'')+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(hasArt?pwsBtn('Note neu berechnen','pwsScoreNeu(this)','ti-calculator'):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';return pwsRow(hasArt,'Content erzeugt')+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+'<div id="pwsJobStatus"></div>'+(hasArt?'':(swpct>=100?'<div class="pws-hint">Klick „Artikel automatisch bauen" – der Runner erzeugt den Entwurf (0 Credits), danach hier prüfen &amp; freigeben.</div>':'<div class="pws-hint">Sobald der Fortschritt 100 % erreicht ist, kannst du den Artikel automatisch bauen lassen.</div>'));}
-  return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>';
+  return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>'+pwsRefreshBlock(P);
+}
+function pwsRefreshBlock(P){
+  var live=!!(P.artikel&&P.artikel.inhalts_status==='live');
+  var rf=P.refresh;var st=rf&&rf.status;
+  var lua=P.artikel&&P.artikel.letztes_update_am;var age=lua?Math.round((Date.now()-new Date(lua))/86400000):null;
+  var ampel=age==null?'n':(age<90?'g':age<180?'a':'r');
+  var head='<div style="border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:13px 15px;margin:12px 0;background:var(--soft,#f8fafc)">';
+  var titel='<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><b style="font-size:14px"><i class="ti ti-refresh"></i> Aktualität &amp; Auto-Aktualisierung</b>'+(age!=null?'<span class="age-b '+ampel+'">'+age+' Tage seit letztem Update</span>':'')+'</div>';
+  var refreshBtn='<div class="pws-acts">'+pwsBtn('Jetzt aktualisieren (Re-Crawl + Faktenvergleich)','pwsAktualisieren(\''+P.id+'\')','ti-refresh',1)+'</div>';
+  var body='';
+  if(!live){ body='<div style="font-size:12.5px;color:var(--muted);margin-top:6px">Aktualisierung greift erst nach der ersten Veröffentlichung.</div>'; }
+  else if(st==='faellig'||st==='crawl_laeuft'){ body='<div class="pws-hint"><i class="ti ti-loader-2 spin"></i> Aktualisierung läuft … Re-Crawl der Herstellerseite &amp; Faktenvergleich (~15 Min). Das Fenster kann offen bleiben; Fortschritt erscheint hier.</div>'; setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000); }
+  else if(st==='pruefen'){ body='<div class="pws-hint ok" style="margin-top:8px"><i class="ti ti-git-compare"></i> Änderungen beim Hersteller erkannt: <b>'+esc(rf.zusammenfassung||'')+'</b>. Ein aktualisierter <b>Entwurf</b> wurde gebaut – bitte prüfen &amp; veröffentlichen.</div>'+pwsRefreshDiffHtml(rf.diff)+'<div class="pws-acts">'+pwsBtn('Entwurf prüfen','pwsTab(\'content\')','ti-file-text',1)+pwsBtn('Erneut vergleichen','pwsRefreshPoll(\''+P.id+'\')','ti-refresh')+'</div>'; }
+  else if(st==='unveraendert'){ body='<div class="pws-hint ok"><i class="ti ti-check"></i> Zuletzt automatisch geprüft – keine Faktenänderungen, Aktualität bestätigt.</div>'+refreshBtn; }
+  else if(st==='fehler'){ body='<div class="pws-hint" style="color:#b91c1c"><i class="ti ti-alert-triangle"></i> Letzte Aktualisierung fehlgeschlagen. '+esc((rf&&rf.notiz)||'')+'</div>'+refreshBtn; }
+  else { body='<div style="font-size:12.5px;color:var(--muted);margin:6px 0 8px">Die Aktualität wird automatisch überwacht (Auto-Re-Crawl ab 180 Tagen). Jederzeit manuell: Re-Crawl der Herstellerseite, Faktenvergleich, bei Änderungen ein neuer Entwurf zur Prüfung – die Live-Seite bleibt bis zur Freigabe online.</div>'+refreshBtn; }
+  return head+titel+body+'</div>';
+}
+function pwsRefreshDiffHtml(g){
+  if(!g)return '';var P=g.preise||{},F=g.funktionen||{},I=g.integrationen||{};
+  function chips(items,col){return (items||[]).map(function(x){return '<span style="display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;background:'+col+'1a;color:'+col+'">'+esc(String(x))+'</span>';}).join('');}
+  function blk(t,h){return h?'<div style="margin-top:8px"><div style="font-size:11.5px;font-weight:700;margin-bottom:2px">'+t+'</div>'+h+'</div>':'';}
+  var ph='';(P.geaendert||[]).forEach(function(c){ph+='<div style="font-size:12px;margin:2px 0"><b>'+esc(c.tarif)+':</b> <span style="color:var(--muted)">'+esc(c.alt)+'</span> → <b style="color:#d97706">'+esc(c.neu)+'</b></div>';});
+  if(P.einstiegspreis)ph+='<div style="font-size:12px;margin:2px 0"><b>Einstiegspreis:</b> <span style="color:var(--muted)">'+esc(P.einstiegspreis.alt)+'</span> → <b style="color:#d97706">'+esc(P.einstiegspreis.neu)+'</b></div>';
+  if((P.neu||[]).length)ph+='<div style="font-size:12px;margin:2px 0">Neue Tarife: '+chips(P.neu,'#16a34a')+'</div>';
+  if((P.entfernt||[]).length)ph+='<div style="font-size:12px;margin:2px 0">Entfernte Tarife: '+chips(P.entfernt,'#e11d48')+'</div>';
+  var fh=((F.neu&&F.neu.length)?'<div style="font-size:12px">Neu: '+chips(F.neu,'#16a34a')+'</div>':'')+((F.entfernt&&F.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(F.entfernt,'#e11d48')+'</div>':'');
+  var ih=((I.neu&&I.neu.length)?'<div style="font-size:12px">Neu: '+chips(I.neu,'#16a34a')+'</div>':'')+((I.entfernt&&I.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(I.entfernt,'#e11d48')+'</div>':'');
+  return blk('Preise & Tarife',ph)+blk('Funktionen',fh)+blk('Integrationen',ih);
+}
+async function pwsAktualisieren(sid){
+  if(!confirm('Jetzt aktualisieren?\n\nDas startet einen Re-Crawl der Herstellerseite (Firecrawl-Kosten, ~15 Min) und vergleicht die Fakten. Bei Änderungen wird ein neuer Entwurf gebaut – die Live-Seite bleibt bis zu deiner Freigabe online.'))return;
+  try{const r=await sb.functions.invoke('refresh-orchestrator',{body:{software_id:sid,min_tage:0,max_crawls:1}});if(r&&r.error)throw r.error;}catch(e){toast('Start fehlgeschlagen: '+(e&&e.message?e.message:e));return;}
+  toast('Re-Crawl gestartet ✓ – läuft ~15 Min, Fortschritt hier im Panel.');
+  try{if(typeof PWS!=='undefined'&&PWS&&String(PWS.id)===String(sid)){PWS.refresh={status:'crawl_laeuft'};pwsRender();}}catch(e){}
+  setTimeout(function(){try{pwsRefreshPoll(sid);}catch(e){}},5000);
+}
+async function pwsRefreshPoll(sid){
+  if(typeof PWS==='undefined'||!PWS||String(PWS.id)!==String(sid))return;
+  try{clearTimeout(window._pwsRefreshT);}catch(e){}
+  try{await sb.functions.invoke('refresh-orchestrator',{body:{software_id:sid,min_tage:0,max_crawls:1}});}catch(e){}
+  var rf=null;try{const _cr=await sb.from('content_refresh').select('status,zusammenfassung,diff,notiz,geaendert_am').eq('software_id',sid).eq('markt_id','de').maybeSingle();rf=(_cr&&_cr.data)||null;}catch(e){}
+  if(typeof PWS==='undefined'||!PWS||String(PWS.id)!==String(sid))return;
+  PWS.refresh=rf;try{pwsRender();}catch(e){}
+  if(rf&&(rf.status==='faellig'||rf.status==='crawl_laeuft')){window._pwsRefreshT=setTimeout(function(){pwsRefreshPoll(sid);},60000);}
 }
 function pwsFoot(P,st){if(st.n>=st.total)return '';var nx=st.n+1;return '<div class="pws-foot">'+(st.done?'<span class="pws-ok">Stufe erledigt ✔</span>':'<span class="pws-todo">'+(st.key==='ordnen'?'Fertig, wenn 0 offene Funktionen & Tarife erfasst':'Erledige die offenen Punkte oben')+'</span>')+pwsBtn('Weiter zu Stufe '+nx,'pwsGoto('+nx+')','ti-arrow-right',1)+'</div>';}
 function pwsPanel(P,st){
