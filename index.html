@@ -1972,6 +1972,7 @@ async function pwsOpen(id){
     PWS.bilderN=0;PWS.videoN=0;
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
+    PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
   if(CUR!=='produkt')return;
   pwsRender();
@@ -2105,7 +2106,7 @@ async function ladeJobStatus(sid,liveOK){
 function pwsBody(P,st){
   const f=P.full||{};const k=st.key;
   if(k==='anlegen')return '';
-  if(k==='medien')return pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')+pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt');
+  if(k==='medien')return pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')+pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt')+((P.videoAusgewertet||0)>0?pwsRow(true,(P.videoAusgewertet||0)+' Videos ausgewertet (Claude-Max)'):'');
   if(k==='sammeln')return pwsRow((P.funk||[]).length>0,(P.funk||[]).length+' Roh-Funktionen erfasst')+pwsRow((P.preise||[]).length>0,(P.preise||[]).length+' Tarife erfasst')+'<div class="pws-acts">'+pwsBtn('Crawl-Status öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
   if(k==='ordnen')return pwsRow(st.offeneFunk===0&&(P.funk||[]).length>0,'Funktionen zugeordnet – '+st.offeneFunk+' offen','Was tun: jeden Roh-Begriff einem Canonical zuordnen. Ziel: 0 offene Funktionen.')+pwsRow((P.preise||[]).length>0,'Tarife erfasst')+pwsRow(false,'Limits je Tarif (empfohlen, optional)','Optional: Kontingente je Tarif. Blockiert „Weiter" nicht – nicht jedes Tool veröffentlicht Limits.');
   if(k==='belegen')return pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')+pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')+pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))+pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft')+'<div class="pws-acts">'+pwsBtn('Externe Bewertungen holen (G2/Capterra/Trustpilot)','pwsBewExtern(this)','ti-star',1)+'</div>';
@@ -2154,7 +2155,7 @@ function pwsRender(){
   function _z(icon,label,wert,ok,action,actLabel){return '<div class="slim-row'+(action?' clk':'')+'"'+(action?' onclick="'+action+'"':'')+'><span class="slim-ic '+(ok?'ok':(ok===false?'no':''))+'"><i class="ti '+icon+'"></i></span><span class="slim-l">'+esc(label)+'</span><span class="slim-v">'+wert+'</span>'+(action?'<button class="tb slim-b" onclick="event.stopPropagation();'+action+'">'+esc(actLabel||'öffnen')+'</button>':'')+'</div>';}
   var _eingabe=_z('ti-id-badge-2','Stammdaten',(doneMap.anlegen?'vollständig':'unvollständig'),!!doneMap.anlegen,"pwsEditor('stammdaten')",'bearbeiten')
     +_z('ti-photo','Bilder / Screenshots',((P.bilderN||0)+' Bilder'),(P.bilderN||0)>0,"pwsEditor('bilder')",'verwalten')
-    +_z('ti-brand-youtube','Videos',((P.videoN||0)+' Videos'),(P.videoN||0)>0,"pwsEditor('videos')",'verwalten')
+    +_z('ti-brand-youtube','Videos',((P.videoN||0)+' Videos'+((P.videoAusgewertet||0)>0?(' · '+(P.videoAusgewertet||0)+' ausgewertet'):'')),((P.videoN||0)>0||(P.videoAusgewertet||0)>0),"pwsEditor('videos')",'verwalten')
     +_z('ti-star','Bewertungen & Community',(P.synthese?((P.syntheseN||0)>0?(P.syntheseN+' ausgewertet'):'ausgewertet'):((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
   var _fWert=_offFunk>0?('<span style="color:#b45309">⚠ '+_offFunk+' zuordnen</span>'):(_funkN+' Funktionen · '+_preiseN+' Tarife');
   var _ergebnis=_z('ti-database','Fakten (SSoT)',_fWert,(_offFunk===0&&_funkN>0),"pwsEditor('funktionen')",(_offFunk>0?'zuordnen':'ansehen'))
