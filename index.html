@@ -610,13 +610,13 @@ async function pwaSpeichern(btn){
   if(error){setErr("Fehlgeschlagen: "+(error.message||error));if(btn){btn.style.pointerEvents="";btn.innerHTML=_o;}return;}
   closeAov();toast("Passwort geändert ✓");
 }
-const ST={neu:{l:"Neu",c:"n"},crawl:{l:"Crawl fertig",c:"a"},extrahiert:{l:"Claude-extrahiert",c:"a"},angereichert:{l:"Angereichert",c:"a"},bewertet:{l:"Bewertet",c:"g"},live:{l:"Live",c:"g"}};
-const STRANK={neu:0,crawl:1,extrahiert:2,angereichert:3,bewertet:4,live:5};
+const ST={neu:{l:"Neu",c:"n"},fehler:{l:"Crawl-Fehler",c:"r"},crawl:{l:"Crawl fertig",c:"a"},extrahiert:{l:"Claude-extrahiert",c:"a"},angereichert:{l:"Angereichert",c:"a"},bewertet:{l:"Bewertet",c:"g"},live:{l:"Live",c:"g"}};
+const STRANK={fehler:0,neu:0,crawl:1,extrahiert:2,angereichert:3,bewertet:4,live:5};
 const HUE=["#4f46e5","#0d9488","#e11d48","#d97706","#2563eb","#7c3aed","#0891b2","#65a30d","#db2777","#ea580c"];
 let SW=[];
 // Reifegrad (SSoT) -> Mockup-Stufe + grober Fortschritt (abgeleitet, keine erfundenen Einzelwerte)
-const REIFE={erfasst:"neu",crawl_fertig:"crawl",claude_extrahiert:"extrahiert",claude_validiert:"angereichert",bereit_fuer_publikation:"bewertet",veroeffentlicht:"live"};
-const REIFE_PCT={neu:10,crawl:25,extrahiert:50,angereichert:70,bewertet:90,live:100};
+const REIFE={erfasst:"neu",crawl_fehler:"fehler",crawl_fertig:"crawl",claude_extrahiert:"extrahiert",claude_validiert:"angereichert",bereit_fuer_publikation:"bewertet",veroeffentlicht:"live"};
+const REIFE_PCT={neu:10,fehler:10,crawl:25,extrahiert:50,angereichert:70,bewertet:90,live:100};
 function mapRow(r,i){
   const st = r.veroeffentlichungs_status==="veroeffentlicht" ? "live" : (REIFE[r.daten_reifegrad]||"neu");
   return { id:r.id, name:r.name, kat:r.kategorie||"", hersteller:r.hersteller||"", markt:"",
@@ -2232,6 +2232,7 @@ function crawlHint(kind,extra){
 function crawlPhase(row){
   if(!row)return 'start';
   var rg=row.daten_reifegrad;
+  if(rg==='crawl_fehler')return 'fehler';
   if(rg==='claude_validiert'||rg==='bereit_fuer_publikation'||rg==='bereit'||rg==='live')return 'validiert';
   if(rg==='claude_extrahiert')return 'validate';
   if(rg==='crawl_fertig')return 'extrakt';
@@ -2244,13 +2245,14 @@ async function crawlPoll(sid){
   const st=window._crawlState;if(!st||st.sid!==sid)return;
   if(!$("#aov").classList.contains("show"))return;
   let row=null;
-  try{const q=await sb.from('software').select('name,daten_reifegrad,crawl_freigabe_status,crawl_kandidaten,crawl_url_liste,crawl_metadaten').eq('id',sid).single();row=q.data;}catch(e){}
+  try{const q=await sb.from('software').select('name,daten_reifegrad,crawl_freigabe_status,crawl_kandidaten,crawl_url_liste,crawl_metadaten,crawl_bericht,hersteller_url').eq('id',sid).single();row=q.data;}catch(e){}
   if(row&&row.name)st.name=row.name;
   const phase=crawlPhase(row);
   if(st.stage!==phase){st.stage=phase;st.stageStart=Date.now();}
   // Einmalige Aufraeumung, sobald der Crawl Rohtext geliefert hat (Override-Hygiene fuer den naechsten Lauf)
   if(!st.cleared&&(phase==='extrakt'||phase==='validate'||phase==='validiert')){st.cleared=true;try{await dbW('update','software',sid,{crawl_url_liste:null,crawl_freigabe_status:null});}catch(e){}}
   crawlRender(sid,row,phase);
+  if(phase==='fehler'){try{if(typeof ladeSW==='function')ladeSW();}catch(e){}return;}
   if(phase==='validiert'){
     try{if(typeof ladeCrawlView==='function')ladeCrawlView().then(function(){if(CUR==='crawl')render();});}catch(e){}
     try{if(typeof ladeSW==='function')ladeSW();}catch(e){}
@@ -2260,6 +2262,13 @@ async function crawlPoll(sid){
 }
 function crawlRender(sid,row,phase){
   const st=window._crawlState||{};const nm=(row&&row.name)||st.name||'';
+  if(phase==='fehler'){
+    var grund='';try{grund=(row&&row.crawl_bericht&&(row.crawl_bericht.fehler||row.crawl_bericht.fehler_meldung))||'';}catch(e){}
+    var hu=(row&&row.hersteller_url)||'';
+    crawlShow(nm,'<div class="catr warn"><div class="h"><i class="ti ti-alert-triangle"></i> Crawl fehlgeschlagen</div>Die Website lieferte keinen auswertbaren Inhalt.'+(grund?'<div style="margin-top:6px;font-size:12px;color:var(--muted)">Grund: '+esc(String(grund))+'</div>':'')+'<div style="margin-top:8px;font-size:12.5px">Häufigste Ursache: <b>falsche oder geparkte Hersteller-URL</b>'+(hu?' (aktuell: <b>'+esc(hu.replace(/^https?:\/\//,""))+'</b>)':'')+'. Bitte prüfen, ob die URL wirklich die echte Produktseite öffnet, im Detail korrigieren und den Crawl neu starten.</div></div>',
+      '<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb primary" onclick="crawlDo(\''+sid+'\')"><i class="ti ti-refresh"></i> Crawl neu starten</span>');
+    return;
+  }
   if(phase==='freigabe'){
     const kand=(row&&Array.isArray(row.crawl_kandidaten))?row.crawl_kandidaten:[];
     const liste='<div style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:6px">'+
