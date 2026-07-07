@@ -2150,6 +2150,7 @@ function pwsRefreshBlock(P){
   else { body='<div style="font-size:12.5px;color:var(--muted);margin:6px 0 8px">Die Aktualität wird automatisch überwacht (Auto-Re-Crawl ab 180 Tagen). Jederzeit manuell: Re-Crawl der Herstellerseite, Faktenvergleich, bei Änderungen ein neuer Entwurf zur Prüfung – die Live-Seite bleibt bis zur Freigabe online.</div>'+refreshBtn; }
   return head+titel+body+'</div>';
 }
+function diffDeltaLine(d){if(!d||d.delta===undefined)return '';var dl=d.delta||0;var sign=dl>0?('+'+dl):(''+dl);var col=dl===0?'var(--muted)':(dl>0?'#16a34a':'#e11d48');var bsp=(d.beispiele_neu&&d.beispiele_neu.length)?' <span style="font-size:11px;color:var(--faint)">z. B. '+d.beispiele_neu.slice(0,3).map(esc).join(', ')+' …</span>':'';return '<span style="font-size:12px">'+(d.alt||0)+' → '+(d.neu||0)+' <b style="color:'+col+'">('+sign+')</b></span>'+bsp;}
 function pwsRefreshBanner(P){
   var live=!!(P.artikel&&P.artikel.inhalts_status==='live'); if(!live)return '';
   var rf=P.refresh;var st=rf&&rf.status;
@@ -2176,9 +2177,7 @@ function pwsRefreshDiffHtml(g){
   if(P.einstiegspreis)ph+='<div style="font-size:12px;margin:2px 0"><b>Einstiegspreis:</b> <span style="color:var(--muted)">'+esc(P.einstiegspreis.alt)+'</span> → <b style="color:#d97706">'+esc(P.einstiegspreis.neu)+'</b></div>';
   if((P.neu||[]).length)ph+='<div style="font-size:12px;margin:2px 0">Neue Tarife: '+chips(P.neu,'#16a34a')+'</div>';
   if((P.entfernt||[]).length)ph+='<div style="font-size:12px;margin:2px 0">Entfernte Tarife: '+chips(P.entfernt,'#e11d48')+'</div>';
-  var fh=((F.neu&&F.neu.length)?'<div style="font-size:12px">Neu: '+chips(F.neu,'#16a34a')+'</div>':'')+((F.entfernt&&F.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(F.entfernt,'#e11d48')+'</div>':'');
-  var ih=((I.neu&&I.neu.length)?'<div style="font-size:12px">Neu: '+chips(I.neu,'#16a34a')+'</div>':'')+((I.entfernt&&I.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(I.entfernt,'#e11d48')+'</div>':'');
-  return blk('Preise & Tarife',ph)+blk('Funktionen',fh)+blk('Integrationen',ih);
+  return blk('Preise & Tarife',ph)+(F&&F.delta?blk('Funktionen (Anzahl)',diffDeltaLine(F)):'')+(I&&I.delta?blk('Integrationen (Anzahl)',diffDeltaLine(I)):'');
 }
 async function pwsAktualisieren(sid){
   if(!confirm('Jetzt aktualisieren?\n\nDas startet einen Re-Crawl der Herstellerseite (Firecrawl-Kosten, ~15 Min) und vergleicht die Fakten. Bei Änderungen wird ein neuer Entwurf gebaut – die Live-Seite bleibt bis zu deiner Freigabe online.'))return;
@@ -2397,9 +2396,9 @@ async function pwsFaktenDiff(sid){
   if(P.einstiegspreis)preiseH+='<div style="font-size:12px;margin:2px 0"><b>Einstiegspreis:</b> <span style="color:var(--muted)">'+esc(P.einstiegspreis.alt)+'</span> → <b style="color:#d97706">'+esc(P.einstiegspreis.neu)+'</b></div>';
   if((P.neu||[]).length)preiseH+='<div style="font-size:12px;margin:2px 0">Neue Tarife: '+chips(P.neu,'#16a34a')+'</div>';
   if((P.entfernt||[]).length)preiseH+='<div style="font-size:12px;margin:2px 0">Entfernte Tarife: '+chips(P.entfernt,'#e11d48')+'</div>';
-  var funkH=((F.neu&&F.neu.length)?'<div style="font-size:12px">Neu: '+chips(F.neu,'#16a34a')+'</div>':'')+((F.entfernt&&F.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(F.entfernt,'#e11d48')+'</div>':'');
-  var integH=((I.neu&&I.neu.length)?'<div style="font-size:12px">Neu: '+chips(I.neu,'#16a34a')+'</div>':'')+((I.entfernt&&I.entfernt.length)?'<div style="font-size:12px">Entfernt: '+chips(I.entfernt,'#e11d48')+'</div>':'');
-  box.innerHTML='<div class="catr" style="margin-top:0;border-left:4px solid var(--accent)"><div class="h"><i class="ti ti-git-compare"></i> Das hat sich beim Hersteller geändert</div><div style="font-size:12px;color:var(--muted);margin:2px 0 4px">'+esc(d.zusammenfassung||'')+' · Basis: Stand '+(d.snapshot_am?String(d.snapshot_am).slice(0,10):'—')+'</div>'+block('Preise & Tarife',preiseH)+block('Funktionen',funkH)+block('Integrationen',integH)+'</div>';
+  var funkH=(F&&F.delta)?diffDeltaLine(F):'';
+  var integH=(I&&I.delta)?diffDeltaLine(I):'';
+  box.innerHTML='<div class="catr" style="margin-top:0;border-left:4px solid var(--accent)"><div class="h"><i class="ti ti-git-compare"></i> Das hat sich beim Hersteller geändert</div><div style="font-size:12px;color:var(--muted);margin:2px 0 4px">'+esc(d.zusammenfassung||'')+' · Basis: Stand '+(d.snapshot_am?String(d.snapshot_am).slice(0,10):'—')+'</div>'+block('Preise & Tarife',preiseH)+block('Funktionen (Anzahl)',funkH)+block('Integrationen (Anzahl)',integH)+'</div>';
 }
 function crawlMetaText(row){
   try{
