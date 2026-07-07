@@ -2150,6 +2150,24 @@ function pwsRefreshBlock(P){
   else { body='<div style="font-size:12.5px;color:var(--muted);margin:6px 0 8px">Die Aktualität wird automatisch überwacht (Auto-Re-Crawl ab 180 Tagen). Jederzeit manuell: Re-Crawl der Herstellerseite, Faktenvergleich, bei Änderungen ein neuer Entwurf zur Prüfung – die Live-Seite bleibt bis zur Freigabe online.</div>'+refreshBtn; }
   return head+titel+body+'</div>';
 }
+function pwsRefreshBanner(P){
+  var live=!!(P.artikel&&P.artikel.inhalts_status==='live'); if(!live)return '';
+  var rf=P.refresh;var st=rf&&rf.status;
+  var lua=P.artikel&&P.artikel.letztes_update_am;var age=lua?Math.round((Date.now()-new Date(lua))/86400000):null;
+  var ampel=age==null?'n':(age<90?'g':age<180?'a':'r');
+  if(st==='crawl_laeuft'||st==='faellig'){
+    setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000);
+    return '<div class="pws-hint" style="border-left:4px solid var(--accent);margin-top:12px"><i class="ti ti-loader-2 spin"></i> <b>Aktualisierung läuft</b> — Re-Crawl der Herstellerseite &amp; Faktenvergleich (~15 Min). Fortschritt erscheint hier automatisch.</div>';
+  }
+  if(st==='pruefen'){
+    return '<div class="pws-hint ok" style="border-left:4px solid #16a34a;margin-top:12px"><div><i class="ti ti-git-compare"></i> <b>Änderungen beim Hersteller erkannt:</b> '+esc(rf.zusammenfassung||'')+' — ein aktualisierter <b>Entwurf</b> wurde gebaut.</div>'+pwsRefreshDiffHtml(rf.diff)+'<div class="pws-acts" style="margin-top:8px">'+pwsBtn('Entwurf prüfen & veröffentlichen','pwsTab(\'content\')','ti-file-text',1)+pwsBtn('Erneut vergleichen','pwsRefreshPoll(\''+P.id+'\')','ti-refresh')+'</div></div>';
+  }
+  if(st==='fehler'){
+    return '<div class="pws-hint" style="border-left:4px solid #e11d48;color:#b91c1c;margin-top:12px"><i class="ti ti-alert-triangle"></i> Aktualisierung fehlgeschlagen. '+esc((rf&&rf.notiz)||'')+' <span style="margin-left:6px"></span>'+pwsBtn('Erneut versuchen','pwsAktualisieren(\''+P.id+'\')','ti-refresh')+'</div>';
+  }
+  var lab=(st==='unveraendert')?' · ✓ zuletzt geprüft, keine Änderungen':'';
+  return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)"><i class="ti ti-refresh" style="color:var(--accent)"></i><span style="font-size:12.5px;color:var(--muted)">Content-Alter: '+(age!=null?('<b class="age-b '+ampel+'">'+age+' Tage</b>'):'—')+lab+'</span><span style="margin-left:auto"></span>'+pwsBtn('Jetzt aktualisieren (Re-Crawl + Vergleich)','pwsAktualisieren(\''+P.id+'\')','ti-refresh',1)+'</div>';
+}
 function pwsRefreshDiffHtml(g){
   if(!g)return '';var P=g.preise||{},F=g.funktionen||{},I=g.integrationen||{};
   function chips(items,col){return (items||[]).map(function(x){return '<span style="display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;background:'+col+'1a;color:'+col+'">'+esc(String(x))+'</span>';}).join('');}
@@ -2230,7 +2248,7 @@ function pwsRender(){
     '<div class="slim-body">'+
     '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-forms"></i> Deine Eingaben <small>das füllst nur du</small></div>'+_eingabe+'</div>'+
     '<div class="slim-zone"><div class="slim-zt"><i class="ti ti-robot"></i> Automatisch erzeugt <small>nur prüfen, wenn du magst</small></div>'+_ergebnis+'<div style="display:flex;justify-content:flex-end;padding:9px 8px 2px"><button class="tb" onclick="pwsCrawl()" title="Startet Firecrawl-Crawl + KI-Extraktion – füllt Funktionen, Preise &amp; Integrationen aus der Hersteller-Website"><i class="ti ti-spider"></i> Fakten aus Website crawlen</button></div></div>'+
-    '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+
+    '</div>'+_warn+_acts+'<div id="pwsJobStatus"></div>'+pwsRefreshBanner(P)+
     '<div style="margin-top:14px;text-align:center"><button class="tb" onclick="pwsEditor()"><i class="ti ti-layout-list"></i> Alle Details / Bausteine öffnen</button></div>'+
     meilensteinHtml(_swr)+
     '<div id="pwsKosten"></div>'+
