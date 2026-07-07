@@ -803,6 +803,7 @@ async function ladeSW(){
   let logoMap={};
   let asMap={};
   let veroeffMap={};
+  let refreshMap={};
   const sig={};
   const swMeta={};
   const belegMap={};
@@ -821,7 +822,7 @@ async function ladeSW(){
       sb.from('ssot_verifikation').select('software_id,status'),
       sb.from('content_refresh').select('software_id,status,zusammenfassung')
     ]);
-    const refreshMap={};(qs[10].data||[]).forEach(function(x){refreshMap[x.software_id]={status:x.status,info:x.zusammenfassung};});
+    (qs[10].data||[]).forEach(function(x){refreshMap[x.software_id]={status:x.status,info:x.zusammenfassung};});
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
     (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
     (qs[2].data||[]).forEach(function(x){_g(x.software_id).preise++;});
