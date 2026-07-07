@@ -804,6 +804,7 @@ async function ladeSW(){
   let asMap={};
   let veroeffMap={};
   let refreshMap={};
+  let sollMap={};
   const sig={};
   const swMeta={};
   const belegMap={};
@@ -816,7 +817,7 @@ async function ladeSW(){
       sb.from('quellen').select('software_id'),
       sb.from('bewertungs_synthesen').select('software_id'),
       sb.from('freigaben').select('software_id,status'),
-      sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am'),
+      sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am,nw_soll_punktzahl'),
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id'),
       sb.from('ssot_verifikation').select('software_id,status'),
@@ -829,12 +830,12 @@ async function ladeSW(){
     (qs[3].data||[]).forEach(function(x){_g(x.software_id).quellen++;});
     (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
     (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
-    (qs[6].data||[]).forEach(function(x){if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
+    (qs[6].data||[]).forEach(function(x){if(x.nw_soll_punktzahl!=null)sollMap[x.software_id]=x.nw_soll_punktzahl;if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
     (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
     (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
-  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
+  SW=(data||[]).map(function(r,i){const m=mapRow(r,i);m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;m.nwSoll=(sollMap[r.id]!=null?sollMap[r.id]:null);var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
 }
 function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
 const HEUTE=new Date();
@@ -894,7 +895,7 @@ function pillCls(t){t=(t||"").toLowerCase();if(["aktiv","live","erfolgreich","ja
 function cellHtml(v,r,c){const x=r[c.k];
   if(c.ty==="beleg"){if(!r.belegHat)return '<span class="pn">ungeprüft</span>';return r.belegOffen>0?'<span class="age-b r"><i class="ti ti-alert-triangle" style="font-size:9px"></i> '+r.belegOffen+' offen</span>':'<span class="age-b g"><i class="ti ti-shield-check" style="font-size:9px"></i> belegt</span>';}
   if(c.ty==="age"){const a=ageOf(r);var base=a.t==null?'<span class="age-b n"><i class="ti ti-circle-filled" style="font-size:8px"></i> neu</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.t+' Tage</span>';return base+refreshPill(r);}
-  if(c.ty==="nw"){const a=nwOf(r);return a.v==null?'<span class="pn">—</span>':'<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>';}
+  if(c.ty==="nw"){const a=nwOf(r);if(a.v==null)return '<span class="pn">—</span>';return '<span class="age-b '+a.c+'"><i class="ti ti-circle-filled" style="font-size:8px"></i> '+a.v+'/100</span>'+(r.nwSoll!=null?' <span style="color:var(--faint);font-size:11px" title="Durchschnitt der aktuell bei Google rankenden Top-10-Wettbewerber">Ø '+r.nwSoll+'</span>':'');}
   if(c.ty==="name"){const h=r._hue||"#64748b";const ini=String(x).replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase();const lg=r._logo?`<span class="logo" style="background:#fff;border:1px solid var(--line);overflow:hidden;padding:2px"><img src="${r._logo}" alt="" style="width:100%;height:100%;object-fit:contain"></span>`:`<span class="logo" style="background:${h}">${ini}</span>`;return `<div class="nm">${lg}${x}</div>`;}
   if(c.ty==="badge")return `<span class="b-cat">${x}</span>`;
   if(c.ty==="date")return fmtD(x);
