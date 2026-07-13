@@ -2286,17 +2286,23 @@ function pwsStepperHtml(P){
 }
 async function pwsValidieren(sid){
   if(!sid){toast('Keine Software-ID');return;}
-  aov('Fakten validieren · 2. Runde','Adversarialer Live-Website-Abgleich (Startseite + Unterseiten)','<div id="pvOut" style="padding:18px;color:var(--muted);font-size:13px"><i class="ti ti-loader-2 spin"></i> Live-Website wird geprüft (ein paar Seiten werden geladen und jede Aussage gegengeprüft) … ~1 Min.</div>','<span class="tb" onclick="closeAov()">Schließen</span>');
+  aov('Fakten validieren · 2. Runde','Live-Website-Abgleich + automatische Auflösung','<div id="pvOut" style="padding:18px;color:var(--muted);font-size:13px"><i class="ti ti-loader-2 spin"></i> Schritt 1/2: Live-Website (Startseite + Unterseiten) wird geprüft … ~1 Min.</div>','<span class="tb" onclick="closeAov()">Schließen</span>');
   try{
     const r=await sb.functions.invoke('ssot-validieren',{body:{software_id:sid}});
     if(r&&r.error)throw new Error(r.error.message||'Fehler');
     const d=r.data||{}; if(d.error)throw new Error(d.error+(d.detail?(' · '+d.detail):''));
-    const fn=d.freigaben_neu||0;
+    var auto=null;
+    if((d.freigaben_neu||0)>0){
+      var o1=$("#pvOut"); if(o1)o1.innerHTML='<div style="font-size:13px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> Schritt 2/2: '+(d.freigaben_neu||0)+' offene Fälle werden per Websuche automatisch gegengeprüft …</div>';
+      try{const ra=await sb.functions.invoke('freigaben-aufloesen',{body:{software_id:sid}});auto=(ra&&ra.data)||null;if(auto&&auto.error)auto=null;}catch(_){auto=null;}
+    }
+    const rest=auto?(auto.offen_geblieben||0):(d.freigaben_neu||0);
     const out=$("#pvOut");
     if(out)out.innerHTML='<div style="color:var(--ink);font-size:13.5px;line-height:1.7">'
       +'<div style="font-size:15px;font-weight:800;margin-bottom:8px"><i class="ti ti-shield-check" style="color:#16a34a"></i> Validierung abgeschlossen · '+(d.seiten_geladen||0)+' Seiten geprüft</div>'
-      +'<div><b style="color:#16a34a">'+(d.bestaetigt||0)+'</b> bestätigt &nbsp;·&nbsp; <b style="color:#dc2626">'+(d.widerlegt||0)+'</b> widerlegt &nbsp;·&nbsp; <b style="color:#b45309">'+(d.unbelegbar||0)+'</b> nicht auffindbar</div>'
-      +(fn>0?('<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #b45309;border-radius:8px;font-size:12.5px"><b>'+fn+' Prüf-Fälle</b> ins Freigabe-Center gelegt — sie blocken die Veröffentlichung, bis du sie entschieden hast. <button class="tb" style="margin-left:6px" onclick="gotoFreigaben()"><i class="ti ti-checkbox"></i> Freigaben öffnen</button></div>'):'<div style="margin-top:12px;color:#16a34a"><i class="ti ti-check"></i> Keine offenen Prüf-Fälle — alle Aussagen bestätigt.</div>')
+      +'<div><b style="color:#16a34a">'+(d.bestaetigt||0)+'</b> gegen Live-Website bestätigt &nbsp;·&nbsp; <b style="color:#dc2626">'+(d.widerlegt||0)+'</b> widerlegt &nbsp;·&nbsp; <b style="color:#b45309">'+(d.unbelegbar||0)+'</b> zunächst nicht auffindbar</div>'
+      +(auto?('<div style="margin-top:6px"><i class="ti ti-wand"></i> Auto-Auflösung (Websuche): <b style="color:#16a34a">'+(auto.auto_bestaetigt||0)+'</b> unabhängig belegt &amp; geschlossen.</div>'):'')
+      +(rest>0?('<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #b45309;border-radius:8px;font-size:12.5px"><b>'+rest+' Fall/Fälle</b> bleiben für dich (nicht unabhängig belegbar) — sie blocken die Veröffentlichung. <button class="tb" style="margin-left:6px" onclick="gotoFreigaben()"><i class="ti ti-checkbox"></i> Freigaben öffnen</button></div>'):'<div style="margin-top:12px;color:#16a34a"><i class="ti ti-check"></i> Alles geklärt — keine offenen Fälle.</div>')
       +'</div>';
     try{await ladeSW();}catch(_){}
     try{if(typeof PWS!=='undefined'&&PWS&&String(PWS.id)===String(sid)){const fr=await sb.from('freigaben').select('id,status').eq('software_id',sid);PWS.freigaben=fr.data||[];pwsRender();}}catch(_){}
