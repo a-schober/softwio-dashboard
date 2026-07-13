@@ -2108,22 +2108,41 @@ async function artikelBauen(sid){
     else toast('Job konnte nicht angelegt werden: '+m);
   }
 }
+var _jobPollTok=0;
 async function ladeJobStatus(sid,liveOK){
-  var box=document.getElementById('pwsJobStatus'); if(!box||!sid)return;
-  try{
-    var r=await sb.from('content_jobs').select('status,phase,log,geaendert_am').eq('software_id',sid).eq('markt_id','de').order('erstellt_am',{ascending:false}).limit(1);
-    var d=(r&&r.data)||[];
-    if(!d.length){ box.innerHTML=''; return; }
-    var j=d[0];
-    // Artikel ist bereits live → ein fertiger Auto-Entwurf ist KEIN Handlungsbedarf mehr
-    // (sonst widerspricht das „prüfen & freigeben"-Banner der Aufgabenliste „live ✓").
-    if(liveOK && j.status==='wartet_freigabe'){
-      box.innerHTML='<div class="pws-hint ok"><i class="ti ti-check"></i> Auto-Entwurf eingespielt — die Seite ist bereits live.</div>'; return;
-    }
-    var M={offen:['In Bau-Warteschlange','a'],in_arbeit:['Auto-Build läuft …','a'],wartet_freigabe:['Auto-Entwurf fertig — bitte prüfen & freigeben','g'],fehler:['Auto-Build-Fehler: '+((j.log||'').slice(0,120)),'r'],abgebrochen:['Auto-Build abgebrochen','n']};
-    var e=M[j.status]; if(!e){ box.innerHTML=''; return; }
-    box.innerHTML='<div class="pws-hint'+(e[1]==='g'?' ok':'')+'"><i class="ti ti-robot"></i> '+esc(e[0])+'</div>';
-  }catch(e){}
+  if(!sid)return;
+  var myTok=++_jobPollTok;  // jeder neue Aufruf/Render löst den vorherigen Poller ab
+  async function tick(){
+    if(myTok!==_jobPollTok)return;                 // von neuerem Poller abgelöst
+    var box=document.getElementById('pwsJobStatus'); if(!box)return; // View gewechselt
+    try{
+      var r=await sb.from('content_jobs').select('status,phase,log,geaendert_am').eq('software_id',sid).eq('markt_id','de').order('erstellt_am',{ascending:false}).limit(1);
+      var d=(r&&r.data)||[];
+      if(!d.length){ box.innerHTML=''; return; }
+      var j=d[0];
+      var log=(j.log||'').slice(0,160);
+      var phase=j.phase?String(j.phase):'';
+      // Bereits live → fertiger Auto-Entwurf ist kein Handlungsbedarf mehr
+      if(liveOK && j.status==='wartet_freigabe'){
+        box.innerHTML='<div class="pws-hint ok"><i class="ti ti-check"></i> Auto-Entwurf eingespielt — die Seite ist bereits live.</div>'; return;
+      }
+      var retryBtn=' <button class="pws-act" style="margin-left:6px" onclick="artikelBauen(\''+sid+'\')"><i class="ti ti-refresh"></i> Erneut bauen</button>';
+      if(j.status==='offen'){
+        box.innerHTML='<div class="pws-hint"><i class="ti ti-clock"></i> In der Bau-Warteschlange … der Runner startet gleich (max. 2 Min).</div>';
+      }else if(j.status==='in_arbeit'){
+        box.innerHTML='<div class="pws-hint"><i class="ti ti-loader-2 spin"></i> Auto-Build läuft'+(phase?(' · '+esc(phase)):'')+' … <span style="color:var(--muted)">'+esc(log)+'</span></div>';
+      }else if(j.status==='wartet_freigabe'){
+        box.innerHTML='<div class="pws-hint ok"><i class="ti ti-check"></i> Auto-Entwurf fertig — bitte prüfen &amp; freigeben. <button class="pws-act" style="margin-left:6px" onclick="pwsTab(\'content\')"><i class="ti ti-file-text"></i> Inhalt öffnen</button></div>'; return;
+      }else if(j.status==='fehler'){
+        box.innerHTML='<div class="pws-hint" style="color:#b91c1c;border-color:#fecaca"><i class="ti ti-alert-triangle"></i> Auto-Build fehlgeschlagen: '+esc(log||'unbekannt')+retryBtn+'</div>'; return;
+      }else if(j.status==='abgebrochen'){
+        box.innerHTML='<div class="pws-hint" style="color:#b45309"><i class="ti ti-player-stop"></i> Auto-Build abgebrochen: '+esc(log)+retryBtn+'</div>'; return;
+      }else{ box.innerHTML=''; return; }
+      // aktiver Job (offen/in_arbeit) → in ~12 s erneut prüfen, damit Fortschritt & Fehler sichtbar werden
+      if(myTok===_jobPollTok) setTimeout(tick,12000);
+    }catch(e){ if(myTok===_jobPollTok) setTimeout(tick,15000); }
+  }
+  tick();
 }
 function pwsBody(P,st){
   const f=P.full||{};const k=st.key;
