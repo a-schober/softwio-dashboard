@@ -2281,7 +2281,7 @@ function pwsStepperHtml(P){
    {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check']},
    {k:'belegen',n:4,t:'Belegen',pflicht:1,info:'Bewertungen, Quellen und Logo ergänzen. Ziel: jede Aussage ist durch eine echte Quelle belegt (Anti-Halluzination).',sum:belSum,act:["pwsEditor('bewertungen')",'Bewertungen & Belege','ti-star']},
    {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0||videoA>0)?(bilderN+' Bilder · '+videoN+' Videos'+(videoA>0?(' · '+videoA+' ausgewertet'):'')):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder verwalten','ti-photo'],act2:["pwsEditor('videos')",'Videos verwalten','ti-brand-youtube']},
-   {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Drei Absicherungen mit einem Klick: (1) jede Aussage adversarial gegen die Live-Website prüfen (2. Runde, findet Widersprüche/erfundene Features), (2) offene Fälle automatisch per Websuche belegen, (3) die Tarif-Tabelle Zelle für Zelle gegen die Anbieter-Crawl-Quelle abgleichen (fängt fehlende/falsche Preise & Limits). Alles Verbliebene landet in den Freigaben. Veröffentlichen ist gesperrt, solange hier etwas offen ist.',sum:prSum,act:["pwsValidieren('"+P.id+"')",'Jetzt absichern (2. Runde)','ti-shield-check'],act2:["route('freigaben')",'Freigaben öffnen','ti-checkbox']},
+   {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Volle Qualitätsprüfung mit einem Klick — sechs automatische Gates gegen die echte Quelle: (1) Crawl-Vollständigkeit, (2) Grounding (jedes Beleg-Zitat steht in der Crawl-Quelle), (3) Hygiene (Dubletten/Widersprüche), (4) Tarif-Abgleich gegen die Herstellerseite, (5) Content-Fidelity (jede Zahl/Aussage im Artikel ist belegt), (6) adversariale Live-Website-Validierung + Auto-Auflösung. Jeder Befund landet in den Freigaben und sperrt die Veröffentlichung, bis er geklärt ist.',sum:prSum,act:["pwsValidieren('"+P.id+"')",'Volle Qualitätsprüfung','ti-shield-check'],act2:["route('freigaben')",'Freigaben öffnen','ti-checkbox']},
    {k:'schluss',n:7,t:'Schlusscheck',pflicht:0,auto:1,info:'Nur Status: zeigt, ob alle Pflichtschritte erledigt sind. 100 % = bereit zur Veröffentlichung.',sum:done.schluss?'Alle Pflichtschritte erledigt – bereit zum Veröffentlichen':'Noch nicht alle Pflichtschritte erledigt',act:null},
    {k:'veroeffentlichen',n:8,t:'Veröffentlichen',pflicht:1,info:'Artikel automatisch bauen (0 Credits), prüfen und live schalten. Danach baut das Portal automatisch – nur live-Artikel erscheinen im Portal.',sum:vSum,act:vAct},
    {k:'pflege',n:9,t:'Aktuell halten',pflicht:0,dauer:1,info:'Die Aktualität wird laufend gesichert. Bei 180 Tagen ohne Update wird automatisch neu gecrawlt und verglichen; bei Preisänderungen bekommst du einen Entwurf zur Prüfung.',sum:pflegeSum,act:pflegeAct}
@@ -2305,32 +2305,43 @@ function pwsStepperHtml(P){
 }
 async function pwsValidieren(sid){
   if(!sid){toast('Keine Software-ID');return;}
-  aov('Absicherung · 2. Runde','Validierung + Auto-Auflösung + Tarif-Abgleich','<div id="pvOut" style="padding:18px;color:var(--muted);font-size:13px"><i class="ti ti-loader-2 spin"></i> Schritt 1/3: Live-Website (Startseite + Unterseiten) wird geprüft … ~1 Min.</div>','<span class="tb" onclick="closeAov()">Schließen</span>');
+  var GATES=[
+    {fn:'crawl-pruefen',label:'Crawl-Vollständigkeit',n:function(d){return (d.kritisch||0);}},
+    {fn:'grounding-pruefen',label:'Grounding · jedes Zitat in der Quelle',n:function(d){return (d.kritisch||0);},extra:function(d){return (d.hinweise||0)>0?(' ('+d.hinweise+' Hinweise)'):'';}},
+    {fn:'hygiene-pruefen',label:'Hygiene · Dubletten & Widersprüche',n:function(d){return (d.dubletten||0)+(d.widersprueche||0);}},
+    {fn:'tarif-abgleich',label:'Tarif-Abgleich · Herstellerseite',n:function(d){return (d.abweichungen_gesamt||0);}},
+    {fn:'content-fidelity',label:'Content-Fidelity · Artikel ↔ SSoT',n:function(d){return (d.kritisch||0);}},
+    {fn:'ssot-validieren',label:'Live-Website-Validierung (2. Runde)',n:function(d){return (d.freigaben_neu||0);}}
+  ];
+  var rows=GATES.map(function(g,i){return '<div id="qg'+i+'" style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;border-bottom:1px solid var(--line)"><i class="ti ti-loader-2 spin" style="color:var(--muted)"></i> '+esc(g.label)+' <span style="color:var(--muted)">…</span></div>';}).join('');
+  aov('Volle Qualitätsprüfung','Alle Gates gegen Crawl-Quelle & Herstellerseite (~3–5 Min)','<div id="pvOut" style="padding:14px 16px">'+rows+'<div id="qgSum" style="margin-top:12px;font-size:12.5px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> läuft …</div></div>','<span class="tb" onclick="closeAov()">Schließen</span>');
+  for(var i=0;i<GATES.length;i++){
+    var g=GATES[i];
+    try{
+      var r=await sb.functions.invoke(g.fn,{body:{software_id:sid}});
+      var d=(r&&r.data)||{};
+      var cnt=g.n(d);
+      var ex=g.extra?g.extra(d):'';
+      var el=document.getElementById('qg'+i);
+      if(el)el.innerHTML=(cnt>0
+        ?'<i class="ti ti-alert-triangle" style="color:#dc2626"></i> '+esc(g.label)+' — <b style="color:#dc2626">'+cnt+' offen</b>'
+        :'<i class="ti ti-circle-check" style="color:#16a34a"></i> '+esc(g.label)+' — <span style="color:#16a34a">sauber</span>'+esc(ex));
+    }catch(e){var el2=document.getElementById('qg'+i);if(el2)el2.innerHTML='<i class="ti ti-alert-circle" style="color:#b45309"></i> '+esc(g.label)+' — übersprungen';}
+  }
+  // Auto-Auflösung offener Validierungs-Fälle per Websuche
+  try{await sb.functions.invoke('freigaben-aufloesen',{body:{software_id:sid}});}catch(_){}
+  // Gesamt-Ampel aus allen offenen Freigaben
   try{
-    const r=await sb.functions.invoke('ssot-validieren',{body:{software_id:sid}});
-    if(r&&r.error)throw new Error(r.error.message||'Fehler');
-    const d=r.data||{}; if(d.error)throw new Error(d.error+(d.detail?(' · '+d.detail):''));
-    var auto=null;
-    if((d.freigaben_neu||0)>0){
-      var o1=$("#pvOut"); if(o1)o1.innerHTML='<div style="font-size:13px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> Schritt 2/3: '+(d.freigaben_neu||0)+' offene Fälle werden per Websuche automatisch gegengeprüft …</div>';
-      try{const ra=await sb.functions.invoke('freigaben-aufloesen',{body:{software_id:sid}});auto=(ra&&ra.data)||null;if(auto&&auto.error)auto=null;}catch(_){auto=null;}
-    }
-    var tab=null;
-    var o2=$("#pvOut"); if(o2)o2.innerHTML='<div style="font-size:13px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> Schritt 3/3: Tarif-Tabelle wird gegen die Anbieter-Crawl-Quelle abgeglichen …</div>';
-    try{const rt=await sb.functions.invoke('tarif-abgleich',{body:{software_id:sid}});tab=(rt&&rt.data)||null;if(tab&&tab.error)tab=null;}catch(_){tab=null;}
-    const rest=(auto?(auto.offen_geblieben||0):(d.freigaben_neu||0))+(tab?(tab.freigaben_neu||0):0);
-    const out=$("#pvOut");
-    if(out)out.innerHTML='<div style="color:var(--ink);font-size:13.5px;line-height:1.7">'
-      +'<div style="font-size:15px;font-weight:800;margin-bottom:8px"><i class="ti ti-shield-check" style="color:#16a34a"></i> Absicherung abgeschlossen · '+(d.seiten_geladen||0)+' Seiten geprüft</div>'
-      +'<div><b style="color:#16a34a">'+(d.bestaetigt||0)+'</b> gegen Live-Website bestätigt &nbsp;·&nbsp; <b style="color:#dc2626">'+(d.widerlegt||0)+'</b> widerlegt &nbsp;·&nbsp; <b style="color:#b45309">'+(d.unbelegbar||0)+'</b> zunächst nicht auffindbar</div>'
-      +(auto?('<div style="margin-top:6px"><i class="ti ti-wand"></i> Auto-Auflösung (Websuche): <b style="color:#16a34a">'+(auto.auto_bestaetigt||0)+'</b> unabhängig belegt &amp; geschlossen.</div>'):'')
-      +(tab?('<div style="margin-top:6px"><i class="ti ti-table"></i> Tarif-Abgleich (Herstellerseite): '+((tab.abweichungen_gesamt||0)===0?'<b style="color:#16a34a">deckt sich mit der Quelle ✓</b>':('<b style="color:#dc2626">'+(tab.abweichungen_gesamt||0)+' Abweichung(en)</b>'+((tab.kritisch||0)>0?(', davon '+tab.kritisch+' kritisch'):'')))+'.</div>'):'')
-      +(rest>0?('<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #b45309;border-radius:8px;font-size:12.5px"><b>'+rest+' Fall/Fälle</b> bleiben für dich (Fakten oder Tarif-Abweichungen) — sie blocken die Veröffentlichung. <button class="tb" style="margin-left:6px" onclick="gotoFreigaben()"><i class="ti ti-checkbox"></i> Freigaben öffnen</button></div>'):'<div style="margin-top:12px;color:#16a34a"><i class="ti ti-check"></i> Alles geklärt — keine offenen Fälle.</div>')
-      +'</div>';
-    try{await ladeSW();}catch(_){}
-    try{if(typeof PWS!=='undefined'&&PWS&&String(PWS.id)===String(sid)){const fr=await sb.from('freigaben').select('id,status').eq('software_id',sid);PWS.freigaben=fr.data||[];pwsRender();}}catch(_){}
-    toast('Abgesichert ✓');
-  }catch(e){const out=$("#pvOut");if(out)out.innerHTML='<div style="color:#e11d48;font-size:13px">Validierung fehlgeschlagen: '+esc(e&&e.message?e.message:String(e))+'</div>';}
+    var fr=await sb.from('freigaben').select('id').eq('software_id',sid).eq('status','offen');
+    var offen=((fr&&fr.data)||[]).length;
+    var sum=document.getElementById('qgSum');
+    if(sum)sum.innerHTML=offen>0
+      ?'<div style="padding:11px 13px;border:1px solid var(--line);border-left:4px solid #dc2626;border-radius:9px;color:var(--ink)"><b style="color:#dc2626">🔴 '+offen+' offene Fälle</b> — Veröffentlichen ist gesperrt, bis sie geklärt sind. <button class="tb" style="margin-left:6px" onclick="gotoFreigaben()"><i class="ti ti-checkbox"></i> Freigaben öffnen</button></div>'
+      :'<div style="padding:11px 13px;border:1px solid var(--line);border-left:4px solid #16a34a;border-radius:9px;color:var(--ink)"><b style="color:#16a34a">🟢 Alle Gates grün</b> — keine offenen Fälle, Veröffentlichung freigegeben.</div>';
+  }catch(_){}
+  try{await ladeSW();}catch(_){}
+  try{if(typeof PWS!=='undefined'&&PWS&&String(PWS.id)===String(sid)){const fr2=await sb.from('freigaben').select('id,status').eq('software_id',sid);PWS.freigaben=fr2.data||[];pwsRender();}}catch(_){}
+  toast('Qualitätsprüfung fertig');
 }
 function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
