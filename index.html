@@ -2312,7 +2312,7 @@ async function pwsValidieren(sid){
     {fn:'tarif-abgleich',label:'Tarif-Abgleich · Herstellerseite',n:function(d){return (d.abweichungen_gesamt||0);}},
     {fn:'content-fidelity',label:'Content-Fidelity · Artikel ↔ SSoT',n:function(d){return (d.kritisch||0);}},
     {fn:'ssot-validieren',label:'Live-Website-Validierung (2. Runde)',n:function(d){return (d.freigaben_neu||0);}},
-    {fn:'frontend-pruefen',label:'Frontend-Wächter · Anzeige & Konsistenz (Kaufinteressenten-Blick)',n:function(d){return (d.kritisch||0);},body:{mit_llm:true}}
+    {fn:'frontend-pruefen',label:'Frontend-Wächter · Anzeige & Konsistenz (Kaufinteressenten-Blick)',n:function(d){return (d.kritisch||0);},body:{mit_llm:true},extra:function(d){return (d.review_llm||0)>0?(' · '+d.review_llm+' Review-Hinweise (nicht blockierend)'):'';}}
   ];
   var rows=GATES.map(function(g,i){return '<div id="qg'+i+'" style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;border-bottom:1px solid var(--line)"><i class="ti ti-loader-2 spin" style="color:var(--muted)"></i> '+esc(g.label)+' <span style="color:var(--muted)">…</span></div>';}).join('');
   aov('Volle Qualitätsprüfung','Alle Gates gegen Crawl-Quelle & Herstellerseite (~3–5 Min)','<div id="pvOut" style="padding:14px 16px">'+rows+'<div id="qgSum" style="margin-top:12px;font-size:12.5px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> läuft …</div></div>','<span class="tb" onclick="closeAov()">Schließen</span>');
@@ -2325,8 +2325,9 @@ async function pwsValidieren(sid){
       var ex=g.extra?g.extra(d):'';
       var el=document.getElementById('qg'+i);
       if(el)el.innerHTML=(cnt>0
-        ?'<i class="ti ti-alert-triangle" style="color:#dc2626"></i> '+esc(g.label)+' — <b style="color:#dc2626">'+cnt+' offen</b>'
+        ?'<i class="ti ti-alert-triangle" style="color:#dc2626"></i> '+esc(g.label)+' — <b style="color:#dc2626">'+cnt+' offen</b>'+esc(ex)
         :'<i class="ti ti-circle-check" style="color:#16a34a"></i> '+esc(g.label)+' — <span style="color:#16a34a">sauber</span>'+esc(ex));
+      if(el&&Array.isArray(d.befunde)){var rv=d.befunde.filter(function(b){return b.schwere==='hinweis'&&/^leser:/.test(b.klasse||'');});if(rv.length){el.style.flexWrap='wrap';el.innerHTML+='<details class="qg-rev" style="flex-basis:100%;margin-top:5px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)"><i class="ti ti-eye"></i> '+rv.length+' Review-Hinweise ansehen (blocken nicht)</summary><ul style="margin:7px 0 2px;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.55">'+rv.map(function(b){return '<li>'+esc(b.text)+'</li>';}).join('')+'</ul></details>';}}
     }catch(e){var el2=document.getElementById('qg'+i);if(el2)el2.innerHTML='<i class="ti ti-alert-circle" style="color:#b45309"></i> '+esc(g.label)+' — übersprungen';}
   }
   // Auto-Auflösung offener Validierungs-Fälle per Websuche
