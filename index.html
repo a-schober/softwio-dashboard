@@ -632,7 +632,7 @@ function milestones(me,sg){
   var sammeln=funkTotal>0||preise>0;
   var ordnen=funkOffen===0&&funkTotal>0&&preise>0;
   var belegen=(sg.quellen||0)>0&&!!sg.synthese&&!!me.logo;
-  var medien=(sg.bilder||0)>0||(sg.videos||0)>0;
+  var medien=(sg.bilder||0)>0||(sg.videos||0)>0||(sg.videosAusg||0)>0;
   var pruefen=(sg.freiOffen||0)===0;
   var schluss=anlegen&&sammeln&&ordnen&&belegen&&pruefen;
   var veroeff=!!sg.artikel;
@@ -641,7 +641,7 @@ function milestones(me,sg){
     {k:'sammeln',t:'Fakten erfasst',done:sammeln,manuell:false,d:funkTotal+' Funktionen · '+preise+' Tarife'},
     {k:'ordnen',t:'Funktionen zugeordnet',done:ordnen,manuell:false,d:funkOffen>0?(funkOffen+' noch offen'):(funkTotal>0?'alle zugeordnet':'keine Funktionen')},
     {k:'belegen',t:'Bewertungen & Belege',done:belegen,manuell:true,d:'Quellen '+((sg.quellen||0)>0?'✓':'–')+' · Bewertungs-Synthese '+(sg.synthese?'✓':'–')+' · Logo '+(me.logo?'✓':'–')},
-    {k:'medien',t:'Medien',done:medien,manuell:true,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos'+(medien?'':' → hinzufügen')},
+    {k:'medien',t:'Medien',done:medien,manuell:true,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos eingebettet'+((sg.videosAusg||0)>0?(' · '+(sg.videosAusg||0)+' ausgewertet'):'')+(medien?'':' → hinzufügen')},
     {k:'pruefen',t:'Freigaben geprüft',done:pruefen,manuell:true,d:(sg.freiOffen||0)>0?((sg.freiOffen||0)+' offen'):'keine offenen'},
     {k:'schluss',t:'Schlusscheck',done:schluss,manuell:false,d:'automatisch grün, wenn alle Pflichtstufen stehen'},
     {k:'veroeff',t:'Artikel veröffentlicht',done:veroeff,manuell:true,d:veroeff?'live':'bauen & freigeben'}
@@ -809,13 +809,13 @@ async function ladeSW(){
   const sig={};
   const swMeta={};
   const belegMap={};
-  const _g=function(id){return sig[id]||(sig[id]={funkTotal:0,funkOffen:0,preise:0,quellen:0,synthese:false,freiOffen:0,artikel:false,bilder:0,videos:0});};
+  const _g=function(id){return sig[id]||(sig[id]={funkTotal:0,funkOffen:0,preise:0,quellen:0,synthese:false,freiOffen:0,artikel:false,bilder:0,videos:0,videosAusg:0});};
   try{
     const qs=await Promise.all([
       sb.from('software').select('id,name,hersteller,hersteller_url,kategorie,logo_pfad,appsumo_deal'),
       sb.from('funktionen').select('software_id,canonical_name'),
       sb.from('preise').select('software_id'),
-      sb.from('quellen').select('software_id'),
+      sb.from('quellen').select('software_id,quellentyp'),
       sb.from('bewertungs_synthesen').select('software_id'),
       sb.from('freigaben').select('software_id,status'),
       sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am,nw_soll_punktzahl'),
@@ -828,7 +828,7 @@ async function ladeSW(){
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
     (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
     (qs[2].data||[]).forEach(function(x){_g(x.software_id).preise++;});
-    (qs[3].data||[]).forEach(function(x){_g(x.software_id).quellen++;});
+    (qs[3].data||[]).forEach(function(x){var g=_g(x.software_id);g.quellen++;if(x.quellentyp==='youtube')g.videosAusg++;});
     (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
     (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
     (qs[6].data||[]).forEach(function(x){if(x.nw_soll_punktzahl!=null)sollMap[x.software_id]=x.nw_soll_punktzahl;if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
