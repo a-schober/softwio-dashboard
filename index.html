@@ -468,6 +468,7 @@
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
       <div class="nav" data-v="preisreview"><i class="ti ti-currency-euro"></i> Preis-Review <span class="bdg" id="prBadge" style="display:none"></span></div>
+      <div class="nav" data-v="kosten"><i class="ti ti-coin-euro"></i> Kosten</div>
       <div class="grp">System</div>
       <div class="nav" data-v="einstellungen"><i class="ti ti-settings"></i> Einstellungen</div>
     </aside>
@@ -1125,7 +1126,42 @@ function route(key){CUR=key;try{if(location.hash.slice(1)!==key)history.replaceS
   if(key==="logos"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-photo"></i> <b>Logos</b> <span class="sp">›</span> Software- &amp; Integrations-Logos (self-hosted)';logosView();return;}
   if(key==="automationen"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-robot"></i> <b>Lokale Automatisierungen</b> <span class="sp">›</span> manuell über Claude Max ausführbar';automationenView();return;}
   if(key==="preisreview"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-currency-euro"></i> <b>Preis-Review</b> <span class="sp">›</span> Nutzer-Preismodell für den Szenario-Vergleich bestätigen';preisreviewView();return;}
+  if(key==="kosten"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-coin-euro"></i> <b>Kosten</b> <span class="sp">›</span> API-Kosten &amp; Firecrawl-Credits je Produkt';kostenView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
+
+// ---- Kosten-Ansicht (API + Firecrawl je Produkt) ----
+async function kostenView(){
+  const cv=$("#customview");if(!cv)return;
+  cv.innerHTML='<div style="max-width:980px;margin:0 auto;padding:14px 6px 48px"><div style="color:var(--muted);font-size:13px"><i class="ti ti-loader-2 spin"></i> Kosten werden geladen …</div></div>';
+  try{
+    const q=await sb.from('kosten_log').select('software_id,schritt,anbieter,modell,kosten_usd,credits,kosten_typ,erstellt_am').order('erstellt_am',{ascending:false}).limit(5000);
+    const rows=q.data||[];const nm=(typeof swNameMap==='function')?swNameMap():{};const g={};
+    rows.forEach(function(r){var id=r.software_id||'-';var e=g[id]||(g[id]={id:id,name:nm[id]||'(unbekannt)',usd:0,cr:0,max:0,n:0,last:'',steps:[]});e.n++;if(r.kosten_typ==='max_unspezifiziert')e.max++;else if(r.anbieter==='firecrawl')e.cr+=(+r.credits||0);else e.usd+=(+r.kosten_usd||0);if((r.erstellt_am||'')>e.last)e.last=r.erstellt_am||'';e.steps.push(r);});
+    const list=Object.keys(g).map(function(k){return g[k];}).sort(function(a,b){return b.usd-a.usd;});
+    const totUsd=list.reduce(function(s,x){return s+x.usd;},0),totCr=list.reduce(function(s,x){return s+x.cr;},0);
+    var tile=function(l,v,ic){return '<div style="flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel)"><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti '+ic+'"></i> '+l+'</div><div style="font-size:22px;font-weight:700;margin-top:4px">'+v+'</div></div>';};
+    var rowsHtml=list.map(function(e){
+      var stepHtml=e.steps.map(function(r){
+        var wert=r.kosten_typ==='max_unspezifiziert'?'<span style="color:var(--accent-ink)" title="Über Claude-Max abgedeckt">Max</span>':(r.anbieter==='firecrawl'?((+r.credits||0)+' Cr.'):'$'+(+r.kosten_usd||0).toFixed(4));
+        return '<div style="display:flex;gap:8px;padding:4px 2px;border-top:1px solid var(--line);font-size:11.5px"><span style="width:112px;flex:none;color:var(--faint)">'+esc(String(r.erstellt_am||'').slice(0,16).replace("T"," "))+'</span><span style="flex:1;min-width:0">'+esc(r.schritt||'')+(r.modell?(' <span style="color:var(--muted)">'+esc(r.modell)+'</span>'):'')+'</span><span style="flex:none;font-weight:600">'+wert+'</span></div>';
+      }).join('');
+      return '<details style="border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:#fff"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;font-size:13.5px"><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.name)+'</b>'+
+        '<span style="font-weight:700;flex:none">$'+e.usd.toFixed(2)+'</span>'+
+        (e.cr?'<span style="color:var(--muted);font-size:12px;flex:none">'+e.cr+' Cr.</span>':'<span style="color:#b45309;font-size:11px;flex:none" title="Firecrawl-Credits für diesen Crawl nicht erfasst (Logging ab jetzt aktiv)">FC n/a</span>')+
+        (e.max?'<span style="color:var(--accent-ink);font-size:11px;flex:none">'+e.max+'× Max</span>':'')+
+        '<span style="color:var(--faint);font-size:11px;flex:none">'+esc(String(e.last).slice(0,10))+'</span></summary><div style="padding:2px 14px 12px">'+stepHtml+'</div></details>';
+    }).join('');
+    cv.innerHTML='<div style="max-width:980px;margin:0 auto;padding:14px 6px 48px">'+
+      '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">'+
+        tile('Gesamt API (Anthropic)','$'+totUsd.toFixed(2),'ti-coin-euro')+
+        tile('Firecrawl-Credits','+'+totCr,'ti-spider')+
+        tile('Produkte mit Kosten',String(list.length),'ti-apps')+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Klick auf ein Produkt zeigt die Kosten je Schritt. Firecrawl-Credits erscheinen ab dem nächsten Crawl (Logging ist jetzt aktiv).</div>'+
+      (list.length?rowsHtml:'<div style="color:var(--muted);font-size:13px;padding:20px 4px">Noch keine Kosten erfasst.</div>')+
+    '</div>';
+  }catch(e){cv.innerHTML='<div style="max-width:980px;margin:0 auto;padding:20px 6px;color:#b91c1c;font-size:13px">Kosten konnten nicht geladen werden: '+esc((e&&e.message)||String(e))+'</div>';}
+}
 
 // ---- YouTube-Tool ----
 const YT_CLIENT_ID="975430281587-ajpnm6k3elmh6b6ipo1620iq0bt7es5j.apps.googleusercontent.com";
