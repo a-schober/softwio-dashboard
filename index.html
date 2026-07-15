@@ -1298,17 +1298,16 @@ function ytAll(){var alle=ytListe.filter(ytSelectable);if(!alle.length){toast("K
 function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}
   const ab=$("#ytAllBtn");if(ab){const sel=ytListe.filter(ytSelectable);ab.hidden=sel.length===0;const allDone=sel.length>0&&sel.every(function(v){return ytSel.has(v.id);});const t=$("#ytAllTxt");if(t)t.textContent=(allDone?"Auswahl aufheben (":"Alle auswählen (")+sel.length+")";}}
 // Robustes Kopieren: execCommand (im Klick zuverlässig) -> moderne API -> manuelles Textfeld.
-function cbCopy(text,okMsg){okMsg=okMsg||'Kopiert';var ok=false;
-  try{var ta=document.createElement('textarea');ta.value=text;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';document.body.appendChild(ta);ta.focus();ta.select();try{ta.setSelectionRange(0,text.length);}catch(e){}try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);}catch(e){}
-  if(ok){toast(okMsg);return;}
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast(okMsg);}).catch(function(){cbManual(text);});return;}
+function cbCopy(text,okMsg){okMsg=okMsg||'Kopiert';
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast(okMsg);},function(){cbManual(text);});return;}
   cbManual(text);}
-function cbManual(text){
-  aov('Manuell kopieren','',(''
-    +'<div style="padding:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Dein Browser hat automatisches Kopieren blockiert. Tippe/klicke ins Feld (markiert alles), dann kopieren (Strg+C bzw. lange drücken → „Kopieren"):</div>'
-    +'<textarea id="cbManualTa" readonly style="width:100%;height:190px;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)" onclick="this.select();try{this.setSelectionRange(0,this.value.length)}catch(e){}">'+esc(text)+'</textarea></div>'),
-    '<span class="tb primary" onclick="closeAov()">Fertig</span>');
-  setTimeout(function(){var t=document.getElementById('cbManualTa');if(t){t.focus();t.select();}},60);}
+function cbManual(text){window._cbText=text;
+  aov('In Claude einfügen','',(''
+    +'<div style="padding:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Unten <b>„Alles kopieren"</b> antippen. Falls dein Browser das blockiert: ins Feld tippen (markiert alles), dann manuell kopieren (Strg+C bzw. lange drücken → „Kopieren"). Danach in <b>Claude</b> einfügen.</div>'
+    +'<textarea id="cbManualTa" readonly style="width:100%;height:200px;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)" onclick="this.select();try{this.setSelectionRange(0,this.value.length)}catch(e){}">'+esc(text)+'</textarea></div>'),
+    '<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb primary" onclick="cbTryCopy()"><i class="ti ti-copy"></i> Alles kopieren</span>');
+  setTimeout(function(){var t=document.getElementById('cbManualTa');if(t){t.focus();t.select();try{t.setSelectionRange(0,t.value.length);}catch(e){}}},60);}
+function cbTryCopy(){var ta=document.getElementById('cbManualTa');var text=(window._cbText)||(ta&&ta.value)||'';var ok=false;if(ta){ta.focus();ta.select();try{ta.setSelectionRange(0,text.length);}catch(e){}try{ok=document.execCommand('copy');}catch(e){}}if(ok){toast('Kopiert ✓ — jetzt in Claude einfügen');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast('Kopiert ✓ — jetzt in Claude einfügen');},function(){toast('Bitte im Feld oben manuell markieren & kopieren');});return;}toast('Bitte im Feld oben manuell markieren & kopieren');}
 function ytCopy(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert – in Claude Max einfügen");}
 function ytCopyAll(){if(!ytSel.size){toast("Keine Videos ausgewählt");return;}const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");cbCopy(t,ytSel.size+" /watch-Befehle kopiert – in Claude Max einfügen");}
 async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!ytSel.size){toast("Bitte Videos markieren");return;}if(!sid){toast("Keine Software-ID");return;}
@@ -1326,7 +1325,7 @@ async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow
 function ytRankToggle(id,on){if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);var n=$("#ytUebN");if(n)n.textContent=window._ytRankSel.size;var all=$("#ytRankAll");if(all){var cbs=document.querySelectorAll(".ytRankCb");all.checked=cbs.length>0&&[].every.call(cbs,function(c){return c.checked;});}}
 function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(function(c){c.checked=on;var id=c.getAttribute("data-vid");if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);});var n=$("#ytUebN");if(n)n.textContent=(window._ytRankSel?window._ytRankSel.size:0);}
 function ytRankInfo(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert — in Claude Max einfügen (kostenlos)");}
-function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=[].slice.call(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbCopy(t,s.size+" /watch-Befehle kopiert — in Claude Max einfügen");}
+function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=[].slice.call(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbManual(t);}
 async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) an Warteschlange übergeben ✓ — der Runner wertet sie aus");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- Bewertungen-Tool (Kontext = offene Software) ----
 let bwBilder=[];
