@@ -2364,6 +2364,7 @@ async function pwsValidieren(sid){
     {fn:'grounding-pruefen',label:'Grounding · jedes Zitat in der Quelle',n:function(d){return (d.kritisch||0);},extra:function(d){return (d.hinweise||0)>0?(' ('+d.hinweise+' Hinweise)'):'';}},
     {fn:'hygiene-pruefen',label:'Hygiene · Dubletten & Widersprüche',n:function(d){return (d.dubletten||0)+(d.widersprueche||0);}},
     {fn:'tarif-abgleich',label:'Tarif-Abgleich · Herstellerseite',n:function(d){return (d.abweichungen_gesamt||0);}},
+    {fn:'funktions-abgleich',label:'Funktions-Abgleich · Herstellerseite',n:function(d){return (d.kritisch||0);},extra:function(d){return (d.review_hinweise||0)>0?(' · '+d.review_hinweise+' Review-Hinweise (nicht blockierend)'):'';}},
     {fn:'content-fidelity',label:'Content-Fidelity · Artikel ↔ SSoT',n:function(d){return (d.kritisch||0);}},
     {fn:'ssot-validieren',label:'Live-Website-Validierung (2. Runde)',n:function(d){return (d.freigaben_neu||0);}},
     {fn:'frontend-pruefen',label:'Frontend-Wächter · Anzeige & Konsistenz (Kaufinteressenten-Blick)',n:function(d){return (d.kritisch||0);},body:{mit_llm:true},extra:function(d){return (d.review_llm||0)>0?(' · '+d.review_llm+' Review-Hinweise (nicht blockierend)'):'';}}
