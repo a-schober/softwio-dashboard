@@ -1065,7 +1065,7 @@ function automationenView(){const cv=$("#customview");if(!cv)return;
       '</div>';}).join('')+
     '</div>';
 }
-function autoCopy(i){const el=document.getElementById('autocmd'+i);if(!el)return;const t=el.textContent||'';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('Befehl kopiert ✓');},function(){toast('Kopieren nicht möglich');});}else{toast('Kopieren nicht möglich');}}
+function autoCopy(i){const el=document.getElementById('autocmd'+i);if(!el)return;const t=el.textContent||'';cbCopy(t,'Befehl kopiert ✓');}
 async function preisreviewView(){
   const cv=$("#customview");if(!cv)return;
   cv.innerHTML='<div style="padding:48px;color:var(--muted)">Lade Preis-Review …</div>';
@@ -2717,7 +2717,7 @@ async function wbAct(id,mode,val){const x=WBINBOX.find(z=>z.id===id);if(!x)retur
 function wbCanonKey(s){return String(s||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/[^a-z0-9äöüß]/g,'');}
 async function wbRefreshWBOnly(){try{const r=await sb.from('funktions_woerterbuch').select('id,canonical_name,kategorie,synonyme').order('canonical_name');WB_WB=r.data||[];}catch(e){}}
 function wbRecompKand(){WBINBOX.forEach(function(x){x.kand=WB_WB.map(function(c){return {c:c.canonical_name,id:c.id,s:wbScore(x.roh,c)};}).filter(function(k){return k.s>=12;}).sort(function(a,b){return b.s-a.s;}).slice(0,3);});}
-function wbCopyCmd(){const t='Schlage für die offenen Feature-Begriffe in der Zuordnungs-Inbox (Cockpit) die Canonical-Zuordnung vor (bestehende canonical-mapping-Logik): je Begriff passender Canonical zum Zusammenführen ODER ein sauberer, tool-neutraler neuer Canonical, jeweils mit Konfidenz und kurzer Begründung. WICHTIG: Schreibe noch NICHTS in die Datenbank – leg mir zuerst die komplette Vorschlagsliste vor; ich gebe frei, was übernommen wird (alles / nur einzelne / keine). Erst nach meiner Freigabe zusammenführen (Rohname als Synonym ergänzen) bzw. neue Canonicals anlegen.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast('Befehl für Claude Code kopiert ✓');},function(){toast('Kopieren nicht möglich');});}else{toast('Kopieren nicht möglich');}}
+function wbCopyCmd(){const t='Schlage für die offenen Feature-Begriffe in der Zuordnungs-Inbox (Cockpit) die Canonical-Zuordnung vor (bestehende canonical-mapping-Logik): je Begriff passender Canonical zum Zusammenführen ODER ein sauberer, tool-neutraler neuer Canonical, jeweils mit Konfidenz und kurzer Begründung. WICHTIG: Schreibe noch NICHTS in die Datenbank – leg mir zuerst die komplette Vorschlagsliste vor; ich gebe frei, was übernommen wird (alles / nur einzelne / keine). Erst nach meiner Freigabe zusammenführen (Rohname als Synonym ergänzen) bzw. neue Canonicals anlegen.';cbCopy(t,'Befehl für Claude Code kopiert ✓');}
 async function wbKiLoad(){const scope=WBSEL.size?WBINBOX.filter(function(x){return WBSEL.has(x.id);}):wbFiltered();if(!scope.length){toast('Nichts zu laden');return;}
   const btn=$("#wbKiBtn");if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> KI denkt …';}
   try{
