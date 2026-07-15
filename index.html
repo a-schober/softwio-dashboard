@@ -1297,8 +1297,20 @@ function ytSelectable(v){if(!v||v.art!=="video")return false;var aus=ytDone.has(
 function ytAll(){var alle=ytListe.filter(ytSelectable);if(!alle.length){toast("Keine markierbaren Videos");return;}var offen2=alle.filter(function(v){return !ytSel.has(v.id);});if(offen2.length){offen2.forEach(function(v){ytSel.add(v.id);});toast(offen2.length+" Videos ausgewählt");}else{alle.forEach(function(v){ytSel.delete(v.id);});toast("Auswahl aufgehoben");}ytGrid();}
 function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}
   const ab=$("#ytAllBtn");if(ab){const sel=ytListe.filter(ytSelectable);ab.hidden=sel.length===0;const allDone=sel.length>0&&sel.every(function(v){return ytSel.has(v.id);});const t=$("#ytAllTxt");if(t)t.textContent=(allDone?"Auswahl aufheben (":"Alle auswählen (")+sel.length+")";}}
-function ytCopy(id){navigator.clipboard&&navigator.clipboard.writeText("/watch https://www.youtube.com/watch?v="+id);toast("/watch-Link kopiert");}
-function ytCopyAll(){const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");navigator.clipboard&&navigator.clipboard.writeText(t);toast(ytSel.size+" /watch-Links kopiert");}
+// Robustes Kopieren: execCommand (im Klick zuverlässig) -> moderne API -> manuelles Textfeld.
+function cbCopy(text,okMsg){okMsg=okMsg||'Kopiert';var ok=false;
+  try{var ta=document.createElement('textarea');ta.value=text;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';document.body.appendChild(ta);ta.focus();ta.select();try{ta.setSelectionRange(0,text.length);}catch(e){}try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);}catch(e){}
+  if(ok){toast(okMsg);return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast(okMsg);}).catch(function(){cbManual(text);});return;}
+  cbManual(text);}
+function cbManual(text){
+  aov('Manuell kopieren','',(''
+    +'<div style="padding:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Dein Browser hat automatisches Kopieren blockiert. Tippe/klicke ins Feld (markiert alles), dann kopieren (Strg+C bzw. lange drücken → „Kopieren"):</div>'
+    +'<textarea id="cbManualTa" readonly style="width:100%;height:190px;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)" onclick="this.select();try{this.setSelectionRange(0,this.value.length)}catch(e){}">'+esc(text)+'</textarea></div>'),
+    '<span class="tb primary" onclick="closeAov()">Fertig</span>');
+  setTimeout(function(){var t=document.getElementById('cbManualTa');if(t){t.focus();t.select();}},60);}
+function ytCopy(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert – in Claude Max einfügen");}
+function ytCopyAll(){if(!ytSel.size){toast("Keine Videos ausgewählt");return;}const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");cbCopy(t,ytSel.size+" /watch-Befehle kopiert – in Claude Max einfügen");}
 async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!ytSel.size){toast("Bitte Videos markieren");return;}if(!sid){toast("Keine Software-ID");return;}
   try{const{data:swc}=await sb.from("software").select("crawl_metadaten").eq("id",sid).single();if(!swc||!swc.crawl_metadaten){aov("Noch kein Crawl",sw,`<div style="padding:16px;font-size:13px;line-height:1.6">Für <b>${esc(sw)}</b> wurde die Website noch nicht gecrawlt. Ohne gecrawlte SSoT-Fakten darf nicht priorisiert werden (Halluzinationsschutz). Bitte zuerst „Crawl &amp; Anreichern".</div>`,'<span class="tb" onclick="closeAov()">Verstanden</span>');return;}}catch(e){}
   const videos=ytListe.filter(v=>v.art==="video"&&ytSel.has(v.id)).map(v=>({id:v.id,titel:v.t,kanal:v.k,schon_ausgewertet:ytDone.has(v.id)}));
@@ -1313,8 +1325,8 @@ async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow
 }
 function ytRankToggle(id,on){if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);var n=$("#ytUebN");if(n)n.textContent=window._ytRankSel.size;var all=$("#ytRankAll");if(all){var cbs=document.querySelectorAll(".ytRankCb");all.checked=cbs.length>0&&[].every.call(cbs,function(c){return c.checked;});}}
 function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(function(c){c.checked=on;var id=c.getAttribute("data-vid");if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);});var n=$("#ytUebN");if(n)n.textContent=(window._ytRankSel?window._ytRankSel.size:0);}
-function ytRankInfo(id){try{navigator.clipboard&&navigator.clipboard.writeText("/watch https://www.youtube.com/watch?v="+id);}catch(e){}toast("/watch-Befehl kopiert — in Claude Max einfügen: Max liest das Video kostenlos aus (keine API-Kosten)");}
-function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt");return;}var t=[].slice.call(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");try{navigator.clipboard&&navigator.clipboard.writeText(t);}catch(e){}toast(s.size+" /watch-Befehle kopiert — in Claude Max einfügen");}
+function ytRankInfo(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert — in Claude Max einfügen (kostenlos)");}
+function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=[].slice.call(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbCopy(t,s.size+" /watch-Befehle kopiert — in Claude Max einfügen");}
 async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) an Warteschlange übergeben ✓ — der Runner wertet sie aus");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- Bewertungen-Tool (Kontext = offene Software) ----
 let bwBilder=[];
@@ -1585,7 +1597,7 @@ async function funkAiApply(sid){const vor=window._aiVor||[];const chosen=[].slic
     closeAov();WB_WB=[];await funkEnsureWB();await funkReload();renderTab();if(typeof updateWbBadge==='function')updateWbBadge();toast(chosen.length+" zugeordnet ✓");
   }catch(e){alert('Übernehmen fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
-function copyText(t){try{navigator.clipboard.writeText(t);toast('Prompt kopiert – in Claude (Max-Plan) einfügen');}catch(e){toast('Kopieren nicht möglich');}}
+function copyText(t){cbCopy(t,'Prompt kopiert – in Claude (Max-Plan) einfügen');}
 function infoI(fn){return '<span title="Prompt für Claude (Max-Plan) kopieren – spart API-Kosten" onclick="'+fn+';event.stopPropagation()" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid currentColor;border-radius:50%;font-size:11px;cursor:pointer;margin-left:7px;opacity:.65;font-family:Georgia,serif;font-style:italic;flex:none">i</span>';}
 function _sid(){return dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));}
 function funkPrompt(){const n=(dlgRow&&dlgRow.name)||"";copyText('Bitte über den Max-Plan erledigen (NICHT über die API). Ordne die noch offenen Funktionen (canonical_name leer) der Software "'+n+'" (software_id: '+_sid()+', Supabase-Projekt xoyjsjenitjppxpcheza) den passenden Canonical-Begriffen zu. Lies dazu die Tabelle funktionen (für diese software_id) und funktions_woerterbuch. Nutze bestehende Canonicals wo immer möglich; nur wenn wirklich keiner passt, lege einen neuen, prägnanten, tool-neutralen Begriff in funktions_woerterbuch an. Schreibe je Funktion das Feld canonical_name über die Edge Function db-write (collection "funktionen", pk "funktions_id"). Gib mir am Ende eine kurze Übersicht der Zuordnungen.');}
