@@ -2361,7 +2361,7 @@ function pwsStepperHtml(P){
     var isDone=(s.k==='pflege')?false:!!done[s.k];
     var state=isDone?'done':(s.k===cur?'current':((s.k==='pflege'&&!liveOK)?'locked':'open'));
     var ic=state==='done'?'<i class="ti ti-check"></i>':(state==='current'?String(s.n):(s.dauer?'<i class="ti ti-refresh"></i>':(state==='locked'?'<i class="ti ti-lock"></i>':'<i class="ti ti-circle"></i>')));
-    var badge=state==='done'?'<span class="pfrt" style="background:rgba(22,163,74,.14);color:#15803d">fertig</span>':(state==='current'?'<span class="pfrt" style="background:#4f46e5;color:#fff">jetzt dran</span>':(state==='locked'?'<span class="pfrt" style="color:var(--faint)">gesperrt</span>':(s.dauer?'<span class="pfrt" style="color:var(--muted)">läuft dauerhaft</span>':'<span class="pfrt" style="color:var(--faint)">später</span>')));
+    var badge=state==='done'?'<span class="pfrt" style="background:rgba(22,163,74,.14);color:#15803d">fertig</span>':(state==='current'?'<span class="pfrt" style="background:#4f46e5;color:#fff">jetzt dran</span>':(state==='locked'?'<span class="pfrt" style="color:var(--faint)">gesperrt</span>':(s.dauer?'<span class="pfrt" style="color:var(--muted)">läuft dauerhaft</span>':(s.auto?'<span class="pfrt" style="color:var(--faint)">automatisch</span>':'<span class="pfrt" style="background:rgba(37,99,235,.12);color:#2563eb;font-weight:800">◆ dein Input</span>'))));
     var tags=(s.auto?'<span class="pf-tag">automatisch</span>':'')+((!s.pflicht&&!s.auto&&!s.dauer)?'<span class="pf-tag">optional</span>':'')+(s.dauer?'<span class="pf-tag">dauerhaft</span>':'');
     var act='';
     if(s.act2){act='<div class="pf-act">'+pwsBtn(s.act[1],s.act[0],s.act[2],state==='current')+' '+pwsBtn(s.act2[1],s.act2[0],s.act2[2],false)+'</div>';}
@@ -2443,7 +2443,7 @@ function pwsRender(){
     +_z('ti-world','Portal',(_liveOK?'<span style="color:#15803d">live</span>':'nicht live'),_liveOK,(_liveOK?"pwsEditor('distribution')":''),(_liveOK?'Social':''));
   var _warn=_belegOffen>0?'<div class="pws-hint" style="color:#b91c1c">🛡️ '+_belegOffen+' Aussage(n) ohne Beleg — in „Fakten" prüfen, sonst ist Veröffentlichen gesperrt.</div>':'';
   var _acts='<div class="slim-acts">'+(schlussOk(_swr)?pwsBtn((_art?'Artikel neu bauen':'Artikel jetzt bauen'),"artikelBauen('"+P.id+"')",'ti-sparkles',!_art):'<button class="pws-act" disabled title="Wird freigeschaltet, sobald der Schlusscheck grün ist"><i class="ti ti-sparkles"></i> Artikel bauen (ab „Schlusscheck")</button>')+((_art&&!_liveOK)?pwsBtn('Freigeben & live schalten','pwsPublish()','ti-cloud-upload',1):'')+(_liveOK?pwsBtn('Inhalt ansehen',"pwsEditor('content')",'ti-eye')+pwsBtn('Portal neu bauen',"runBuild('de')",'ti-hammer'):'')+'</div>';
-  setTimeout(function(){try{ladeJobStatus(P.id,_liveOK);}catch(e){}},30);setTimeout(function(){try{ladeKosten(P.id);}catch(e){}},40);setTimeout(function(){try{crawlReport(P.id);}catch(e){}},60);
+  setTimeout(function(){try{ladeJobStatus(P.id,_liveOK);}catch(e){}},30);setTimeout(function(){try{ladeKosten(P.id);}catch(e){}},40);setTimeout(function(){try{crawlReport(P.id);}catch(e){}},60);setTimeout(function(){try{ladeSkillStatus(P.id);}catch(e){}},50);
   cv.innerHTML='<div class="pws-wrap"><div class="pws-head">'+
     '<button class="tb" onclick="route(\'software\')"><i class="ti ti-arrow-left"></i> Alle Produkte</button>'+
     '<span class="pws-logo"'+(_lg?' style="background:#fff"':'')+'>'+(_lg?'<img src="'+esc(_lg)+'" alt="" style="width:100%;height:100%;object-fit:contain">':mono)+'</span>'+
@@ -2451,9 +2451,28 @@ function pwsRender(){
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
     '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+'% fertig</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
     '</div>'+
-    pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div>'+
+    pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div><div id="pwsSkillStatus"></div>'+
     '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:6px 2px"><i class="ti ti-tool"></i> Technische Details &amp; Report (optional)</summary><div style="padding-top:6px">'+meilensteinHtml(_swr)+'<div id="pwsKosten"></div><div id="pwsReport"></div></div></details>'+
     '</div>';
+}
+async function ladeSkillStatus(sid){
+  if(!sid)return;var box=document.getElementById('pwsSkillStatus');if(!box)return;
+  try{
+    var r=await sb.from('skill_status').select('skill,status,qualitaet,detail,gelaufen_am').eq('software_id',sid).order('gelaufen_am',{ascending:false});
+    var d=(r&&r.data)||[];if(!d.length){box.innerHTML='';return;}
+    var col={ok:'#15803d',warnung:'#b45309',fehler:'#dc2626',laeuft:'#2563eb',offen:'#64748b'};
+    var rows=d.map(function(s){
+      var c=col[s.status]||'#64748b';var dt='';try{dt=new Date(s.gelaufen_am).toLocaleString('de-DE',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})+' Uhr';}catch(e){}
+      return '<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line)">'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:'+c+';flex:none"></span>'
+        +'<span style="font-weight:700;font-size:12px;min-width:96px">/'+esc(s.skill)+'</span>'
+        +'<span style="flex:1;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(s.detail||'')+'">'+esc(s.qualitaet||'')+'</span>'
+        +'<span style="font-size:11px;color:var(--muted);flex:none">'+dt+'</span></div>';
+    }).join('');
+    box.innerHTML='<div style="margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--panel2)">'
+      +'<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;margin-bottom:2px"><i class="ti ti-robot"></i> Automatik-Status (Skills)</div>'
+      +rows+'</div>';
+  }catch(e){box.innerHTML='';}
 }
 function pwsGoto(n){if(!PWS)return;PWS._view=n;pwsRender();}
 function pwsSyncRail(){if(!PWS||CUR!=='produkt')return;if(!document.querySelector('.pws-rail')){try{pwsRender();}catch(e){}return;}const stages=pwsStages(PWS);const cur=stages[0].cur;const view=PWS._view||cur;const total=stages.length;const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
