@@ -1792,7 +1792,7 @@ async function contentPublish(sid){var a=window._artikel;if(!a){toast("Kein Arti
 function tabDistribution(r,s,isSev,land){
   const sid=r.id||(r._d&&r._d.full&&r._d.full.id)||(typeof PWS!=='undefined'&&PWS&&PWS.id)||'';
   const nm=r.name||(r._d&&r._d.full&&r._d.full.name)||(typeof PWS!=='undefined'&&PWS&&PWS.full&&PWS.full.name)||'';
-  setTimeout(function(){ladeSocial(sid);},0);
+  setTimeout(function(){ladeSocial(sid);},0);setTimeout(function(){socialJobPoll(sid);},500);
   return '<div class="tabhint"><i class="ti ti-share"></i> Social-/Distributions-Pakete aus dem <b>veröffentlichten Artikel</b> von <b>'+esc(nm)+'</b> – faktentreu, ohne neue Behauptungen (Opus 4.8, nur aus dem gegateten Content). Verfügbar ab 100 % Fortschritt.</div><div id="socialBox"><div style="padding:32px;color:var(--muted)">Lade …</div></div>';
 }
 async function ladeSocial(sid){
@@ -1809,7 +1809,7 @@ async function ladeSocial(sid){
     if(error)throw error;
     window._social=data||null;window._socialSid=sid;
     if(!data||!data.bausteine||!data.bausteine.youtube){
-      box.innerHTML='<div class="bw-row" style="margin-bottom:12px"><button class="tb primary" id="socGenBtn" onclick="socialGenerate(\''+sid+'\')"><i class="ti ti-sparkles"></i> Paket generieren</button></div>'
+      box.innerHTML='<div class="bw-row" style="margin-bottom:12px;gap:8px;flex-wrap:wrap"><button class="tb primary" onclick="socialGenerateMax(\''+sid+'\')"><i class="ti ti-robot"></i> Auf Claude Max erzeugen</button><button class="tb" id="socGenBtn" onclick="socialGenerate(\''+sid+'\')"><i class="ti ti-sparkles"></i> Paket generieren (Edge)</button></div><div id="socJobStatus"></div>'
         +'<div class="pws-hint">Erzeugt <b>YouTube-Skript, 3 Shorts, LinkedIn-Post und Newsletter</b> – ausschließlich aus dem veröffentlichten Artikel (Opus 4.8, faktentreu, kein neuer Fakt). Dauert ~30–60 s. Danach editier- und kopierbar; Posten erfolgt manuell.</div>';
       return;
     }
@@ -1823,7 +1823,7 @@ function socialRender(d){
   const b=d.bausteine||{};const yt=b.youtube||{};const sh=b.shorts||[];const nl=b.newsletter||{};
   const gen=d.generiert_am?('generiert am '+String(d.generiert_am).slice(0,16).replace('T',' ')+(d.generiert_modell?' · '+d.generiert_modell:'')):'';
   const st=d.status==='freigegeben';
-  let h='<div class="bw-row" style="margin-bottom:12px;gap:8px;align-items:center;flex-wrap:wrap"><button class="tb primary" onclick="socialGenerate(\''+d.software_id+'\')"><i class="ti ti-refresh"></i> Neu generieren</button>'
+  let h='<div id="socJobStatus"></div><div class="bw-row" style="margin-bottom:12px;gap:8px;align-items:center;flex-wrap:wrap"><button class="tb primary" onclick="socialGenerateMax(\''+d.software_id+'\')"><i class="ti ti-robot"></i> Neu auf Max</button><button class="tb" onclick="socialGenerate(\''+d.software_id+'\')"><i class="ti ti-refresh"></i> Neu (Edge)</button>'
     +'<button class="tb'+(st?' primary':'')+'" onclick="socialFreigabe(\''+(st?'entwurf':'freigegeben')+'\')"><i class="ti ti-'+(st?'circle-check':'flag')+'"></i> '+(st?'Freigegeben ✓':'Freigeben')+'</button>'
     +'<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+esc(gen)+'</span></div>';
   h+=socialCard('YouTube-Skript','<label style="font-size:11px;color:var(--muted)">Titel</label>'+socialTA('youtube.titel',yt.titel,2)+'<label style="font-size:11px;color:var(--muted);margin-top:6px;display:block">Skript</label>'+socialTA('youtube.skript',yt.skript,14),'youtube');
@@ -1860,6 +1860,8 @@ function socialCopy(which){
   else if(which==='newsletter'){t='Betreff: '+(b.newsletter.betreff||'')+'\nPreheader: '+(b.newsletter.preheader||'')+'\n\n'+(b.newsletter.body||'');}
   try{navigator.clipboard.writeText(t);toast('In Zwischenablage kopiert');}catch(e){toast('Kopieren nicht möglich');}
 }
+async function socialGenerateMax(sid){if(!sid){toast('Keine ID');return;}try{const r=await sb.from('distribution_jobs').insert({software_id:sid,markt_id:'de',status:'offen'});if(r.error)throw r.error;toast('Auf Claude Max eingereiht – der Runner erzeugt das Paket in Kürze (0 API-Kosten)');socialJobPoll(sid);}catch(e){toast('Job anlegen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+async function socialJobPoll(sid){const box=document.getElementById('socJobStatus');if(!box||!sid)return;try{const r=await sb.from('distribution_jobs').select('status,phase,log').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1);const j=(r.data||[])[0];if(!j){box.innerHTML='';return;}const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};const m=map[j.status]||['#475569',esc(j.status)];box.innerHTML='<div style="font-size:12px;color:'+m[0]+';font-weight:600;margin:8px 0">'+m[1]+(j.phase?' · '+esc(j.phase):'')+(j.log?' <span style="color:var(--faint);font-weight:400">– '+esc(j.log)+'</span>':'')+'</div>';if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){socialJobPoll(sid);},4000);}else if(j.status==='fertig'){ladeSocial(sid);}}catch(e){}}
 async function socialGenerate(sid){
   const box=document.getElementById('socialBox');
   if(box)box.innerHTML='<div style="padding:32px;color:var(--muted)"><i class="ti ti-loader-2"></i> Paket wird generiert … (~30–60 s · Opus 4.8 · faktentreu aus dem Artikel)</div>';
