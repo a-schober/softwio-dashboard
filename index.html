@@ -1344,11 +1344,27 @@ function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("K
 async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) an Warteschlange übergeben ✓ — der Runner wertet sie aus");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- Bewertungen-Tool (Kontext = offene Software) ----
 let bwBilder=[];
-function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.full.id);bwBilder=[];setTimeout(function(){ladeBwSyn(sid);},0);return `<div class="bw-box">
+function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.full.id);const zielN=(r._d&&r._d.full&&r._d.full.bewertungen_ziel_anzahl)||30;bwBilder=[];setTimeout(function(){ladeBwSyn(sid);},0);return `<div class="bw-box">
   <div class="bw-grund">⚖ Bewertungen für <b>${esc(name)}</b> – ausgewertet wird ausschließlich der <b>Inhalt</b> (keine Zitate/Namen/Datum). Rohtext &amp; Screenshots werden <b>nicht</b> gespeichert. Doppelte Bewertungen (gleicher Inhalt) werden automatisch erkannt und übersprungen.</div>
   <div id="bwSynBox" style="margin-bottom:14px"><div style="color:var(--muted);font-size:12.5px">Lade gespeicherte Synthese …</div></div>
-  <div class="bw-row"><input id="bwQ" placeholder="Suchbegriff (optional) …">${["Google","Trustpilot","G2","Capterra","OMR"].map(z=>`<button class="tb" style="height:32px" onclick="bwOpen('${z}')"><i class="ti ti-search"></i> ${z}</button>`).join("")}</div>
-  <div style="font-size:12px;color:var(--faint);margin-bottom:14px">Öffnet die Suche für „${esc(name)}" im neuen Tab. Dort kopieren oder Screenshot machen, unten einfügen.</div>
+  <div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px"><i class="ti ti-plug-connected"></i> Plattformen – was Claude Max selbst holt, was du einfügst</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Trustpilot · automatisch</span>
+      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Play Store · automatisch</span>
+      <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ G2 · Copy&Paste</span>
+      <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ Capterra · Copy&Paste</span>
+      <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ Reddit/Foren · Copy&Paste</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px"><b>Grün</b> holt <b>/bewertungen</b> selbst vom Server (bis zur eingestellten Anzahl). <b>Rot</b> ist bot-geschützt (403/Login) → dort die Suche öffnen, kopieren und unten einfügen.</div>
+    <div class="bw-row" style="align-items:center;gap:8px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--muted)"><i class="ti ti-hash"></i> Anzahl je Auto-Plattform:</label>
+      <input id="bwN" type="number" min="5" max="200" value="${zielN}" style="width:78px;height:30px" onchange="bwSetN('${sid}',this.value)">
+      <span style="flex:1;min-width:8px"></span>
+      <input id="bwQ" placeholder="Suchbegriff (optional) …" style="height:30px;flex:1;min-width:120px">
+      ${["Trustpilot","G2","Capterra","Reddit","Google"].map(z=>`<button class="tb" style="height:30px" onclick="bwOpen('${z}')"><i class="ti ti-external-link"></i> ${z}</button>`).join("")}
+    </div>
+  </div>
   <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px">Gesammelte Bewertungen einfügen – Text und/oder Screenshots</div>
   <div class="bw-row" style="margin-bottom:8px"><label style="font-size:12px;color:var(--muted)">Quelle:</label><select id="bwSegment" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="standard">Nutzerbewertungen (G2/Trustpilot/Capterra …)</option><option value="community">Community-Diskussionen (Reddit, Foren …)</option></select></div>
   <textarea class="bw-ta" id="bwTa" placeholder="Bewertungen hier per Copy &amp; Paste einfügen …" onpaste="bwPaste(event)"></textarea>
@@ -1358,8 +1374,9 @@ function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.
   <div id="bwOut"></div>
 </div>`;}
 function bwOpen(z){const sw=dlgRow?dlgRow.name:"";const q=(sw+" "+($("#bwQ")?$("#bwQ").value:"")+" Bewertungen Erfahrungen "+(z==="Google"?"":"site:"+z.toLowerCase()+".com")).trim();window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener");}
+async function bwSetN(sid,v){if(!sid)return;const n=Math.max(5,Math.min(200,parseInt(v,10)||30));try{await dbW('update','software',sid,{bewertungen_ziel_anzahl:n});if(dlgRow&&dlgRow._d&&dlgRow._d.full)dlgRow._d.full.bewertungen_ziel_anzahl=n;toast('Vorgabe gespeichert: '+n+' je Auto-Plattform');}catch(e){toast('Speichern fehlgeschlagen');}}
 async function ladeBwSyn(sid){const box=$("#bwSynBox");if(!box)return;if(!sid){box.innerHTML="";return;}
-  try{const res=await Promise.all([sb.from('bewertungs_synthesen').select('*').eq('software_id',sid).order('erstellt_am',{ascending:false}),sb.from('bewertungs_analysen').select('erfasst_am,segment').eq('software_id',sid)]);
+  try{const res=await Promise.all([sb.from('bewertungs_synthesen').select('*').eq('software_id',sid).order('erstellt_am',{ascending:false}),sb.from('bewertungs_analysen').select('erfasst_am,segment').eq('software_id',sid),sb.from('bewertungs_ernte').select('plattform,modus,anzahl,neu_uebernommen,segment,geerntet_am').eq('software_id',sid).order('geerntet_am',{ascending:false})]);
     const synth=res[0].data||[];const an=res[1].data||[];
     const segOf=function(x){return x.segment||'standard';};
     const sStd=synth.find(function(x){return segOf(x)==='standard';});const sCom=synth.find(function(x){return segOf(x)==='community';});
@@ -1369,6 +1386,13 @@ async function ladeBwSyn(sid){const box=$("#bwSynBox");if(!box)return;if(!sid){b
     if(an.length){html+='<i class="ti ti-database"></i> <b>'+an.length+'</b> Bewertung(en) erfasst <span style="color:var(--muted)">('+anStd+' Reviews · '+anCom+' Community)</span>'+(letzte?' · zuletzt '+String(letzte).slice(0,10):'')+'<div style="color:var(--muted);margin-top:4px">Neue Bewertungen jederzeit unten einfügen (Quelle wählen) – Dubletten je Quelle werden automatisch erkannt, nur Neue ergänzt und die Synthese aktualisiert.</div>';}
     else{html+='<i class="ti ti-info-circle"></i> Noch keine Bewertungen erfasst – unten Quelle wählen, einfügen &amp; „Bewertungen auslesen".';}
     html+='</div>';
+    var ernte=(res[2]&&res[2].data)||[];
+    if(ernte.length){
+      html+='<div style="font-size:12px;font-weight:700;margin:14px 0 6px"><i class="ti ti-history"></i> Herkunft – wann von welcher Plattform wie viele</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--muted);text-align:left"><th style="padding:3px 6px">Plattform</th><th>Modus</th><th>Segment</th><th style="text-align:right;padding-right:8px">Gelesen</th><th style="text-align:right;padding-right:8px">Neu</th><th>Wann</th></tr></thead><tbody>';
+      ernte.slice(0,25).forEach(function(e){var md=e.modus==='auto'?'<span style="color:#059669;font-weight:700">auto</span>':'<span style="color:#b45309;font-weight:700">Paste</span>';html+='<tr style="border-top:1px solid var(--line)"><td style="padding:3px 6px">'+esc(e.plattform||'')+'</td><td>'+md+'</td><td style="color:var(--muted)">'+((e.segment||'standard')==='community'?'Community':'Nutzer')+'</td><td style="text-align:right;padding-right:8px">'+(e.anzahl||0)+'</td><td style="text-align:right;padding-right:8px">'+(e.neu_uebernommen!=null?e.neu_uebernommen:'–')+'</td><td style="color:var(--muted)">'+(e.geerntet_am?String(e.geerntet_am).slice(0,16).replace("T"," "):"")+'</td></tr>';});
+      html+='</tbody></table></div>';
+    }
     if(sStd)html+=bwSynHtml(sStd,'Nutzerbewertungen');
     if(sCom)html+=bwSynHtml(sCom,'Community-Diskussionen');
     box.innerHTML=html;
