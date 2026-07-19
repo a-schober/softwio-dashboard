@@ -1371,16 +1371,37 @@ function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.
     <div id="bwJobStatus"></div>
   </div>
   <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px">Gesammelte Bewertungen einfügen – Text und/oder Screenshots</div>
-  <div class="bw-row" style="margin-bottom:8px"><label style="font-size:12px;color:var(--muted)">Quelle:</label><select id="bwSegment" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="standard">Nutzerbewertungen (G2/Trustpilot/Capterra …)</option><option value="community">Community-Diskussionen (Reddit, Foren …)</option></select></div>
+  <div class="bw-row" style="margin-bottom:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">Art:</label><select id="bwSegment" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="standard">Nutzerbewertungen (G2/Trustpilot/Capterra …)</option><option value="community">Community-Diskussionen (Reddit, Foren …)</option></select><label style="font-size:12px;color:var(--muted);margin-left:6px">Plattform:</label><select id="bwPlattform" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="G2">G2</option><option value="Capterra">Capterra</option><option value="Reddit">Reddit / Forum</option><option value="OMR">OMR Reviews</option><option value="Google">Google</option><option value="Trustpilot">Trustpilot</option><option value="Sonstige">Sonstige</option></select></div>
   <textarea class="bw-ta" id="bwTa" placeholder="Bewertungen hier per Copy &amp; Paste einfügen …" onpaste="bwPaste(event)"></textarea>
   <div class="bw-drop" id="bwDrop" onclick="document.getElementById('bwFile').click()" ondragover="event.preventDefault()" ondrop="bwDropFiles(event)">🖼 Screenshots hier einfügen (Strg+V), hineinziehen oder klicken<input type="file" id="bwFile" accept="image/*" multiple style="display:none" onchange="bwFiles(this.files)"></div>
   <div id="bwThumbs" class="bw-thumbs"></div>
-  <div class="bw-row" style="margin-top:12px"><button class="tb primary" id="bwGo" onclick="bwAuslesen('${sid}')"><i class="ti ti-brain"></i> Auswerten (Vorschau)</button>${infoI('bwPrompt()')}</div>
+  <div class="bw-row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="tb primary" onclick="bwPasteAnMax('${sid}')"><i class="ti ti-robot"></i> Auf Claude Max auswerten</button><button class="tb" id="bwGo" onclick="bwAuslesen('${sid}')"><i class="ti ti-brain"></i> Auswerten (Vorschau, Edge)</button>${infoI('bwPrompt()')}</div>
+  <div style="font-size:11.5px;color:var(--faint);margin-top:6px"><b>Max</b> legt den Text als Rohdatum ab und wertet ihn über den Runner aus – <b>0 API-Kosten</b>, Fortschritt oben im Status. <b>Edge</b> zeigt eine Sofort-Vorschau und ist der einzige Weg für <b>Screenshots</b> (kostet API).</div>
   <div id="bwOut"></div>
 </div>`;}
 function bwOpen(z){const sw=dlgRow?dlgRow.name:"";const q=(sw+" "+($("#bwQ")?$("#bwQ").value:"")+" Bewertungen Erfahrungen "+(z==="Google"?"":"site:"+z.toLowerCase()+".com")).trim();window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener");}
 async function bwSetN(sid,v){if(!sid)return;const n=Math.max(5,Math.min(200,parseInt(v,10)||30));try{await dbW('update','software',sid,{bewertungen_ziel_anzahl:n});if(dlgRow&&dlgRow._d&&dlgRow._d.full)dlgRow._d.full.bewertungen_ziel_anzahl=n;toast('Vorgabe gespeichert: '+n+' je Auto-Plattform');}catch(e){toast('Speichern fehlgeschlagen');}}
 async function bwAutoErnte(sid){if(!sid){toast('Keine Software-ID');return;}const seg=(document.getElementById('bwSegment')||{}).value||'standard';const n=Math.max(5,Math.min(200,parseInt((document.getElementById('bwN')||{}).value,10)||30));try{const r=await sb.from('bewertungs_jobs').insert({software_id:sid,segment:seg,anzahl:n,status:'offen'});if(r.error)throw r.error;toast('Auto-Ernte eingereiht ('+n+' je Plattform) – der Runner startet in Kürze');bwJobPoll(sid);}catch(e){toast('Job anlegen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+// Paste -> Rohdatum + Job -> /bewertungen wertet auf Claude Max aus (0 API-Kosten).
+// Screenshots kann dieser Weg NICHT (headless bekommt keine Bilder) -> dafuer bleibt der Edge-Knopf.
+async function bwPasteAnMax(sid){
+  if(!sid){toast('Keine Software-ID');return;}
+  const ta=document.getElementById('bwTa');const txt=ta?ta.value.trim():'';
+  const seg=(document.getElementById('bwSegment')||{}).value||'standard';
+  const plat=(document.getElementById('bwPlattform')||{}).value||'Sonstige';
+  const n=Math.max(5,Math.min(200,parseInt((document.getElementById('bwN')||{}).value,10)||30));
+  if(!txt){toast('Bitte zuerst Bewertungstext einfügen');return;}
+  if(bwBilder.length && !confirm('Screenshots kann der Max-Weg nicht auswerten – nur der eingefügte Text wird übernommen.\n\nFür Screenshots bitte „Auswerten (Vorschau, Edge)" nutzen.\n\nTrotzdem den Text an Max geben?'))return;
+  try{
+    const r1=await sb.from('bewertungs_rohdaten').insert({software_id:sid,bewertungs_text:txt,quelle:plat,klassifikations_status:'offen'});
+    if(r1.error)throw r1.error;
+    const r2=await sb.from('bewertungs_jobs').insert({software_id:sid,segment:seg,anzahl:n,status:'offen'});
+    if(r2.error)throw r2.error;
+    if(ta)ta.value='';
+    toast('Text von '+plat+' abgelegt – Max wertet ihn in Kürze aus');
+    bwJobPoll(sid);
+  }catch(e){toast('Konnte nicht ablegen: '+(e&&e.message?e.message:e));}
+}
 async function bwJobPoll(sid){const box=document.getElementById('bwJobStatus');if(!box||!sid)return;try{const r=await sb.from('bewertungs_jobs').select('status,phase,log,geaendert_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1);const j=(r.data||[])[0];if(!j){box.innerHTML='';return;}const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};const m=map[j.status]||['#475569',esc(j.status)];box.innerHTML='<div style="font-size:12px;color:'+m[0]+';font-weight:600;margin-top:8px">'+m[1]+(j.phase?' · '+esc(j.phase):'')+(j.log?' <span style="color:var(--faint);font-weight:400">– '+esc(j.log)+'</span>':'')+'</div>';if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){bwJobPoll(sid);},4000);}else if(j.status==='fertig'){ladeBwSyn(sid);}}catch(e){}}
 async function ladeBwSyn(sid){const box=$("#bwSynBox");if(!box)return;if(!sid){box.innerHTML="";return;}
   try{const res=await Promise.all([sb.from('bewertungs_synthesen').select('*').eq('software_id',sid).order('erstellt_am',{ascending:false}),sb.from('bewertungs_analysen').select('erfasst_am,segment').eq('software_id',sid),sb.from('bewertungs_ernte').select('plattform,modus,anzahl,neu_uebernommen,segment,geerntet_am').eq('software_id',sid).order('geerntet_am',{ascending:false})]);
