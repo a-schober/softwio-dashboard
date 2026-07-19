@@ -2680,7 +2680,8 @@ function crawlRender(sid,row,phase){
           '<span style="flex:1;word-break:break-all">'+esc(k&&k.url)+'</span>'+src+'</label>';
       }).join(''):'<div style="padding:12px;color:var(--muted)">Keine Kandidaten gefunden.</div>')+'</div>';
     const info='<div style="padding:2px 2px 6px;font-size:12.5px;color:var(--muted)">Claude hat <b>'+kand.length+' Seiten</b> vorgeschlagen. Abwählen, was nicht gecrawlt werden soll – dann freigeben. <b>Nur ausgewählte</b> Seiten werden gescrapt (Kostenkontrolle).</div>';
-    const tools='<div style="display:flex;gap:12px;margin:8px 2px 0;font-size:11.5px"><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(true)">Alle</a><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(false)">Keine</a></div>';
+    const tools='<div style="display:flex;gap:12px;margin:8px 2px 0;font-size:11.5px"><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(true)">Alle</a><a style="color:var(--accent-ink);cursor:pointer" onclick="crawlSel(false)">Keine</a></div>'
+      +'<label style="display:flex;gap:8px;align-items:flex-start;margin:12px 2px 0;font-size:11.5px;color:var(--muted);cursor:pointer" title="Ohne diese Prüfung startet der Crawl sofort mit Claudes Auswahl – ohne dass du sie vorher siehst."><input type="checkbox" id="crawlSkipPruefung" style="margin-top:2px;flex:none"><span>Diese Prüfung für <b>'+esc(nm)+'</b> künftig überspringen (Crawl startet dann direkt).</span></label>';
     crawlShow(nm,crawlStepper(2,'freigabe')+info+liste+tools,
       '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlFreigeben(\''+sid+'\')"><i class="ti ti-check"></i> Freigeben &amp; Crawl fortsetzen</span>');
     return;
@@ -2742,7 +2743,11 @@ async function crawlFreigeben(sid){
   const st=window._crawlState||{sid:sid};st.sid=sid;st.phaseB=Date.now();st.started=Date.now();window._crawlState=st;
   crawlShow('',crawlStepper(3,'run')+'<div style="padding:8px 2px 2px;font-size:12.5px;color:var(--muted)">Freigabe gespeichert – <b>'+urls.length+'</b> Seiten werden jetzt gecrawlt …</div>',crawlFootWait());
   try{
-    await dbW('update','software',sid,{crawl_url_liste:urls.join('\n'),crawl_freigabe_status:'freigegeben'});
+    const skipEl=document.getElementById('crawlSkipPruefung');
+    const upd={crawl_url_liste:urls.join('\n'),crawl_freigabe_status:'freigegeben'};
+    // Nur setzen, wenn angehakt – ein NICHT gesetzter Haken darf eine bestehende Pruefung nicht abschalten.
+    if(skipEl&&skipEl.checked)upd.mapping_freigabe_noetig=false;
+    await dbW('update','software',sid,upd);
     const r=await sb.functions.invoke('crawl-starten',{body:{software_id:sid}});
     if(r&&r.error)throw new Error(r.error.message||'Fehler');
   }catch(e){
