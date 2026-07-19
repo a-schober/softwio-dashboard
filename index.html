@@ -2406,10 +2406,10 @@ function pwsStepperHtml(P){
   var FLOW=[
    {k:'anlegen',n:1,t:'Angelegt',pflicht:1,info:'Stammdaten: Name, Hersteller, Website-URL und Kategorie. Basis für alles Weitere.',sum:done.anlegen?'Name, Hersteller, URL und Kategorie sind erfasst':'Stammdaten noch unvollständig',act:["pwsEditor('stammdaten')",done.anlegen?'Stammdaten ansehen':'Stammdaten ausfüllen','ti-id-badge-2']},
    {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Automatischer Crawl der Hersteller-Website (Firecrawl + KI): Funktionen, Preise und Integrationen werden ausgelesen. Du musst hier nichts tun.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider']},
-   {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check']},
+   {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check'],act2:["skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern (Max)','ti-wand']},
    {k:'belegen',n:4,t:'Belegen',pflicht:1,info:'Bewertungen, Quellen und Logo ergänzen. Ziel: jede Aussage ist durch eine echte Quelle belegt (Anti-Halluzination).',sum:belSum,act:["pwsEditor('bewertungen')",'Bewertungen & Belege','ti-star']},
    {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0||videoA>0)?(bilderN+' Bilder · '+videoN+' Videos'+(videoA>0?(' · '+videoA+' ausgewertet'):'')):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder verwalten','ti-photo'],act2:["pwsEditor('videos')",'Videos verwalten','ti-brand-youtube']},
-   {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Volle Qualitätsprüfung mit einem Klick — sieben automatische Gates gegen die echte Quelle: (1) Crawl-Vollständigkeit, (2) Grounding (jedes Beleg-Zitat steht in der Crawl-Quelle), (3) Hygiene (Dubletten/Widersprüche), (4) Tarif-Abgleich gegen die Herstellerseite, (5) Content-Fidelity (jede Zahl/Aussage im Artikel ist belegt), (6) adversariale Live-Website-Validierung + Auto-Auflösung, (7) Frontend-Wächter (liest die fertige Seite wie ein Kaufinteressent und findet Anzeige-Widersprüche/Platzhalter/inkonsistente Tarif-Angaben). Jeder Befund landet in den Freigaben und sperrt die Veröffentlichung, bis er geklärt ist.',sum:prSum,act:["pwsValidieren('"+P.id+"')",'Volle Qualitätsprüfung','ti-shield-check'],act2:["route('freigaben')",'Freigaben öffnen','ti-checkbox']},
+   {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Volle Qualitätsprüfung mit einem Klick — sieben automatische Gates gegen die echte Quelle: (1) Crawl-Vollständigkeit, (2) Grounding (jedes Beleg-Zitat steht in der Crawl-Quelle), (3) Hygiene (Dubletten/Widersprüche), (4) Tarif-Abgleich gegen die Herstellerseite, (5) Content-Fidelity (jede Zahl/Aussage im Artikel ist belegt), (6) adversariale Live-Website-Validierung + Auto-Auflösung, (7) Frontend-Wächter (liest die fertige Seite wie ein Kaufinteressent und findet Anzeige-Widersprüche/Platzhalter/inkonsistente Tarif-Angaben). Jeder Befund landet in den Freigaben und sperrt die Veröffentlichung, bis er geklärt ist.',sum:prSum,act:["skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Volle Qualitätsprüfung (Max)','ti-shield-check'],act2:["route('freigaben')",'Freigaben öffnen','ti-checkbox']},
    {k:'schluss',n:7,t:'Schlusscheck',pflicht:0,auto:1,info:'Nur Status: zeigt, ob alle Pflichtschritte erledigt sind. 100 % = bereit zur Veröffentlichung.',sum:done.schluss?'Alle Pflichtschritte erledigt – bereit zum Veröffentlichen':'Noch nicht alle Pflichtschritte erledigt',act:null},
    {k:'veroeffentlichen',n:8,t:'Veröffentlichen',pflicht:1,info:'Artikel automatisch bauen (0 Credits), prüfen und live schalten. Danach baut das Portal automatisch – nur live-Artikel erscheinen im Portal.',sum:vSum,act:vAct},
    {k:'pflege',n:9,t:'Aktuell halten',pflicht:0,dauer:1,info:'Die Aktualität wird laufend gesichert. Bei 180 Tagen ohne Update wird automatisch neu gecrawlt und verglichen; bei Preisänderungen bekommst du einen Entwurf zur Prüfung.',sum:pflegeSum,act:pflegeAct}
@@ -2430,6 +2430,28 @@ function pwsStepperHtml(P){
   }).join('');
   return PWS_FLOW_STYLE+'<div class="pws-flow">'+rows+'</div>';
  }catch(_e){return '<div class="pws-hint" style="color:#b91c1c">Ablauf-Ansicht Fehler: '+esc(String((_e&&_e.message)||_e))+'</div>';}
+}
+// --- Generischer Starter fuer Claude-Max-Skills ueber skill_jobs (0 API-Kosten) ---
+async function skillJobStart(sid,skill,args,label){
+  if(!sid){toast('Keine Software-ID');return;}
+  try{
+    const r=await sb.from('skill_jobs').insert({software_id:sid,skill:skill,args:args||null,status:'offen'}).select().single();
+    if(r.error)throw r.error;
+    aov(label||skill,'Läuft über Claude Max – 0 API-Kosten, nichts wird live geschaltet','<div id="sjOut" style="padding:16px;font-size:13px;color:var(--muted)"><i class="ti ti-loader-2 spin"></i> Eingereiht – der Runner greift den Job binnen ~3 Minuten. Du kannst dieses Fenster schließen, der Lauf läuft weiter.</div>','<span class="tb" onclick="closeAov()">Schließen</span>');
+    skillJobPoll(r.data.id);
+  }catch(e){toast('Job anlegen fehlgeschlagen: '+(e&&e.message?e.message:e));}
+}
+async function skillJobPoll(jid){
+  const box=document.getElementById('sjOut');if(!box||!jid)return;
+  try{
+    const r=await sb.from('skill_jobs').select('status,phase,log').eq('id',jid).single();
+    const j=r.data;if(!j){return;}
+    const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};
+    const m=map[j.status]||['#475569',esc(j.status)];
+    box.innerHTML='<div style="color:'+m[0]+';font-weight:700;margin-bottom:6px">'+m[1]+(j.phase?' · '+esc(j.phase):'')+'</div>'+(j.log?'<div style="font-size:12.5px;color:var(--ink);line-height:1.55">'+esc(j.log)+'</div>':'');
+    if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){skillJobPoll(jid);},4000);}
+    else{try{await ladeSW();render();}catch(_){}}
+  }catch(e){}
 }
 async function pwsValidieren(sid){
   if(!sid){toast('Keine Software-ID');return;}
