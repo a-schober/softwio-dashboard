@@ -1371,7 +1371,7 @@ function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.
     <div id="bwJobStatus"></div>
   </div>
   <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px">Gesammelte Bewertungen einfügen – Text und/oder Screenshots</div>
-  <div class="bw-row" style="margin-bottom:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">Art:</label><select id="bwSegment" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="standard">Nutzerbewertungen (G2/Trustpilot/Capterra …)</option><option value="community">Community-Diskussionen (Reddit, Foren …)</option></select><label style="font-size:12px;color:var(--muted);margin-left:6px">Plattform:</label><select id="bwPlattform" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="G2">G2</option><option value="Capterra">Capterra</option><option value="Reddit">Reddit / Forum</option><option value="OMR">OMR Reviews</option><option value="Google">Google</option><option value="Trustpilot">Trustpilot</option><option value="Sonstige">Sonstige</option></select></div>
+  <div class="bw-row" style="margin-bottom:8px;flex-wrap:wrap"><label style="font-size:12px;color:var(--muted)">Art:</label><select id="bwSegment" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="standard">Nutzerbewertungen (G2/Trustpilot/Capterra …)</option><option value="community">Community-Diskussionen (Reddit, Foren …)</option></select><label style="font-size:12px;color:var(--muted);margin-left:6px">Plattform:</label><select id="bwPlattform" style="height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--panel)"><option value="g2">G2</option><option value="capterra">Capterra</option><option value="forum">Reddit / Forum</option><option value="google">Google</option><option value="trustpilot">Trustpilot</option><option value="appstore">App Store</option><option value="appsumo">AppSumo</option><option value="unbekannt">Sonstige</option></select></div>
   <textarea class="bw-ta" id="bwTa" placeholder="Bewertungen hier per Copy &amp; Paste einfügen …" onpaste="bwPaste(event)"></textarea>
   <div class="bw-drop" id="bwDrop" onclick="document.getElementById('bwFile').click()" ondragover="event.preventDefault()" ondrop="bwDropFiles(event)">🖼 Screenshots hier einfügen (Strg+V), hineinziehen oder klicken<input type="file" id="bwFile" accept="image/*" multiple style="display:none" onchange="bwFiles(this.files)"></div>
   <div id="bwThumbs" class="bw-thumbs"></div>
@@ -1393,7 +1393,11 @@ async function bwPasteAnMax(sid){
   if(!txt){toast('Bitte zuerst Bewertungstext einfügen');return;}
   if(bwBilder.length && !confirm('Screenshots kann der Max-Weg nicht auswerten – nur der eingefügte Text wird übernommen.\n\nFür Screenshots bitte „Auswerten (Vorschau, Edge)" nutzen.\n\nTrotzdem den Text an Max geben?'))return;
   try{
-    const r1=await sb.from('bewertungs_rohdaten').insert({software_id:sid,bewertungs_text:txt,quelle:plat,klassifikations_status:'offen'});
+    // bewertungs_text_hash ist NOT NULL (Dubletten-Schluessel) -> sha256 im Browser berechnen.
+    const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+    const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    // Achtung: klassifikations_status kennt nur neu|in_klassifikation|klassifiziert|fehler|duplikat_ignoriert
+    const r1=await sb.from('bewertungs_rohdaten').insert({software_id:sid,bewertungs_text:txt,bewertungs_text_hash:hash,quelle:plat,klassifikations_status:'neu'});
     if(r1.error)throw r1.error;
     const r2=await sb.from('bewertungs_jobs').insert({software_id:sid,segment:seg,anzahl:n,status:'offen'});
     if(r2.error)throw r2.error;
