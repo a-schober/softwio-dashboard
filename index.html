@@ -2071,11 +2071,16 @@ async function screenshotsHolen(sid){
   var btn=document.getElementById('biHarvest');var old=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Suche Screenshots (~30–60 s) …';}
   try{
-    const r=await sb.functions.invoke('screenshots-harvesten',{body:{software_id:sid,max:6}});
-    const d=r.data;
-    if(r.error||!d||!d.ok){throw new Error((r.error&&r.error.message)||(d&&d.error)||'Fehler');}
-    if((d.uebernommen||0)>0){toast('✓ '+d.uebernommen+' Hersteller-Screenshot(s) übernommen');}
-    else{toast(d.hinweis||'Keine passenden Screenshots auf der Hersteller-Seite gefunden');}
+    // 20.07.2026 von der Edge Function 'screenshots-harvesten' (Anthropic-Key, 0,75 $ auf 14 Aufrufe)
+    // auf den Max-Skill /bilder umgehaengt. Gleiche Arbeit, 0 Kosten - und der Skill SIEHT die Bilder
+    // selbst an (Read-Tool) statt sie nur einzusammeln.
+    const vorher=(await sb.from('software_bilder').select('id',{count:'exact',head:true}).eq('software_id',sid)).count||0;
+    await skillJobInline(sid,'bilder','','Screenshots holen',btn);
+    const nachher=(await sb.from('software_bilder').select('id',{count:'exact',head:true}).eq('software_id',sid)).count||0;
+    const neu=nachher-vorher;
+    // Ergebnis GEGENLESEN statt der Rueckmeldung zu glauben (Lehre 20.07.: gelaufen != angekommen).
+    if(neu>0){toast('✓ '+neu+' Screenshot(s) übernommen');}
+    else{toast('Keine neuen Screenshots gefunden — Bestand unverändert ('+nachher+').');}
     await ladeBilder(sid);
   }catch(e){toast('Screenshot-Suche fehlgeschlagen: '+(e&&e.message?e.message:e));}
   finally{if(btn){btn.disabled=false;btn.innerHTML=old||'<i class="ti ti-camera-plus"></i> Screenshots vom Hersteller holen';}}
@@ -2740,7 +2745,7 @@ async function pwsCrawl(){
     (kr.data||[]).forEach(function(x){kN++;kUsd+=Number(x.kosten_usd)||0;kCred+=Number(x.credits)||0;});}catch(_){}
   const kt = kN>0
     ? ('<b>'+kUsd.toFixed(2)+' USD</b> über den Anthropic-API-Key'+(kCred>0?(' + <b>'+kCred+' Firecrawl-Credits</b>'):' <span style="opacity:.8">(Firecrawl-Credits wurden beim letzten Lauf noch nicht erfasst – ab jetzt schon)</span>')+', gemessen über '+kN+' Schritte des letzten Crawls')
-    : 'erfahrungsgemäß <b>ca. 3–4 USD</b> über den Anthropic-API-Key + <b>Firecrawl-Credits</b> (je nach Seitenzahl)';
+    : 'nur noch <b>ca. 0,05 USD</b> über den Anthropic-API-Key (allein die URL-Auswahl) + <b>Firecrawl-Credits</b> (je nach Seitenzahl).<br><span style="color:#059669">Seit 20.07.2026 laufen Cleanup und Extraktion über Claude Max — das waren zuvor rund 1,58 USD je Produkt.</span>';
   window._crawlKt=kt; window._crawlN=n; window._crawlSid=sid;
   if(!schon){
     aov("Crawl & Anreichern",n,`<div style="padding:16px;font-size:13px;line-height:1.6">Crawl &amp; Anreicherung für <b>${esc(n)}</b> starten?<br><span style="color:var(--muted)">Ein Klick — dann läuft alles <b>vollautomatisch</b> im Hintergrund, ohne weitere Freigabe: Seiten crawlen → Fakten extrahieren → validieren → Firmendaten, Logo, Canonical-Zuordnung &amp; alle Steckbrief-Felder. Manuell bleiben nur Bilder, Videos, externe Bewertungen &amp; die Feature-Zuordnung offener Begriffe.</span><div style="margin-top:12px;padding:11px 13px;border:1px solid #fcd34d;border-left:4px solid #f59e0b;border-radius:8px;font-size:12.5px;background:#fffbeb;color:var(--ink)"><b><i class="ti ti-coin"></i> Kosten (API-Keys):</b> ${kt}.</div>${WARUM_FIRECRAWL}</div>`,`<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="crawlDo('${sid}')"><i class="ti ti-spider"></i> Vollautomatik starten</span>`);
