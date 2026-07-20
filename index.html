@@ -466,6 +466,7 @@
       <div class="nav" data-v="logos"><i class="ti ti-photo"></i> Logos <span class="cnt" id="cntLogos"></span></div>
       <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch <span class="cnt" id="cntWoerterbuch"></span></div>
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
+      <div class="nav" data-v="belege"><i class="ti ti-camera"></i> Beweisbilder</div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
       <div class="nav" data-v="preisreview"><i class="ti ti-currency-euro"></i> Preis-Review <span class="bdg" id="prBadge" style="display:none"></span></div>
       <div class="nav" data-v="kosten"><i class="ti ti-coin-euro"></i> Kosten</div>
@@ -1142,7 +1143,89 @@ function route(key){CUR=key;try{if(location.hash.slice(1)!==key)history.replaceS
   if(key==="automationen"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-robot"></i> <b>Lokale Automatisierungen</b> <span class="sp">›</span> manuell über Claude Max ausführbar';automationenView();return;}
   if(key==="preisreview"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-currency-euro"></i> <b>Preis-Review</b> <span class="sp">›</span> Nutzer-Preismodell für den Szenario-Vergleich bestätigen';preisreviewView();return;}
   if(key==="kosten"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-coin-euro"></i> <b>Kosten</b> <span class="sp">›</span> API-Kosten &amp; Firecrawl-Credits je Produkt';kostenView();return;}
+  if(key==="belege"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-camera"></i> <b>Beweisbilder</b> <span class="sp">›</span> Vollbild-Aufnahme beliebiger Hersteller-Seiten';belegeView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
+
+// ---- Beweisbilder-Ansicht: Vollbild-Aufnahme JEDER Hersteller-Seite ----
+// Laeuft ueber beleg_auftraege (nicht skill_jobs): dort ist software_id NOT NULL, hier ist die
+// Produkt-Zuordnung optional - damit lassen sich auch Seiten aufnehmen, deren Produkt noch gar
+// nicht im System ist. Der Runner startet holen.mjs direkt, ohne Claude -> 0 Kontingent, 0 Credits.
+async function belegeView(){
+  const cv=$("#customview");if(!cv)return;
+  let prods=[];
+  try{const q=await sb.from('software').select('id,name,hersteller_url').order('name');prods=q.data||[];}catch(e){}
+  const opts='<option value="">— ohne Produkt (nur Ordnername aus der Domain) —</option>'
+    +prods.map(function(p){return '<option value="'+p.id+'" data-url="'+esc(p.hersteller_url||'')+'">'+esc(p.name)+'</option>';}).join('');
+  cv.innerHTML='<div style="max-width:980px;margin:0 auto;padding:14px 6px 48px">'
+   +'<div style="border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff">'
+   +'<div style="font-weight:800;font-size:15px;margin-bottom:4px"><i class="ti ti-camera"></i> Seite aufnehmen</div>'
+   +'<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Nimmt die Seite in voller Höhe auf — klappt Akkordeons auf, klickt Reiter einzeln durch und zerlegt Bereiche mit eigenem Scrollbalken (Vergleichstabellen im Popup) in Streifen. Kostet nichts: kein Firecrawl, kein Claude.</div>'
+   +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'
+   +'<div style="flex:1 1 340px;min-width:0"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">URL der Hersteller-Seite</label>'
+   +'<input id="blUrl" type="url" placeholder="https://www.hersteller.de/preise" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13.5px"></div>'
+   +'<div style="flex:0 1 240px;min-width:0"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Produkt (optional)</label>'
+   +'<select id="blProd" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px">'+opts+'</select></div>'
+   +'<div style="flex:1 1 220px;min-width:0"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Notiz (optional)</label>'
+   +'<input id="blNotiz" type="text" placeholder="worum geht es auf der Seite?" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13.5px"></div>'
+   +'<span class="tb primary" id="blGo" onclick="belegeStart()" style="flex:none"><i class="ti ti-camera"></i> Aufnehmen</span>'
+   +'</div>'
+   +'<div id="blMsg" style="font-size:12.5px;margin-top:10px"></div>'
+   +'</div>'
+   +'<div id="blListe" style="margin-top:18px"><div style="color:var(--muted);font-size:13px"><i class="ti ti-loader-2 spin"></i> Aufnahmen werden geladen …</div></div></div>';
+  // Produktwahl fuellt die URL vor, wenn das Feld noch leer ist - Tippen sparen, aber nie ueberschreiben.
+  const sel=document.getElementById('blProd');
+  if(sel)sel.addEventListener('change',function(){
+    const u=(sel.selectedOptions[0]||{}).dataset;const f=document.getElementById('blUrl');
+    if(f&&!f.value.trim()&&u&&u.url)f.value=u.url;
+  });
+  belegeListe();
+}
+async function belegeStart(){
+  const f=document.getElementById('blUrl'),msg=document.getElementById('blMsg'),btn=document.getElementById('blGo');
+  const url=(f&&f.value||'').trim();
+  if(!/^https?:\/\/[^ ]+\.[^ ]+/.test(url)){if(msg)msg.innerHTML='<span style="color:#b91c1c">Bitte eine vollständige URL angeben, z. B. https://www.hersteller.de/preise</span>';return;}
+  const sid=(document.getElementById('blProd')||{}).value||null;
+  const notiz=((document.getElementById('blNotiz')||{}).value||'').trim()||null;
+  if(btn){btn.style.pointerEvents='none';btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Auftrag wird angelegt …';}
+  try{
+    const r=await sb.from('beleg_auftraege').insert({url:url,software_id:sid,notiz:notiz}).select().single();
+    if(r.error)throw r.error;
+    if(msg)msg.innerHTML='<span style="color:#15803d">Auftrag angelegt ✓ — der Runner greift ihn binnen ~3 Minuten. Die Liste unten aktualisiert sich von selbst.</span>';
+    if(f)f.value='';
+    belegePoll(r.data.id);
+  }catch(e){ if(msg)msg.innerHTML='<span style="color:#b91c1c">Fehlgeschlagen: '+esc(String(e&&e.message||e))+'</span>'; }
+  finally{ if(btn){btn.style.pointerEvents='';btn.innerHTML='<i class="ti ti-camera"></i> Aufnehmen';} await belegeListe(); }
+}
+function belegePoll(id){
+  clearTimeout(window._blTimer);
+  window._blTimer=setTimeout(async function(){
+    if(CUR!=='belege')return;
+    await belegeListe();
+    try{const q=await sb.from('beleg_auftraege').select('status').eq('id',id).single();
+      if(q.data&&(q.data.status==='offen'||q.data.status==='in_arbeit'))belegePoll(id);}catch(e){}
+  },10000);
+}
+async function belegeListe(){
+  const box=document.getElementById('blListe');if(!box)return;
+  let rows=[];
+  try{const q=await sb.from('beleg_auftraege').select('id,url,notiz,status,ordner,bilder_anzahl,warnungen,log,erstellt_am,software_id').order('erstellt_am',{ascending:false}).limit(40);rows=q.data||[];}catch(e){
+    box.innerHTML='<div style="color:#b91c1c;font-size:13px">Liste konnte nicht geladen werden: '+esc(String(e&&e.message||e))+'</div>';return;}
+  if(!rows.length){box.innerHTML='<div style="color:var(--muted);font-size:13px">Noch keine Aufnahmen.</div>';return;}
+  const F={offen:['#64748b','ti-clock','wartet auf den Runner'],in_arbeit:['#2563eb','ti-loader-2 spin','läuft gerade'],fertig:['#15803d','ti-check','fertig'],fehler:['#b91c1c','ti-alert-triangle','fehlgeschlagen']};
+  box.innerHTML='<div style="font-weight:800;font-size:14px;margin-bottom:10px">Aufnahmen</div>'+rows.map(function(r){
+    const s=F[r.status]||F.offen;
+    return '<div style="border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;background:#fff">'
+     +'<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">'
+     +'<span style="color:'+s[0]+';font-weight:700;font-size:12.5px;flex:none"><i class="ti '+s[1]+'"></i> '+s[2]+'</span>'
+     +'<span style="font-size:13px;min-width:0;overflow-wrap:anywhere">'+esc(r.url)+'</span>'
+     +'<span style="margin-left:auto;color:var(--muted);font-size:11.5px;flex:none">'+esc(String(r.erstellt_am||'').slice(0,16).replace('T',' '))+'</span></div>'
+     +(r.notiz?'<div style="font-size:12px;color:var(--muted);margin-top:3px">'+esc(r.notiz)+'</div>':'')
+     +(r.status==='fertig'?'<div style="font-size:12.5px;margin-top:6px"><b>'+(r.bilder_anzahl||0)+' Bilder</b> · <code style="font-size:11.5px;background:var(--soft);padding:1px 6px;border-radius:5px;overflow-wrap:anywhere">'+esc(r.ordner||'')+'</code></div>':'')
+     +(r.warnungen?'<div style="font-size:12px;margin-top:6px;padding:7px 9px;border-left:3px solid #d97706;background:#fffbeb;border-radius:6px;overflow-wrap:anywhere"><b>Bitte lesen:</b> '+esc(r.warnungen)+'</div>':'')
+     +(r.status==='fehler'?'<div style="font-size:12px;margin-top:6px;color:#b91c1c;overflow-wrap:anywhere">'+esc(r.log||'')+'</div>':'')
+     +'</div>';
+  }).join('');
+}
 
 // ---- Kosten-Ansicht (API + Firecrawl je Produkt) ----
 async function kostenView(){
