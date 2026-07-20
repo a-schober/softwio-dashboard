@@ -467,6 +467,7 @@
       <div class="nav" data-v="woerterbuch"><i class="ti ti-book"></i> Feature-Wörterbuch <span class="cnt" id="cntWoerterbuch"></span></div>
       <div class="nav" data-v="crawl"><i class="ti ti-spider"></i> Crawl-Monitor</div>
       <div class="nav" data-v="belege"><i class="ti ti-camera"></i> Beweisbilder</div>
+      <div class="nav" data-v="selbsttest"><i class="ti ti-shield-bolt"></i> Selbsttest <span id="stBadge" class="badge" style="display:none"></span></div>
       <div class="nav" data-v="automationen"><i class="ti ti-robot"></i> Lokale Automatisierungen</div>
       <div class="nav" data-v="preisreview"><i class="ti ti-currency-euro"></i> Preis-Review <span class="bdg" id="prBadge" style="display:none"></span></div>
       <div class="nav" data-v="kosten"><i class="ti ti-coin-euro"></i> Kosten</div>
@@ -839,7 +840,16 @@ async function ladeSW(){
   }catch(e){}
   SW=(data||[]).map(function(r,i){const m=mapRow(r,i);if(sig[r.id]&&sig[r.id].artikel)m.status='live';m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;m.nwSoll=(sollMap[r.id]!=null?sollMap[r.id]:null);var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
 }
-function nwOf(r){const v=r.nw;if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};return{v:v,lab:v>=80?"Stark (80+)":v>=70?"Solide (70-79)":"Schwach (unter 70)",c:v>=80?"g":v>=70?"a":"r"};}
+// Bewertet den NeuronWriter-Score RELATIV zum Wettbewerb, nicht gegen eine feste Zahl.
+// Der frueher benutzte Zielwert 80/82 war frei gegriffen: der Median-Score der Top 10 liegt
+// je Keyword real zwischen 33 (siteguru) und 62 (buchhaltungsbutler). Ein 62er-Score kann also
+// stark sein (Pipedrive, Soll 50) oder knapp (FastBill, Soll 61). Massstab ist der Vorsprung.
+function nwOf(r){const v=r.nw, soll=r.nwSoll;
+  if(v==null)return{v:null,lab:"Kein Artikel",c:"n"};
+  if(soll==null)return{v:v,lab:"ohne Vergleichswert - Analyse neu rechnen",c:"a"};
+  const d=v-soll;
+  return {v:v, lab:(d>=15?"Stark: ":d>=5?"Solide: ":d>=0?"Knapp: ":"Unter dem Wettbewerb: ")+(d>=0?"+":"")+d+" gegenueber dem Median der Top 10 ("+soll+")",
+          c: d>=15?"g": d>=0?"a":"r"};}
 const HEUTE=new Date();
 function ageOf(r){var sw=('veroeffAm' in r);var base=sw?r.veroeffAm:r.geprueft;if(!base)return{t:null,lab:sw?"Nicht veröffentlicht":"Neu",c:"n"};const t=Math.round((HEUTE-new Date(base))/86400000);return{t:t,lab:t<90?"Aktuell (0-89 T)":t<180?"Bald fällig (90-179 T)":"Überfällig (180+ T)",c:t<90?"g":t<180?"a":"r"};}
 function refreshPill(r){var s=r&&r.refreshStatus;if(!s||s==='erledigt')return '';var M={faellig:['⟳ fällig','n'],crawl_laeuft:['⟳ Crawl läuft','a'],pruefen:['⟳ prüfen','a'],freigabe_noetig:['⟳ Freigabe','a'],fehler:['⟳ Fehler','r'],unveraendert:['✓ geprüft','g']};var e=M[s];if(!e)return '';return ' <span class="age-b '+e[1]+'" title="Auto-Aktualisierung: '+esc(r.refreshInfo||s)+'">'+e[0]+'</span>';}
@@ -1144,7 +1154,54 @@ function route(key){CUR=key;try{if(location.hash.slice(1)!==key)history.replaceS
   if(key==="preisreview"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-currency-euro"></i> <b>Preis-Review</b> <span class="sp">›</span> Nutzer-Preismodell für den Szenario-Vergleich bestätigen';preisreviewView();return;}
   if(key==="kosten"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-coin-euro"></i> <b>Kosten</b> <span class="sp">›</span> API-Kosten &amp; Firecrawl-Credits je Produkt';kostenView();return;}
   if(key==="belege"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-camera"></i> <b>Beweisbilder</b> <span class="sp">›</span> Vollbild-Aufnahme beliebiger Hersteller-Seiten';belegeView();return;}
+  if(key==="selbsttest"){document.body.classList.add("custom");document.body.classList.remove("gen");$("#crumb").innerHTML='<i class="ti ti-shield-bolt"></i> <b>Selbsttest</b> <span class="sp">›</span> Funktionieren die Sperren überhaupt noch?';selbsttestView();return;}
   document.body.classList.remove("custom");const v=VIEWS[key];document.body.classList.toggle("gen",key!=="software");$("#tbNewL").textContent=v.newL||"Neu anlegen";$("#tbNew").style.display=v.newL===""?"none":"";render();if(LOADERS[key]){LOADERS[key]().then(function(){if(CUR===key)render();});}}
+
+// ---- Selbsttest: prueft, ob die SPERREN selbst noch funktionieren ----
+// Anlass 20.07.2026: an EINEM Tag waren drei Kontrollmechanismen unbemerkt ausser Betrieb
+// (RLS ohne GRANT, Umlaut-Trigger zerstoerte einen JSON-Schluessel, Term-Briefing las das falsche Feld).
+// Keiner hat sich gemeldet. Ein Gate, das nie anschlaegt, sieht aus wie ein Gate, das funktioniert.
+// gate_selbsttest() fuettert jede Sperre mit bekannt schlechten Daten und erwartet die Blockade.
+async function selbsttestLauf(){
+  const q = await sb.rpc('gate_selbsttest');
+  if(q.error) throw q.error;
+  const z = q.data || [];
+  return { zeilen:z, durchgefallen:z.filter(function(x){return !x.ok;}) };
+}
+async function selbsttestView(){
+  const cv=$("#customview"); if(!cv) return;
+  cv.innerHTML='<div style="max-width:1000px;margin:0 auto;padding:14px 6px 48px">'
+   +'<div style="border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff">'
+   +'<div style="font-weight:800;font-size:15px"><i class="ti ti-shield-bolt"></i> Funktionieren die Sperren noch?</div>'
+   +'<div style="font-size:12.5px;color:var(--muted);margin:6px 0 14px">Jede Sperre bekommt absichtlich fehlerhafte Daten vorgesetzt. Blockiert sie, ist sie in Ordnung. Lässt sie durch, ist sie defekt — und das Portal wäre ungeschützt, ohne dass es jemand merkt. Der Test räumt hinter sich auf und verändert keine echten Daten.</div>'
+   +'<span class="tb primary" id="stGo" onclick="selbsttestStart()"><i class="ti ti-player-play"></i> Selbsttest starten</span>'
+   +'<div id="stErg" style="margin-top:16px"></div></div></div>';
+  selbsttestStart();
+}
+async function selbsttestStart(){
+  const box=document.getElementById('stErg'), btn=document.getElementById('stGo');
+  if(btn){btn.style.pointerEvents='none';btn.innerHTML='<i class="ti ti-loader-2 spin"></i> läuft …';}
+  try{
+    const r = await selbsttestLauf();
+    const rot = r.durchgefallen.length;
+    const kopf = rot===0
+      ? '<div style="padding:11px 13px;border-radius:9px;background:#ecfdf5;border-left:3px solid #059669;font-weight:700;color:#065f46">Alle '+r.zeilen.length+' Sperren greifen.</div>'
+      : '<div style="padding:11px 13px;border-radius:9px;background:#fef2f2;border-left:3px solid #b91c1c;font-weight:700;color:#991b1b">'+rot+' von '+r.zeilen.length+' Sperren sind DEFEKT — bis zur Klärung nichts veröffentlichen.</div>';
+    box.innerHTML = kopf + '<div style="margin-top:12px">' + r.zeilen.map(function(z){
+      const c = z.ok ? '#059669' : '#b91c1c';
+      return '<div style="border:1px solid var(--line);border-left:3px solid '+c+';border-radius:8px;padding:9px 12px;margin-bottom:7px">'
+        +'<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'
+        +'<span style="color:'+c+';font-weight:800;flex:none">'+(z.ok?'✓':'✗')+'</span>'
+        +'<b style="font-size:13px">'+esc(z.sperre)+'</b>'
+        +'<span style="color:var(--muted);font-size:12px;min-width:0;overflow-wrap:anywhere">'+esc(z.prueft)+'</span></div>'
+        +'<div style="font-size:12px;margin-top:3px;color:'+(z.ok?'var(--muted)':c)+';overflow-wrap:anywhere">'+esc(z.ergebnis)+'</div></div>';
+    }).join('') + '</div>';
+    const b=document.getElementById('stBadge');
+    if(b){ b.textContent=rot; b.style.display=rot?'':'none'; }
+  }catch(e){
+    box.innerHTML='<div style="color:#b91c1c;font-size:13px">Selbsttest fehlgeschlagen: '+esc(String(e&&e.message||e))+'</div>';
+  }finally{ if(btn){btn.style.pointerEvents='';btn.innerHTML='<i class="ti ti-player-play"></i> Selbsttest starten';} }
+}
 
 // ---- Beweisbilder-Ansicht: Vollbild-Aufnahme JEDER Hersteller-Seite ----
 // Laeuft ueber beleg_auftraege (nicht skill_jobs): dort ist software_id NOT NULL, hier ist die
@@ -2238,6 +2295,24 @@ async function harteBefundeOffen(sid){
   }catch(e){ return false; }   // Netzfehler darf nicht faelschlich blocken - die DB-Sperre greift ohnehin
 }
 async function pwsPublish(){if(!PWS||!PWS.artikel||!PWS.artikel.id){toast('Kein Artikel vorhanden – erst Content erzeugen.');return;}
+  // ZUERST pruefen, ob die Sperren ueberhaupt noch greifen. Sonst kann harteBefundeOffen() gruen
+  // melden, WEIL die Pruefung defekt ist - genau der Fall, der am 20.07.2026 dreimal auftrat.
+  // Ein defektes Gate ist gefaehrlicher als ein gefundener Befund: es meldet Entwarnung.
+  try{
+    const st = await selbsttestLauf();
+    if(st.durchgefallen.length){
+      const liste = st.durchgefallen.map(function(z){return '• '+z.sperre+': '+z.ergebnis;}).join('<br>');
+      aov('Veröffentlichung gestoppt', (PWS&&PWS.name)||'',
+        '<div style="padding:16px;font-size:13px;line-height:1.6">'
+        +'<b style="color:#b91c1c">'+st.durchgefallen.length+' Schutzmechanismus/-en funktioniert nicht.</b><br><br>'
+        +liste+'<br><br><span style="color:var(--muted)">Solange eine Sperre defekt ist, ist eine grüne Qualitätsprüfung wertlos — sie kann Entwarnung geben, weil sie nicht mehr prüft. Erst reparieren, dann veröffentlichen.</span></div>',
+        '<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb primary" onclick="closeAov();route(\'selbsttest\')"><i class="ti ti-shield-bolt"></i> Selbsttest öffnen</span>');
+      return;
+    }
+  }catch(e){
+    toast('Selbsttest nicht ausführbar: '+(e&&e.message?e.message:e)+' — Veröffentlichung gestoppt.');
+    return;
+  }
   if(await harteBefundeOffen(PWS.id))return;
   toast('Anti-Halluzinations-Check läuft … (Belege gegen Quellen, ~1 Min)');
   try{const gr=await sb.functions.invoke('beleg-extrahieren',{body:{software_id:PWS.id}});if(gr&&!gr.error)await pwsLadeBeleg();}catch(e){}
