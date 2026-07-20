@@ -2117,6 +2117,7 @@ async function pwsOpen(id){
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
     PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
+    PWS.matrixN=0;try{const _mx=await sb.from('tarif_matrix').select('id',{count:'exact',head:true}).eq('software_id',id);PWS.matrixN=_mx.count||0;}catch(e){}
     PWS.refresh=null;try{const _cr=await sb.from('content_refresh').select('status,zusammenfassung,diff,notiz,geaendert_am').eq('software_id',id).eq('markt_id','de').maybeSingle();PWS.refresh=(_cr&&_cr.data)||null;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
   if(CUR!=='produkt')return;
@@ -2371,7 +2372,7 @@ function pwsStepperHtml(P){
  try{
   var f=P.full||{};
   var funk=P.funk||[],preise=P.preise||[],integ=P.integ||[];
-  var funkN=funk.length,preiseN=preise.length,integN=integ.length;
+  var funkN=funk.length,preiseN=preise.length,integN=integ.length,matrixN=P.matrixN||0;
   var offFunk=funk.filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
   var art=P.artikel,artStatus=art?art.inhalts_status:null,liveOK=artStatus==='live';
   var quellenN=(P.quellen||[]).length,synth=!!P.synthese,logo=!!f.logo_pfad;
@@ -2405,7 +2406,7 @@ function pwsStepperHtml(P){
   if(rst==='crawl_laeuft'||rst==='faellig'){setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000);}
   var FLOW=[
    {k:'anlegen',n:1,t:'Angelegt',pflicht:1,info:'Stammdaten: Name, Hersteller, Website-URL und Kategorie. Basis für alles Weitere.',sum:done.anlegen?'Name, Hersteller, URL und Kategorie sind erfasst':'Stammdaten noch unvollständig',act:["pwsEditor('stammdaten')",done.anlegen?'Stammdaten ansehen':'Stammdaten ausfüllen','ti-id-badge-2']},
-   {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Automatischer Crawl der Hersteller-Website (Firecrawl + KI): Funktionen, Preise und Integrationen werden ausgelesen. Du musst hier nichts tun.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider']},
+   {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Zwei Wege, die sich ergänzen. (1) Crawl (Firecrawl + KI, kostet Credits) liest den Fließtext der Website: Funktionen, Preise, Integrationen. (2) Vergleichstabelle holen (echter Browser, 0 Credits) klickt die große Feature×Tarif-Tabelle des Anbieters auf und liest sie aus — die steckt bei vielen Anbietern hinter einem Knopf („Alle Funktionen anzeigen") und fehlt deshalb in JEDEM Crawl. Genau daher kommen die vielen „k. A." in der Funktionsmatrix.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'+(matrixN>0?(' · <span style="color:#15803d">Vergleichstabelle: '+matrixN+' Zeilen</span>'):' · <span style="color:#b45309">keine Vergleichstabelle</span>')):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider'],act2:["skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",(matrixN>0?'Vergleichstabelle neu holen':'Vergleichstabelle holen')+' (0 Credits)','ti-table']},
    {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check'],act2:["skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern (Max)','ti-wand']},
    {k:'belegen',n:4,t:'Belegen',pflicht:1,info:'Bewertungen, Quellen und Logo ergänzen. Ziel: jede Aussage ist durch eine echte Quelle belegt (Anti-Halluzination).',sum:belSum,act:["pwsEditor('bewertungen')",'Bewertungen & Belege','ti-star']},
    {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0||videoA>0)?(bilderN+' Bilder · '+videoN+' Videos'+(videoA>0?(' · '+videoA+' ausgewertet'):'')):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder verwalten','ti-photo'],act2:["pwsEditor('videos')",'Videos verwalten','ti-brand-youtube']},
