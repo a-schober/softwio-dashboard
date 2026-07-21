@@ -1032,7 +1032,22 @@ async function freigabeWaehle(id,optIdx){const f=(window._freigaben||{})[id];if(
       else if(o.op.action==='update'){var q=sb.from(o.op.collection).select('id');var mt=o.op.match||{};Object.keys(mt).forEach(function(k){q=q.eq(k,mt[k]);});var fr=await q.limit(1);var zid=fr.data&&fr.data[0]&&fr.data[0].id;if(!zid)throw new Error('Zieldatensatz für Update nicht gefunden');await dbW('update',o.op.collection,zid,o.op.data||{});}
     }
     await dbW('update','freigaben',id,{status:'entschieden',entscheidung:o.key||String(optIdx),entschieden_am:new Date().toISOString()});
-    closeAov();toast(o.op?'Übernommen & freigegeben ✓':'Als erledigt abgehakt ✓');
+    // 21.07.: Ein neuer Woerterbuch-Begriff allein aendert an den Funktionen NICHTS - erst ein erneuter
+    // canonical-Lauf ordnet sie zu. Ohne das klickt man frei und sieht wieder keinen Effekt (genau der Bug,
+    // der diese Freigabe-Kette ausgeloest hat). Ein Job pro Produkt reicht, daher der Dedupe-Check.
+    var nachlauf=false;
+    if(o.op&&o.op.collection==='funktions_woerterbuch'&&o.op.action==='create'&&f.software_id){
+      try{
+        var off=await sb.from('skill_jobs').select('id').eq('software_id',f.software_id)
+                        .eq('skill','anreichern').in('status',['offen','in_arbeit']).limit(1);
+        if(!(off.data||[]).length){
+          await sb.from('skill_jobs').insert({software_id:f.software_id,skill:'anreichern',
+                        args:'nur:canonical',status:'offen'});
+          nachlauf=true;
+        }
+      }catch(_){}
+    }
+    closeAov();toast(o.op?('Übernommen & freigegeben ✓'+(nachlauf?' · Zuordnung läuft nach':'')):'Als erledigt abgehakt ✓');
     await ladeFreigabenView();render();
   }catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
@@ -2219,7 +2234,7 @@ async function pwsOpen(id){
       sb.from('anwendungsfaelle').select('anwendungsfall_id,titel,zielgruppe,beschreibung,mehrwert').eq('software_id',id),
       sb.from('quellen').select('id').eq('software_id',id),
       sb.from('bewertungs_synthesen').select('id,anzahl_bewertungen').eq('software_id',id).limit(1),
-      sb.from('freigaben').select('id,status').eq('software_id',id),
+      sb.from('freigaben').select('id,status,art').eq('software_id',id),
       sb.from('inhalts_artikel').select('id,inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,nw_soll_punktzahl,letztes_update_am').eq('software_id',id).limit(1),
       sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id)
     ]);
@@ -2242,7 +2257,9 @@ function pwsStages(P){
   const f=P.full||{};const dd=(dlgRow&&dlgRow._d)||{};
   const funkA=dd.funk||P.funk||[];const preiseA=dd.preise||P.preise||[];
   const offeneFunk=funkA.filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
-  const offeneFrei=(P.freigaben||[]).filter(function(x){return x.status!=='entschieden';}).length;
+  // 21.07.: 'neuer_canonical' zaehlt hier NICHT mit. Woerterbuch-Vorschlaege haengen technisch an einer
+  // software_id, sind aber produktuebergreifendes Vokabular - sie duerfen den Produkt-Workflow nicht rot faerben.
+  const offeneFrei=(P.freigaben||[]).filter(function(x){return x.status!=='entschieden'&&x.art!=='neuer_canonical';}).length;
   const defs=[
     {key:'anlegen',t:'Anlegen',kind:'todo',todo:'Dein ToDo: Stammdaten ausfüllen und speichern.',info:'Was tun: Name, Hersteller, URL, Kategorie & Markt erfassen. Ziel: Produkt ist angelegt und einsortiert.',tabs:['stammdaten']},
     {key:'medien',t:'Bilder & Videos',kind:'todo',todo:'Dein ToDo: Screenshots/Produktbilder hochladen und passende Videos hinterlegen (optional, aber empfohlen).',info:'Was tun: Bilder & Videos für die Detailseite pflegen. Ziel: anschauliche, vertrauenswürdige Seite.',tabs:['bilder','videos']},
@@ -2519,7 +2536,7 @@ function pwsStepperHtml(P){
   var art=P.artikel,artStatus=art?art.inhalts_status:null,liveOK=artStatus==='live';
   var quellenN=(P.quellen||[]).length,synth=!!P.synthese,logo=!!f.logo_pfad;
   var bilderN=P.bilderN||0,videoN=P.videoN||0,videoA=P.videoAusgewertet||0;
-  var freiOffen=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden';}).length;
+  var freiOffen=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden'&&x.art!=='neuer_canonical';}).length;
   var belegOffen=(P.beleg&&P.beleg.unbelegt)||0;
   var swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});
   var lua=art&&art.letztes_update_am;var age=lua?Math.round((Date.now()-new Date(lua))/86400000):null;
