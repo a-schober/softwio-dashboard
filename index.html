@@ -3579,7 +3579,63 @@ function jobLeisteZeichnen(jobs, fehler){
       }).join('');
 }
 
-async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); jobLeisteLaden(); setInterval(jobLeisteLaden,15000); }
+// ===== Rechte-Selbsttest (21.07.2026) =====
+// An einem Tag VIER Vorfälle desselben Musters: Eine Tabelle hat RLS-Policies, aber kein GRANT.
+// Postgres prüft das Recht VOR der Regel - die Policy ist dann wirkungslos. Weil alle Leseaufrufe
+// in try/catch stecken (131 Stück), kommt kein Fehler an, sondern eine 0. Das Cockpit meldete
+// "keine Vergleichstabelle", obwohl 131 Zeilen dastanden, und schickte Toni erneut auf denselben Knopf.
+//
+// Einzeln lassen sich 131 Fänge nicht sicher umbauen. Stattdessen: einmal beim Start jede Tabelle
+// anfassen und melden, welche nicht lesbar ist. Ein stiller Rechte-Fehler wird damit laut.
+const RECHTE_TABELLEN=['software','funktionen','preise','integrationen','anwendungsfaelle','vorteile_nachteile',
+ 'quellen','freigaben','inhalts_artikel','software_bilder','skill_jobs','skill_status','video_warteschlange',
+ 'bewertungs_analysen','bewertungs_synthesen','bewertungs_ernte','bewertungs_jobs','bewertungs_rohdaten',
+ 'tarif_matrix','funktions_woerterbuch','kategorien','maerkte','kosten_log','content_refresh','beleg_auftraege',
+ 'ssot_verifikation','distribution_jobs','content_jobs','hersteller_videos','watch_cookies_status'];
+
+async function rechteSelbsttest(){
+  var fehlend=[];
+  await Promise.all(RECHTE_TABELLEN.map(async function(t){
+    try{
+      var r=await sb.from(t).select('*',{count:'exact',head:true});
+      // 42501 = permission denied. Auch eine leere Tabelle liefert KEINEN Fehler, nur count 0 -
+      // deshalb ist der Fehler hier ein verlässliches Zeichen für ein Rechteproblem.
+      if(r&&r.error)fehlend.push({t:t,m:(r.error.message||'').slice(0,60)});
+    }catch(e){ fehlend.push({t:t,m:String((e&&e.message)||e).slice(0,60)}); }
+  }));
+
+  // SELBSTPRÜFUNG: watch_cookies hat bewusst INSERT, aber KEIN SELECT (der Browser soll den
+  // hinterlegten Konto-Zugang nicht zurücklesen können). Ein Leseversuch MUSS also fehlschlagen.
+  // Gelingt er, erkennt dieser Test Rechteprobleme generell nicht mehr - dann ist der Wächter
+  // selbst defekt und sein Schweigen wertlos. Lehre aus gate_selbsttest: Wer prüft den Prüfer?
+  var pruferOk=false;
+  try{ var s=await sb.from('watch_cookies').select('id').limit(1); pruferOk=!!(s&&s.error); }catch(e){ pruferOk=true; }
+
+  var alt=document.getElementById('rechteBand'); if(alt)alt.remove();
+  if(!pruferOk){
+    var w=document.createElement('div');
+    w.id='rechteBand';
+    w.style.cssText='position:sticky;top:0;z-index:9999;background:#7f1d1d;color:#fff;padding:10px 16px;font-size:13px;line-height:1.5';
+    w.innerHTML='<b>⚠ Der Rechte-Selbsttest funktioniert nicht mehr</b> – seine eigene Kontrollprobe (watch_cookies darf NICHT lesbar sein) '
+      +'ist durchgelaufen. Damit kann er fehlende Leserechte nicht mehr erkennen; leere Anzeigen sind ab jetzt nicht mehr vertrauenswürdig. Bitte melden.';
+    document.body.insertBefore(w,document.body.firstChild);
+    try{ console.error('Rechte-Selbsttest: Kontrollprobe fehlgeschlagen – Prüfer defekt'); }catch(_){}
+    return -1;
+  }
+  if(!fehlend.length)return 0;
+  var d=document.createElement('div');
+  d.id='rechteBand';
+  d.style.cssText='position:sticky;top:0;z-index:9999;background:#7f1d1d;color:#fff;padding:10px 16px;font-size:13px;line-height:1.5';
+  d.innerHTML='<b>⚠ '+fehlend.length+' Tabelle(n) sind für das Dashboard nicht lesbar</b> – Anzeigen dazu bleiben leer oder zeigen 0, '
+    +'obwohl Daten vorhanden sein können: <b>'+fehlend.map(function(x){return esc(x.t);}).join(', ')+'</b>'
+    +'<div style="opacity:.85;margin-top:4px;font-size:12px">Ursache ist fast immer ein fehlendes GRANT (Postgres prüft das Recht vor der RLS-Regel). '
+    +'Bitte melden – ohne Fix sind die betroffenen Zahlen wertlos.</div>';
+  document.body.insertBefore(d,document.body.firstChild);
+  try{ console.warn('Rechte-Selbsttest:',fehlend); }catch(_){}
+  return fehlend.length;
+}
+
+async function startApp(){ rechteSelbsttest(); await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); jobLeisteLaden(); setInterval(jobLeisteLaden,15000); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
