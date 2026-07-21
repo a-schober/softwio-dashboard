@@ -3255,7 +3255,50 @@ function vglResult(names){const c=$("#vglRes"),f=$("#aFoot");if(!c)return;
   if(f)f.innerHTML='<span class="tb" onclick="closeAov()">Schließen</span> <span class="tb" onclick="toast(\'Als Entwurf gespeichert (Demo)\')"><i class="ti ti-device-floppy"></i> Als Entwurf</span> <span class="tb ok" onclick="vglPublish()"><i class="ti ti-rosette-discount-check"></i> Veröffentlichen</span>';
 }
 function vglPublish(){const names=vglLastNames;if(!names||names.length<2)return;VIEWS.vergleiche.rows.unshift({name:names.join(" vs. "),kat:vglCat,tools:names.length,markt:"DE",angelegt:"2026-06-22",pct:100,status:"live",geprueft:"2026-06-22",nw:80,_hue:HUE[VIEWS.vergleiche.rows.length%HUE.length]});vglSel=new Set();toast("Vergleichsartikel veröffentlicht & in Übersicht aufgenommen");closeAov();route("vergleiche");}
-async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); }
+// ---- Live-Leiste fuer laufende Max-Jobs (21.07.2026) ----
+// Toni musste bisher nachfragen, ob ueberhaupt etwas laeuft: das Cockpit zeigte nur das ERGEBNIS.
+// Ein Job, der 20-40 Minuten rechnet, war von 'haengt' nicht zu unterscheiden. Diese Leiste macht
+// laufende und wartende Arbeit sichtbar - inklusive Laufzeit, damit ein Stillstand auffaellt.
+const JOB_LABEL={extraktion:'Fakten extrahieren',cleanup:'Crawl aufbereiten',anreichern:'Anreichern',
+  qualitaetsgate:'Qualitaetspruefung',klaeren:'Befunde klaeren',bewertungen:'Bewertungen',
+  bilder:'Bilder',belege:'Beweisbilder',distribution:'Distribution',matrix:'Funktionsmatrix',bildabgleich:'Bildabgleich'};
+async function jobLeisteLaden(){
+  try{
+    const q=await sb.from('skill_jobs').select('skill,status,software_id,erstellt_am,begonnen_am,geaendert_am')
+      .in('status',['offen','in_arbeit']).order('erstellt_am');
+    if(q.error)throw q.error;
+    jobLeisteZeichnen(q.data||[]);
+  }catch(e){ jobLeisteZeichnen(null, String(e&&e.message||e)); }
+}
+function jobLeisteZeichnen(jobs, fehler){
+  let el=document.getElementById('jobLeiste');
+  if(!el){ el=document.createElement('div'); el.id='jobLeiste';
+    el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:70;background:#0f172a;color:#fff;'
+      +'font-size:12.5px;padding:8px 14px;display:none;box-shadow:0 -4px 16px rgba(0,0,0,.25);'
+      +'display:flex;gap:14px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(el); }
+  if(fehler){ el.style.display='flex';
+    el.innerHTML='<span style="color:#fca5a5">Job-Status nicht lesbar: '+esc(fehler)+'</span>'; return; }
+  if(!jobs||!jobs.length){ el.style.display='none'; return; }
+  const nm=(id)=>{ try{ const r=(VIEWS.software.rows||[]).find(x=>String(x.id)===String(id)); return r?r.name:''; }catch(e){ return ''; } };
+  const min=(t)=> t? Math.round((Date.now()-new Date(t).getTime())/60000) : null;
+  el.style.display='flex';
+  el.innerHTML='<b style="flex:none"><i class="ti ti-loader-2 spin"></i> '+jobs.length+(jobs.length>1?' Aufträge':' Auftrag')+'</b>'
+    + jobs.map(function(j){
+        const laeuft=j.status==='in_arbeit';
+        const dauer=laeuft?min(j.begonnen_am):min(j.erstellt_am);
+        const still=laeuft?min(j.geaendert_am):null;
+        // Kein Lebenszeichen seit >10 Min: sichtbar machen statt hoffen.
+        const stumm=laeuft&&still!==null&&still>10;
+        return '<span style="flex:none;padding:2px 9px;border-radius:999px;background:'
+          +(stumm?'#7f1d1d':(laeuft?'#1d4ed8':'#334155'))+'">'
+          +esc(JOB_LABEL[j.skill]||j.skill)+(nm(j.software_id)?' · '+esc(nm(j.software_id)):'')
+          +' <span style="opacity:.75">'+(laeuft?(dauer+' Min'):'wartet')+'</span>'
+          +(stumm?' <span title="seit '+still+' Min kein Lebenszeichen">⚠</span>':'')+'</span>';
+      }).join('');
+}
+
+async function startApp(){ await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); jobLeisteLaden(); setInterval(jobLeisteLaden,15000); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
