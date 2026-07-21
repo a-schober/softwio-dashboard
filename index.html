@@ -2398,10 +2398,16 @@ async function pwsOpen(id){
       sb.from('bewertungs_synthesen').select('id,anzahl_bewertungen').eq('software_id',id).limit(1),
       sb.from('freigaben').select('id,status,art').eq('software_id',id),
       sb.from('inhalts_artikel').select('id,inhalts_status,nw_punktzahl_v1,nw_punktzahl_v2,nw_punktzahl_v3,nw_soll_punktzahl,letztes_update_am').eq('software_id',id).limit(1),
-      sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id)
+      sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id),
+      // 21.07.: Fuer die Schritt-Fuehrung. Entscheidend ist nicht nur OB geprueft wurde, sondern ob
+      // seither Daten dazukamen - eine Pruefung von gestern Nacht bewertet den heutigen Stand nicht.
+      sb.from('skill_status').select('skill,status,gelaufen_am').eq('software_id',id),
+      sb.from('funktionen').select('geaendert_am').eq('software_id',id).order('geaendert_am',{ascending:false}).limit(1)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
     PWS.beleg=pwsBelegAus((res[9]&&res[9].data)||[]);
+    PWS.skills=(res[10]&&res[10].data)||[];
+    PWS.datenStand=(((res[11]&&res[11].data)||[])[0]||{}).geaendert_am||null;
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
     dlgRow._d={full:PWS.full,funk:PWS.funk,preise:PWS.preise,integ:PWS.integ,faelle:PWS.faelle,lade:false};
@@ -2725,6 +2731,42 @@ function pwsStepperHtml(P){
   else if(rst==='crawl_laeuft'||rst==='faellig'){pflegeSum='Aktualisierung läuft … (Re-Crawl &amp; Faktenvergleich)';}
   else{pflegeSum='Content-Alter '+(age!=null?(age+' Tage'):'—')+(rst==='unveraendert'?' · zuletzt geprüft, keine Änderung':'');pflegeAct=["pwsAktualisieren('"+P.id+"')",'Jetzt aktualisieren','ti-refresh'];}
   if(rst==='crawl_laeuft'||rst==='faellig'){setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000);}
+  // ===== Schritt-für-Schritt-Führung (21.07.2026) =====
+  // Toni: "ich benötige eine bessere, präzisere Führung, Schritt für Schritt der Reihe nach,
+  // kein vor und dann wieder zurück." Zu Recht - an dem Tag habe ich ihn von Stufe 6 zu 2 zu 3
+  // und zurück zu 6 geschickt. Die 9 Stufen zeigen ALLES Mögliche, aber nicht DAS EINE Richtige.
+  //
+  // Diese Liste wird von oben nach unten geprüft; der erste zutreffende Eintrag ist der nächste
+  // Schritt. Die Reihenfolge bildet die echten Abhängigkeiten ab, nicht die Nummerierung der Stufen.
+  // WICHTIG: 'pruefung_veraltet' steht bewusst VOR den Freigaben - eine Prüfung von gestern bewertet
+  // den heutigen Datenstand nicht, und genau daran ist Toni heute hängengeblieben.
+  var qsRow=(P.skills||[]).find(function(x){return x.skill==='qualitaetsgate';});
+  var qsZeit=qsRow&&qsRow.gelaufen_am?new Date(qsRow.gelaufen_am).getTime():0;
+  var datenZeit=P.datenStand?new Date(P.datenStand).getTime():0;
+  var pruefungVeraltet=qsZeit>0&&datenZeit>qsZeit+60000;   // 1 Min Toleranz
+  var ohneTarif=(P.funk||[]).filter(function(x){return !(x.verfuegbar_ab_tarif||'').trim();}).length;
+  var harteBefunde=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden'&&x.schwere==='hart';}).length;
+
+  function naechsterSchritt(){
+    var S=function(t,w,akt,knopf,ikon,stufe){return {titel:t,warum:w,akt:akt,knopf:knopf,ikon:ikon,stufe:stufe};};
+    if(!done.anlegen) return S('Stammdaten vervollständigen','Name, Hersteller, Website und Kategorie fehlen – ohne sie kann nichts gecrawlt werden.',"pwsEditor('stamm')",'Stammdaten öffnen','ti-edit',1);
+    if(!done.sammeln) return S('Website crawlen','Es liegen noch keine Fakten vor. Der Crawl liest die Herstellerseite aus – alles Weitere baut darauf auf.',"pwsCrawl('"+P.id+"')",'Crawl starten','ti-spider',2);
+    if(funkN>0&&matrixN===0&&ohneTarif>funkN*0.3) return S('Tarif-Vergleichstabelle holen','Mehr als ein Drittel der Funktionen hat keine Tarif-Zuordnung. Die Tabelle steht hinter einem Klick auf der Preisseite – der Crawler sieht sie nie.',"skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",'Vergleichstabelle holen','ti-table',2);
+    if(offFunk>0||ohneTarif>funkN*0.3) return S('Fakten anreichern','Funktionen ohne Oberbegriff oder Tarif-Zuordnung. Dieser Schritt verteilt die Daten aus Crawl und Vergleichstabelle.',"skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern','ti-wand',3);
+    if(!synth) return S('Bewertungen auswerten','Ohne Nutzerbewertungen fehlt der Seite die Außensicht – und dem Schlusscheck eine Pflichtangabe.',"pwsEditor('bewertungen')",'Bewertungen holen','ti-star',4);
+    if(quellenN===0) return S('Belegquellen fehlen','Die Liste der gelesenen Seiten ist leer. Sie belegt, worauf sich die Fakten stützen.',"pwsEditor('bewertungen')",'Belege öffnen','ti-link',4);
+    if(!logo) return S('Logo hinterlegen','Ohne Logo sieht das Produkt in Listen und Vergleichen unfertig aus.',"pwsEditor('logo')",'Logo verwalten','ti-photo',5);
+    if(bilderN===0) return S('Screenshots holen','Bilder der Oberfläche machen die Seite belegbar und anschaulich.',"skillJobStart('"+P.id+"','bilder','','Screenshots holen')",'Screenshots holen','ti-camera',5);
+    if(qsZeit===0) return S('Qualitätsprüfung starten','Sieben Prüfungen gegen die echte Quelle. Jeder harte Befund sperrt die Veröffentlichung – das ist der Schutz vor falschen Aussagen.',"skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Qualitätsprüfung starten','ti-shield-check',6);
+    if(pruefungVeraltet) return S('Qualitätsprüfung wiederholen','Seit der letzten Prüfung sind Daten dazugekommen. Ihr Ergebnis bewertet einen Stand, den es nicht mehr gibt.',"skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Erneut prüfen','ti-shield-check',6);
+    if(harteBefunde>0) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Diese sperren die Veröffentlichung – die Sperre sitzt in der Datenbank und gilt für jeden Weg. Entscheide jeden einzeln.',"route('freigaben')",'Freigaben öffnen','ti-alert-triangle',6);
+    if(freiOffen>0) return S(freiOffen+' offene Freigabe'+(freiOffen===1?'':'n'),'Grenzfälle, die eine Entscheidung brauchen. Danach ist der Weg zum Artikel frei.',"route('freigaben')",'Freigaben öffnen','ti-checkbox',6);
+    if(!art) return S('Artikel bauen','Alle Pflichtschritte stehen. Der Artikel entsteht automatisch aus den geprüften Fakten.',"artikelBauen('"+P.id+"')",'Artikel jetzt bauen','ti-sparkles',8);
+    if(!liveOK) return S('Artikel prüfen und live schalten','Der Entwurf ist fertig. Letzter Halt: dein Blick darauf.',"pwsPublish()",'Prüfen & veröffentlichen','ti-cloud-upload',8);
+    return S('Alles erledigt','Der Artikel ist live. Die Aktualität wird automatisch überwacht.',null,null,'ti-circle-check',9);
+  }
+  var NS=naechsterSchritt();
+
   var FLOW=[
    {k:'anlegen',n:1,t:'Angelegt',pflicht:1,info:'Stammdaten: Name, Hersteller, Website-URL und Kategorie. Basis für alles Weitere.',sum:done.anlegen?'Name, Hersteller, URL und Kategorie sind erfasst':'Stammdaten noch unvollständig',act:["pwsEditor('stammdaten')",done.anlegen?'Stammdaten ansehen':'Stammdaten ausfüllen','ti-id-badge-2']},
    {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Zwei Wege, die sich ergänzen. (1) Crawl (Firecrawl + KI, kostet Credits) liest den Fließtext der Website: Funktionen, Preise, Integrationen. (2) Vergleichstabelle holen (echter Browser, 0 Credits) klickt die große Feature×Tarif-Tabelle des Anbieters auf und liest sie aus — die steckt bei vielen Anbietern hinter einem Knopf („Alle Funktionen anzeigen") und fehlt deshalb in JEDEM Crawl. Genau daher kommen die vielen „k. A." in der Funktionsmatrix.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'+(matrixN>0?(' · <span style="color:#15803d">Vergleichstabelle: '+matrixN+' Zeilen</span>'):' · <span style="color:#b45309">keine Vergleichstabelle</span>')):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider'],act2:["skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",(matrixN>0?'Vergleichstabelle neu holen':'Vergleichstabelle holen')+' (0 Credits)','ti-table']},
@@ -2750,7 +2792,21 @@ function pwsStepperHtml(P){
     var rowClick=(!s.act2&&state!=='current'&&state!=='locked'&&s.act)?(' style="cursor:pointer" onclick="'+s.act[0]+'"'):'';
     return '<div class="pfs '+state+'"'+rowClick+'><span class="pfic">'+ic+'</span><div class="pfbd"><div class="pftt">'+s.n+'. '+esc(s.t)+' '+infoH(s.info)+tags+'</div><div class="pfsb">'+s.sum+'</div>'+act+'</div>'+badge+'</div>';
   }).join('');
-  return PWS_FLOW_STYLE+'<div class="pws-flow">'+rows+'</div>';
+  // Die Führung steht ÜBER den Stufen und nennt genau eine Handlung. Die Stufenliste darunter
+  // bleibt als Übersicht erhalten - wer wissen will, wo er steht, sieht es weiterhin.
+  var fertig=!NS.akt;
+  var ns='<div style="border:2px solid '+(fertig?'#059669':'var(--brand)')+';border-radius:12px;padding:14px 16px;margin-bottom:14px;'
+    +'background:'+(fertig?'rgba(5,150,105,.06)':'rgba(37,99,235,.05)')+'">'
+    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px">'
+      +(fertig?'Status':'Dein nächster Schritt')+(NS.stufe?(' · Stufe '+NS.stufe):'')+'</div>'
+    +'<div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:220px">'
+        +'<div style="font-size:16px;font-weight:700;line-height:1.3"><i class="ti '+NS.ikon+'"></i> '+esc(NS.titel)+'</div>'
+        +'<div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5">'+esc(NS.warum)+'</div>'
+      +'</div>'
+      +(NS.akt?('<div style="flex:none">'+pwsBtn(esc(NS.knopf),NS.akt,NS.ikon,true)+'</div>'):'')
+    +'</div></div>';
+  return PWS_FLOW_STYLE+ns+'<div class="pws-flow">'+rows+'</div>';
  }catch(_e){return '<div class="pws-hint" style="color:#b91c1c">Ablauf-Ansicht Fehler: '+esc(String((_e&&_e.message)||_e))+'</div>';}
 }
 // --- Generischer Starter fuer Claude-Max-Skills ueber skill_jobs (0 API-Kosten) ---
