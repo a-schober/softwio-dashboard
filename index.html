@@ -1535,7 +1535,7 @@ function ckDialog(){
     +'<li>Die Datei unten auswählen oder hierher ziehen – <b>nicht</b> öffnen nötig</li></ol>'
     +'<div id="ckDrop" style="border:2px dashed var(--line);border-radius:9px;padding:18px 14px;text-align:center;cursor:pointer;transition:border-color .12s,background .12s">'
     +'<i class="ti ti-file-upload" style="font-size:26px;color:var(--muted)"></i>'
-    +'<div style="font-size:13px;font-weight:600;margin-top:6px">Cookie-Datei hierher ziehen oder klicken</div>'
+    +'<div style="font-size:13px;font-weight:600;margin-top:6px">Cookie-Datei hierher ziehen, klicken oder <kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">Strg</kbd>+<kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">V</kbd></div>'
     +'<div style="font-size:11.5px;color:var(--muted);margin-top:3px">meist <code>www.youtube.com_cookies.txt</code></div>'
     +'<input type="file" id="ckFile" accept=".txt,text/plain" style="display:none"></div>'
     +'<details style="margin-top:9px"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Oder den Inhalt von Hand einfügen</summary>'
@@ -1560,6 +1560,28 @@ function ckDialogVerdrahten(){
   ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();ev.stopPropagation();rahmen(false);});});
   drop.addEventListener('drop',function(ev){var f=ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files[0];if(f)ckDateiLesen(f);});
   fi.addEventListener('change',function(){if(fi.files&&fi.files[0])ckDateiLesen(fi.files[0]);});
+
+  // Strg+V: Toni hat die Datei auf dem Heimrechner ohnehin schon kopiert. Die Zwischenablage kann
+  // beides liefern - die DATEI selbst (aus dem Explorer kopiert) oder ihren TEXT (aus einem Editor).
+  // Beides wird angenommen; im Textfeld bleibt das normale Einfuegen unangetastet.
+  if(!window._ckPaste){
+    window._ckPaste=function(ev){
+      var drop=document.getElementById('ckDrop');
+      if(!drop){ document.removeEventListener('paste',window._ckPaste); window._ckPaste=null; return; }  // Dialog zu -> abmelden
+      var cd=ev.clipboardData; if(!cd)return;
+      var f=cd.files&&cd.files[0];
+      if(f){ ev.preventDefault(); ckDateiLesen(f); return; }
+      if(ev.target&&ev.target.id==='ckTa')return;   // im Textfeld: normales Einfuegen
+      var txt=cd.getData('text');
+      if(txt&&txt.length>40){
+        ev.preventDefault();
+        var ta=document.getElementById('ckTa'); if(ta)ta.value=txt;
+        var ok=ckVorpruefung();
+        var n=drop.querySelector('div'); if(n&&ok)n.textContent='Aus der Zwischenablage eingefügt';
+      }
+    };
+    document.addEventListener('paste',window._ckPaste);
+  }
 }
 function ckDateiLesen(f){
   var p=document.getElementById('ckPruef');
