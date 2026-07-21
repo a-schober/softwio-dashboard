@@ -2743,6 +2743,10 @@ function pwsStepperHtml(P){
 // Max-Job einreihen und IM SELBEN FENSTER darauf warten - statt den Nutzer in eine Warteschlange
 // zu schicken. Ersetzt die kostenpflichtigen Edge-Functions an den Stellen, die ihr Ergebnis
 // bisher sofort angezeigt haben. Liefert true bei Erfolg, wirft bei Fehler/Zeitueberschreitung.
+// Erfahrungswerte in Minuten (Hoechstwert echter Laeufe der letzten 7 Tage, Stand 21.07.2026).
+// Bewusst der Hoechst- und nicht der Mittelwert: eine zu optimistische Angabe erzeugt genau die Frage
+// "laeuft hier ueberhaupt was?", die diese Anzeige beantworten soll.
+const SKILL_DAUER={klaeren:20,qualitaetsgate:14,videoauswertung:11,anreichern:9,extraktion:8,cleanup:6,bilder:6,distribution:3,bewertungen:10,matrix:8,belege:12,bildabgleich:10};
 async function skillJobInline(sid,skill,args,label,statusEl){
   if(!sid)throw new Error('Keine Software-ID');
   const setz=function(t){try{if(statusEl)statusEl.innerHTML='<i class="ti ti-loader-2 spin"></i> '+t;}catch(_){}};
@@ -2757,7 +2761,16 @@ async function skillJobInline(sid,skill,args,label,statusEl){
     const j=(q&&q.data)||{};
     if(j.status==='fertig')return true;
     if(j.status==='fehler')throw new Error(j.log||'Lauf fehlgeschlagen');
-    setz((label||skill)+(j.phase?(' · '+j.phase):' …')+' (der Runner greift den Job binnen ~3 Minuten)');
+    // 21.07.: Vorher stand hier "läuft · laeuft" - der Phasen-Rohwert doppelt und ohne Umlaut, dazu
+    // ein Hinweis auf die Wartezeit, der nach dem Start nicht mehr stimmte. Toni fragte zu Recht:
+    // "Läuft hier überhaupt etwas?" Was fehlt, ist die verstrichene Zeit und eine Erwartung.
+    var sek=Math.round((Date.now()-start)/1000), mm=Math.floor(sek/60), ss=sek%60;
+    var dauer=mm+':'+(ss<10?'0':'')+ss;
+    var erwartet=(SKILL_DAUER[skill]||10);
+    var txt=(j.status==='in_arbeit')
+      ? ('<b>'+esc(label||skill)+'</b> arbeitet seit '+dauer+' Min<br><span style="color:var(--muted);font-size:12px">Erfahrungswert: bis zu '+erwartet+' Minuten. Du kannst dieses Fenster schließen – der Lauf geht weiter.</span>')
+      : ('<b>'+esc(label||skill)+'</b> eingereiht ('+dauer+' Min)<br><span style="color:var(--muted);font-size:12px">Der Runner nimmt den Job binnen einer Minute auf.</span>');
+    setz(txt);
   }
   throw new Error('Zeitüberschreitung – der Lauf läuft im Hintergrund weiter, das Ergebnis erscheint später.');
 }
@@ -2773,11 +2786,20 @@ async function skillJobStart(sid,skill,args,label){
 async function skillJobPoll(jid){
   const box=document.getElementById('sjOut');if(!box||!jid)return;
   try{
-    const r=await sb.from('skill_jobs').select('status,phase,log').eq('id',jid).single();
+    const r=await sb.from('skill_jobs').select('status,phase,log,skill,begonnen_am,erstellt_am').eq('id',jid).single();
     const j=r.data;if(!j){return;}
     const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};
     const m=map[j.status]||['#475569',esc(j.status)];
-    box.innerHTML='<div style="color:'+m[0]+';font-weight:700;margin-bottom:6px">'+m[1]+(j.phase?' · '+esc(j.phase):'')+'</div>'+(j.log?'<div style="font-size:12.5px;color:var(--ink);line-height:1.55">'+esc(j.log)+'</div>':'');
+    // 21.07.: Statt des Phasen-Rohwerts (ergab "läuft · laeuft") die verstrichene Zeit und eine
+    // Erwartung. Wer minutenlang "läuft" liest, ohne dass sich etwas rührt, fragt sich zu Recht,
+    // ob überhaupt etwas passiert.
+    var zusatz='';
+    if(j.status==='in_arbeit'&&j.begonnen_am){
+      var s=Math.max(0,Math.round((Date.now()-new Date(j.begonnen_am).getTime())/1000));
+      zusatz=' · seit '+Math.floor(s/60)+':'+((s%60)<10?'0':'')+(s%60)+' Min';
+      var erw=SKILL_DAUER[j.skill]; if(erw)zusatz+=' <span style="font-weight:400;color:var(--muted)">(erfahrungsgemäß bis '+erw+' Min)</span>';
+    }
+    box.innerHTML='<div style="color:'+m[0]+';font-weight:700;margin-bottom:6px">'+m[1]+zusatz+'</div>'+(j.log&&j.log!=='arbeitet ...'?'<div style="font-size:12.5px;color:var(--ink);line-height:1.55">'+esc(j.log)+'</div>':'');
     if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){skillJobPoll(jid);},4000);}
     else{try{await ladeSW();render();}catch(_){}}
   }catch(e){}
