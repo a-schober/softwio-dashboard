@@ -1458,7 +1458,10 @@ function ytCards(){
   return (ytTitel?`<div style="grid-column:1/-1;font-weight:600;font-size:13px">${esc(ytTitel)}</div>`:"")+ytListe.map(function(v){
     if(v.art==="kanal")return `<div class="yt-card" onclick="ytKanal('${v.id}')"><div class="yt-thumb">${v.bild?`<img src="${v.bild}" referrerpolicy="no-referrer" loading="lazy" alt="">`:""}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">📺 Kanal öffnen</div></div>`;
     var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl");var done=aus||wart;
-    return `<div class="yt-card ${ytSel.has(v.id)?"sel":""} ${done?"done":""}" ${done?"":`onclick="ytToggle('${v.id}')"`}><div class="yt-thumb"><img src="${v.bild||("https://i.ytimg.com/vi/"+v.id+"/mqdefault.jpg")}" referrerpolicy="no-referrer" loading="lazy" alt="">${aus?'<span class="yt-done"><i class="ti ti-circle-check"></i> ausgewertet</span>':(wart?'<span class="yt-done" style="background:#d97706"><i class="ti ti-clock"></i> in Warteschlange</span>':'<span class="chk"><i class="ti ti-check"></i></span>')}${v.d?`<span class="du">${v.d}</span>`:""}${done?"":`<button class="cp" onclick="event.stopPropagation();ytCopy('${v.id}')">/watch kopieren</button>`}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">${esc(v.k||"")}${v.v?" · "+v.v+" Aufrufe":""}${v.datum?" · "+ytAlter(v.datum):""}</div></div>`;
+    // 21.07.: Fehlgeschlagene Laeufe waren unsichtbar - die Kachel sah aus wie nie angefasst. Jetzt rot
+    // markiert und weiterhin anklickbar, damit man sie nach behobener Ursache erneut einreihen kann.
+    var fehl=!aus&&!wart&&ytQueue[v.id]==="fehler";
+    return `<div class="yt-card ${ytSel.has(v.id)?"sel":""} ${done?"done":""}" ${done?"":`onclick="ytToggle('${v.id}')"`}><div class="yt-thumb"><img src="${v.bild||("https://i.ytimg.com/vi/"+v.id+"/mqdefault.jpg")}" referrerpolicy="no-referrer" loading="lazy" alt="">${aus?'<span class="yt-done"><i class="ti ti-circle-check"></i> ausgewertet</span>':(wart?'<span class="yt-done" style="background:#d97706"><i class="ti ti-clock"></i> in Warteschlange</span>':(fehl?'<span class="yt-done" style="background:#dc2626" title="Letzter Lauf ohne Ergebnis – erneut anhaken und auswerten lassen"><i class="ti ti-alert-triangle"></i> fehlgeschlagen</span>':'<span class="chk"><i class="ti ti-check"></i></span>'))}${v.d?`<span class="du">${v.d}</span>`:""}${done?"":`<button class="cp" onclick="event.stopPropagation();ytCopy('${v.id}')">/watch kopieren</button>`}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">${esc(v.k||"")}${v.v?" · "+v.v+" Aufrufe":""}${v.datum?" · "+ytAlter(v.datum):""}</div></div>`;
   }).join("");
 }
 function ytGrid(){const g=$("#ytGrid");if(g)g.innerHTML=ytCards();ytBar();}
@@ -1534,8 +1537,9 @@ function ckDialog(){
     +'<ol style="margin:0 0 12px 18px;padding:0;color:var(--muted);font-size:12.5px;line-height:1.7">'
     +'<li>Browser-Erweiterung <b>„Get cookies.txt LOCALLY"</b> installieren (Chrome Web Store)</li>'
     +'<li>Auf <b>youtube.com</b> gehen und sicherstellen, dass du <b>eingeloggt</b> bist</li>'
-    +'<li>Erweiterung anklicken → <b>Export</b> (die Datei landet in deinen Downloads)</li>'
-    +'<li>Die Datei unten auswählen oder hierher ziehen – <b>nicht</b> öffnen nötig</li></ol>'
+    +'<li>Erweiterung anklicken → auf <b>„Copy"</b> drücken (nicht „Export“) – der Inhalt liegt dann in der Zwischenablage</li>'
+    +'<li>Hier ins Feld klicken und <b>Strg+V</b> – fertig, kein Editor, keine Datei</li></ol>'
+    +'<div style="font-size:11.5px;color:var(--muted);margin:-4px 0 10px;line-height:1.5">Falls du das Dashboard über die Remote-Verbindung am Server bedienst: Eine im Explorer <i>kopierte Datei</i> kommt dort nicht an – <b>kopierter Text schon</b>. Deshalb „Copy" statt „Export“. Alternativ das Dashboard direkt am Heimrechner öffnen, dann funktionieren auch Ziehen und Dateiauswahl.</div>'
     +'<div id="ckDrop" style="border:2px dashed var(--line);border-radius:9px;padding:18px 14px;text-align:center;cursor:pointer;transition:border-color .12s,background .12s">'
     +'<i class="ti ti-file-upload" style="font-size:26px;color:var(--muted)"></i>'
     +'<div style="font-size:13px;font-weight:600;margin-top:6px">Cookie-Datei hierher ziehen, klicken oder <kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">Strg</kbd>+<kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">V</kbd></div>'
