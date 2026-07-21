@@ -1392,10 +1392,13 @@ function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){y
 function ytRenderAll(){ytRenderStatus();ytRenderStat();ytRenderChips();ytGrid();}
 function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)return;const aus=ytDone.size;const inf=window._ytQInfo||[];
   const cnt=function(s){return inf.filter(function(x){return x.status===s;}).length;};
-  const offen=cnt("offen"),arb=cnt("in_arbeit"),crawl=cnt("wartet_auf_crawl"),frei=cnt("zur_freigabe"),feh=cnt("fehler");
+  const offen=cnt("offen"),arb=cnt("in_arbeit"),crawl=cnt("wartet_auf_crawl"),frei=cnt("zur_freigabe"),feh=cnt("fehler"),heim=cnt("wartet_auf_heimrechner");
   if(!aus&&!inf.length){b.innerHTML='<i class="ti ti-info-circle"></i> Noch keine Videos für diese SSoT. Starte mit <b>Schritt 1+2</b>: unten ein Video markieren und „priorisieren“ – der Rest läuft automatisch.';return;}
   var pill=function(cls,txt){return '<span class="'+cls+'" style="font-size:11px;white-space:nowrap">'+txt+'</span>';};
   var parts=['<a href="#" onclick="event.preventDefault();ytDoneShow()" class="pg" style="font-size:11px;white-space:nowrap;cursor:pointer;text-decoration:none" title="Liste der ausgewerteten Videos anzeigen">✓ '+aus+' ausgewertet ▸</a>'];
+  // 21.07.: YouTube sperrt den Server. Der Heimrechner holt die Rohdaten - das ist der einzige Schritt,
+  // der einen Handgriff braucht, deshalb hier prominent mit klarer Handlungsanweisung.
+  if(heim)parts.push('<span class="pa" style="font-size:11px;white-space:nowrap;background:rgba(37,99,235,.12);color:#2563eb;font-weight:700" title="YouTube blockiert Abrufe vom Server. Starte am Heimrechner in Google Drive unter Softwarefinder24\\Video-Helfer die Datei „Videos holen“ – der Rest läuft wieder automatisch.">🏠 '+heim+' warten auf Heimrechner</span>');
   if(arb)parts.push(pill("pa","⏳ "+arb+" in Arbeit"));
   if(offen)parts.push(pill("pa","🕐 "+offen+" offen"));
   if(crawl)parts.push(pill("pa","⏸ "+crawl+" wartet auf Crawl"));
@@ -1408,7 +1411,7 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   b.innerHTML=html;ytEtaTick();ytPollStart();
 }
 async function ytRefresh(){await ytLadeDone();ytRenderAll();}
-function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="fehler"?"Fehler":"wartet";}
+function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"warte auf Heimrechner":s==="fehler"?"Fehler":"wartet";}
 function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}route("freigaben");}
 function ytEtaFmt(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),ss=s%60;return m+":"+(ss<10?"0":"")+ss;}
 function ytEtaTick(){clearInterval(window._ytEtaTimer);var run=function(){var el=document.getElementById("ytEta");if(!el){clearInterval(window._ytEtaTimer);return;}var st=el.getAttribute("data-start");if(!st){el.textContent="";return;}var sec=(Date.now()-Date.parse(st))/1000;if(!(sec>=0)){el.textContent="";return;}var SCHAETZ=12*60;var rest=SCHAETZ-sec;var t=" · läuft seit "+ytEtaFmt(sec);t+=(rest>30)?" · ca. noch "+ytEtaFmt(rest):" · gleich fertig (dauert evtl. etwas länger)";el.textContent=t;};run();window._ytEtaTimer=setInterval(run,1000);}
@@ -1457,7 +1460,7 @@ function ytCards(){
   if(!ytListe.length)return '<div style="grid-column:1/-1;padding:24px;color:var(--muted)">Keine Videos – oben suchen oder links ein Abo wählen.</div>';
   return (ytTitel?`<div style="grid-column:1/-1;font-weight:600;font-size:13px">${esc(ytTitel)}</div>`:"")+ytListe.map(function(v){
     if(v.art==="kanal")return `<div class="yt-card" onclick="ytKanal('${v.id}')"><div class="yt-thumb">${v.bild?`<img src="${v.bild}" referrerpolicy="no-referrer" loading="lazy" alt="">`:""}</div><div class="ct">${esc(v.t||"")}</div><div class="cmeta">📺 Kanal öffnen</div></div>`;
-    var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl");var done=aus||wart;
+    var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl"||ytQueue[v.id]==="wartet_auf_heimrechner");var done=aus||wart;
     // 21.07.: Fehlgeschlagene Laeufe waren unsichtbar - die Kachel sah aus wie nie angefasst. Jetzt rot
     // markiert und weiterhin anklickbar, damit man sie nach behobener Ursache erneut einreihen kann.
     var fehl=!aus&&!wart&&ytQueue[v.id]==="fehler";
@@ -1467,7 +1470,7 @@ function ytCards(){
 function ytGrid(){const g=$("#ytGrid");if(g)g.innerHTML=ytCards();ytBar();}
 function ytToggle(id){if(ytDone.has(id)){toast("Dieses Video ist bereits zugeordnet – übersprungen");return;}ytSel.has(id)?ytSel.delete(id):ytSel.add(id);ytGrid();}
 function ytClear(){ytSel=new Set();ytGrid();}
-function ytSelectable(v){if(!v||v.art!=="video")return false;var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl");return !(aus||wart);}
+function ytSelectable(v){if(!v||v.art!=="video")return false;var aus=ytDone.has(v.id)||ytQueue[v.id]==="fertig";var wart=!aus&&(ytQueue[v.id]==="offen"||ytQueue[v.id]==="in_arbeit"||ytQueue[v.id]==="wartet_auf_crawl"||ytQueue[v.id]==="wartet_auf_heimrechner");return !(aus||wart);}
 function ytAll(){var alle=ytListe.filter(ytSelectable);if(!alle.length){toast("Keine markierbaren Videos");return;}var offen2=alle.filter(function(v){return !ytSel.has(v.id);});if(offen2.length){offen2.forEach(function(v){ytSel.add(v.id);});toast(offen2.length+" Videos ausgewählt");}else{alle.forEach(function(v){ytSel.delete(v.id);});toast("Auswahl aufgehoben");}ytGrid();}
 function ytBar(){const n=ytSel.size;const b=$("#ytBar");if(b){b.hidden=n===0;const sn=$("#ytSelN");if(sn)sn.textContent=n;}
   const ab=$("#ytAllBtn");if(ab){const sel=ytListe.filter(ytSelectable);ab.hidden=sel.length===0;const allDone=sel.length>0&&sel.every(function(v){return ytSel.has(v.id);});const t=$("#ytAllTxt");if(t)t.textContent=(allDone?"Auswahl aufheben (":"Alle auswählen (")+sel.length+")";}}
@@ -1507,7 +1510,7 @@ function ytRankToggle(id,on){if(!window._ytRankSel)window._ytRankSel=new Set();o
 function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(function(c){c.checked=on;var id=c.getAttribute("data-vid");if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);});var n=$("#ytUebN");if(n)n.textContent=(window._ytRankSel?window._ytRankSel.size:0);}
 function ytRankInfo(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert — in Claude Max einfügen (kostenlos)");}
 function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=Array.from(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbManual(t);}
-async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) eingereiht ✓ — der Runner nimmt sich eines nach dem anderen vor (5–15 Min je Video)");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
+async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"wartet_auf_heimrechner"});}toast(offen.length+" Video(s) eingereiht ✓ — jetzt am Heimrechner „Videos holen“ starten");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- YouTube-Cookies aus dem Browser uebergeben (21.07.2026) ----
 // Toni arbeitet remote am Server, exportiert die Cookie-Datei aber auf seinem Heimrechner. Sie kam damit
 // nie dorthin, wo /watch sie braucht. Das Dashboard erreicht er von ueberall - also fuehrt der Weg hierueber.
