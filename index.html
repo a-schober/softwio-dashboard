@@ -1358,8 +1358,9 @@ async function ytLadeAbosUndFeed(){ytAbos=[];try{await ytLadeDone();}catch(e){}y
 async function ytLadeFeed(){ytTitel="Neueste aus deinen Abos";const ids=ytAbos.slice(0,40).map(a=>a.id);if(!ids.length){ytListe=[];return;}try{const uploads=[];for(let i=0;i<ids.length;i+=50){const ch=await ytApi("channels",{part:"contentDetails",id:ids.slice(i,i+50).join(",")});(ch.items||[]).forEach(c=>{const pl=c.contentDetails&&c.contentDetails.relatedPlaylists&&c.contentDetails.relatedPlaylists.uploads;if(pl)uploads.push({pl:pl,titel:(ytAbos.find(a=>a.id===c.id)||{}).titel});});}const alle=[];await Promise.all(uploads.map(async u=>{try{const pl=await ytApi("playlistItems",{part:"snippet",playlistId:u.pl,maxResults:"3"});(pl.items||[]).forEach(it=>alle.push({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||u.titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt}));}catch(e){}}));alle.sort((a,b)=>(a.datum<b.datum?1:-1));ytListe=await ytReichere(alle.slice(0,48));}catch(e){toast(String(e.message||e));}}
 async function ytSucheStart(){const q=($("#ytQ")?$("#ytQ").value:"").trim();if(!q){toast("Suchbegriff eingeben");return;}if(!ytToken){ytLogin();return;}ytBusy=true;ytRenderAll();try{const j=await ytApi("search",{part:"snippet",q:q,type:ytTyp,maxResults:"40",order:ytSort});ytTitel="Treffer zu „"+q+"“";const tr=(j.items||[]).map(i=>({art:(i.id.kind||"").includes("channel")?"kanal":"video",id:i.id.videoId||i.id.channelId,t:i.snippet.title,k:i.snippet.channelTitle,bild:ytBild(i.snippet.thumbnails),datum:i.snippet.publishedAt}));ytListe=await ytReichere(tr);}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
 async function ytKanal(id){if(!ytToken){ytLogin();return;}const titel=((ytAbos.find(a=>a.id===id)||{}).titel)||"Kanal";ytBusy=true;ytRenderAll();try{const ch=await ytApi("channels",{part:"contentDetails",id:id});const up=ch.items&&ch.items[0]&&ch.items[0].contentDetails&&ch.items[0].contentDetails.relatedPlaylists&&ch.items[0].contentDetails.relatedPlaylists.uploads;if(!up)throw new Error("Kanal hat keine abrufbaren Uploads.");const pl=await ytApi("playlistItems",{part:"snippet",playlistId:up,maxResults:"50"});ytTitel="Kanal: "+titel;ytListe=await ytReichere((pl.items||[]).map(it=>({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt})));}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
-function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){ytRenderAll();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
+function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){ytRenderAll();ckStatus();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
   <div class="tabhint"><i class="ti ti-brand-youtube"></i> Videos für <b>${esc(r.name||"")}</b> auswerten — <b style="color:#16a34a">grün</b> = ausgewertet, <b style="color:#d97706">orange</b> = in Warteschlange.</div>
+  <div id="ckBox" style="margin-bottom:10px"></div>
   <div class="yt-flow">
     <div class="yt-step"><span class="n">1</span><div><b>Finden</b><span class="d">YouTube nach Software durchsuchen</span></div></div>
     <div class="yt-arrow"><i class="ti ti-chevron-right"></i></div>
@@ -1501,6 +1502,70 @@ function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(func
 function ytRankInfo(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert — in Claude Max einfügen (kostenlos)");}
 function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=Array.from(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbManual(t);}
 async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}toast(offen.length+" Video(s) eingereiht ✓ — der Runner nimmt sich eines nach dem anderen vor (5–15 Min je Video)");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
+// ---- YouTube-Cookies aus dem Browser uebergeben (21.07.2026) ----
+// Toni arbeitet remote am Server, exportiert die Cookie-Datei aber auf seinem Heimrechner. Sie kam damit
+// nie dorthin, wo /watch sie braucht. Das Dashboard erreicht er von ueberall - also fuehrt der Weg hierueber.
+// Der Inhalt wird eingefuegt, nie zurueckgelesen: die Tabelle hat fuer 'authenticated' bewusst kein
+// SELECT-Recht, der Status kommt aus einer View ohne die Inhaltsspalte.
+async function ckStatus(){
+  var box=document.getElementById('ckBox'); if(!box)return;
+  var zeile='',farbe='var(--muted)',bg='var(--panel2)';
+  try{
+    var r=await sb.from('watch_cookies_status').select('status,log,abgeholt_am,erstellt_am').order('erstellt_am',{ascending:false}).limit(1);
+    var c=(r.data||[])[0];
+    if(c){
+      var wann=(c.abgeholt_am||c.erstellt_am||'').replace('T',' ').slice(0,16);
+      if(c.status==='uebernommen'){ zeile='YouTube-Zugang aktiv (geprüft '+esc(wann)+')'; farbe='#059669'; bg='rgba(5,150,105,.10)'; }
+      else if(c.status==='fehler'){ zeile='Letzter Versuch fehlgeschlagen: '+esc(c.log||''); farbe='#b45309'; bg='rgba(245,158,11,.14)'; }
+      else { zeile='Eingefügt – der Runner übernimmt sie binnen einer Minute …'; farbe='#b45309'; bg='rgba(245,158,11,.14)'; }
+    } else { zeile='Noch keine Cookies hinterlegt – ohne sie sperrt YouTube den Server aus.'; }
+  }catch(e){ zeile='Status nicht abrufbar.'; }
+  box.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 11px;border-radius:8px;background:'+bg+';font-size:12px;color:'+farbe+'">'
+    +'<i class="ti ti-key"></i><span style="flex:1;min-width:0">'+zeile+'</span>'
+    +'<button class="mini2" onclick="ckDialog()"><i class="ti ti-clipboard"></i> Cookies einfügen</button></div>';
+}
+function ckDialog(){
+  aov('YouTube-Zugang erneuern','Nötig, weil YouTube Server-Adressen aussperrt',
+    '<div style="padding:6px 2px;font-size:13px;line-height:1.6">'
+    +'<div style="margin-bottom:10px">So kommst du an den Zugang – <b>auf dem Rechner, an dem du bei YouTube eingeloggt bist</b>:</div>'
+    +'<ol style="margin:0 0 12px 18px;padding:0;color:var(--muted);font-size:12.5px;line-height:1.7">'
+    +'<li>Browser-Erweiterung <b>„Get cookies.txt LOCALLY"</b> installieren (Chrome Web Store)</li>'
+    +'<li>Auf <b>youtube.com</b> gehen und sicherstellen, dass du <b>eingeloggt</b> bist</li>'
+    +'<li>Erweiterung anklicken → <b>Export</b> → die Datei mit einem Texteditor öffnen</li>'
+    +'<li>Alles markieren (Strg+A), kopieren (Strg+C) und unten einfügen</li></ol>'
+    +'<textarea id="ckTa" placeholder="# Netscape HTTP Cookie File&#10;…" style="width:100%;height:150px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--fg);resize:vertical"></textarea>'
+    +'<div id="ckPruef" style="font-size:12px;color:var(--muted);margin-top:7px;min-height:18px"></div>'
+    +'<div style="font-size:11.5px;color:var(--muted);margin-top:10px;padding:8px 10px;background:var(--panel2);border-radius:7px;line-height:1.5">'
+    +'<b>Das ist ein Zugang zu deinem Google-Konto</b>, kein gewöhnlicher Text. Er wird sofort nach der Übernahme '
+    +'gelöscht und lässt sich hier nicht wieder auslesen. Für den Dauerbetrieb ist ein separates Google-Konto sinnvoll, '
+    +'das nur YouTube ansieht.</div></div>',
+    '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="ckSpeichern()"><i class="ti ti-device-floppy"></i> Übernehmen</span>');
+  setTimeout(function(){var t=document.getElementById('ckTa');if(t){t.focus();t.addEventListener('input',ckVorpruefung);}},60);
+}
+// Vorpruefung im Browser: haelt die haeufigsten Fehler ab, bevor irgendetwas gespeichert wird.
+function ckVorpruefung(){
+  var t=document.getElementById('ckTa'),p=document.getElementById('ckPruef'); if(!t||!p)return null;
+  var v=t.value||'';
+  if(!v.trim()){ p.textContent=''; return null; }
+  if(!/^# Netscape HTTP Cookie File/.test(v.trim())){
+    p.innerHTML='<span style="color:#b45309">Das sieht nicht nach der Cookie-Datei aus – die erste Zeile muss „# Netscape HTTP Cookie File" lauten.</span>';return null; }
+  var namen=v.split(/\r?\n/).filter(function(z){return z&&z[0]!=='#';}).map(function(z){return z.split('\t')[5];}).filter(Boolean);
+  if(namen.indexOf('LOGIN_INFO')<0&&namen.indexOf('__Secure-3PSID')<0){
+    p.innerHTML='<span style="color:#b45309">Die Login-Cookies fehlen – beim Export war niemand eingeloggt. Auf youtube.com anmelden und neu exportieren.</span>';return null; }
+  p.innerHTML='<span style="color:#059669">Sieht gut aus: '+namen.length+' Cookies, Login enthalten.</span>';
+  return v;
+}
+async function ckSpeichern(){
+  var v=ckVorpruefung();
+  if(!v){ toast('Bitte zuerst die Hinweise unter dem Feld beachten'); return; }
+  try{
+    var r=await sb.from('watch_cookies').insert({inhalt:v,status:'offen'});
+    if(r.error)throw r.error;
+    closeAov(); toast('Übernommen ✓ — der Runner prüft sie binnen einer Minute an einem echten Video');
+    setTimeout(ckStatus,3000); setTimeout(ckStatus,45000);
+  }catch(e){ alert('Speichern fehlgeschlagen: '+(e&&e.message?e.message:e)); }
+}
+
 // ---- Bewertungen-Tool (Kontext = offene Software) ----
 let bwBilder=[];
 function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.full.id);const zielN=(r._d&&r._d.full&&r._d.full.bewertungen_ziel_anzahl)||30;bwBilder=[];setTimeout(function(){ladeBwSyn(sid);bwJobPoll(sid);},0);return `<div class="bw-box">
