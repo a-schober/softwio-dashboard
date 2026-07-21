@@ -1569,9 +1569,11 @@ function ckDateiLesen(f){
   r.onerror=function(){ if(p)p.innerHTML='<span style="color:#b45309">Datei ließ sich nicht lesen.</span>'; };
   r.onload=function(){
     var ta=document.getElementById('ckTa'); if(ta)ta.value=r.result||'';
-    var d=document.getElementById('ckDrop');
-    if(d){var n=d.querySelector('div');if(n)n.textContent=f.name;}
-    ckVorpruefung();
+    // Dateiname erst NACH bestandener Pruefung anzeigen. Sonst steht der Name einer abgelehnten Datei
+    // im Feld, als waere sie angenommen - im Test vom 21.07. blieb dort "rechnung.txt" stehen.
+    var ok=ckVorpruefung();
+    var d=document.getElementById('ckDrop'); var n=d&&d.querySelector('div');
+    if(n)n.textContent = ok ? f.name : 'Cookie-Datei hierher ziehen oder klicken';
   };
   r.readAsText(f);
 }
