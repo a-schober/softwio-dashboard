@@ -1398,7 +1398,7 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   var parts=['<a href="#" onclick="event.preventDefault();ytDoneShow()" class="pg" style="font-size:11px;white-space:nowrap;cursor:pointer;text-decoration:none" title="Liste der ausgewerteten Videos anzeigen">✓ '+aus+' ausgewertet ▸</a>'];
   // 21.07.: YouTube sperrt den Server. Der Heimrechner holt die Rohdaten - das ist der einzige Schritt,
   // der einen Handgriff braucht, deshalb hier prominent mit klarer Handlungsanweisung.
-  if(heim)parts.push('<span class="pa" style="font-size:11px;white-space:nowrap;background:rgba(37,99,235,.12);color:#2563eb;font-weight:700" title="YouTube blockiert Abrufe vom Server. Starte am Heimrechner in Google Drive unter Softwarefinder24\\Video-Helfer die Datei „Videos holen“ – der Rest läuft wieder automatisch.">🏠 '+heim+' warten auf Heimrechner</span>');
+  if(heim)parts.push('<span class="pa" style="font-size:11px;white-space:nowrap;background:rgba(37,99,235,.12);color:#2563eb;font-weight:700" title="YouTube blockiert Abrufe vom Server. Starte am Heimrechner in Google Drive unter softwio\\Video-Helfer die Datei „Videos holen“ – der Rest läuft wieder automatisch.">🏠 '+heim+' warten auf Heimrechner</span>');
   if(arb)parts.push(pill("pa","⏳ "+arb+" in Arbeit"));
   if(offen)parts.push(pill("pa","🕐 "+offen+" offen"));
   if(crawl)parts.push(pill("pa","⏸ "+crawl+" wartet auf Crawl"));
