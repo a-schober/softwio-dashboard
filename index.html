@@ -1538,8 +1538,8 @@ function ckDialog(){
     +'<div style="font-size:13px;font-weight:600;margin-top:6px">Cookie-Datei hierher ziehen, klicken oder <kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">Strg</kbd>+<kbd style="font:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px">V</kbd></div>'
     +'<div style="font-size:11.5px;color:var(--muted);margin-top:3px">meist <code>www.youtube.com_cookies.txt</code></div>'
     +'<input type="file" id="ckFile" accept=".txt,text/plain" style="display:none"></div>'
-    +'<details style="margin-top:9px"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Oder den Inhalt von Hand einfügen</summary>'
-    +'<textarea id="ckTa" placeholder="# Netscape HTTP Cookie File&#10;…" style="width:100%;height:120px;margin-top:7px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--fg);resize:vertical"></textarea></details>'
+    +'<div style="font-size:12px;color:var(--muted);margin:12px 0 5px">… oder hier hinein einfügen (<b>Strg+V</b>) – das Feld ist bereits ausgewählt:</div>'
+    +'<textarea id="ckTa" placeholder="# Netscape HTTP Cookie File&#10;…" style="width:100%;height:110px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--fg);resize:vertical"></textarea>'
     +'<div id="ckPruef" style="font-size:12px;color:var(--muted);margin-top:7px;min-height:18px"></div>'
     +'<div style="font-size:11.5px;color:var(--muted);margin-top:10px;padding:8px 10px;background:var(--panel2);border-radius:7px;line-height:1.5">'
     +'<b>Das ist ein Zugang zu deinem Google-Konto</b>, kein gewöhnlicher Text. Er wird sofort nach der Übernahme '
@@ -1552,7 +1552,18 @@ function ckDialog(){
 // gelesen und geht denselben Weg wie eingefuegter Text. Kein Upload, kein Storage, keine zweite Ablage.
 function ckDialogVerdrahten(){
   var ta=document.getElementById('ckTa'), drop=document.getElementById('ckDrop'), fi=document.getElementById('ckFile');
-  if(ta)ta.addEventListener('input',ckVorpruefung);
+  if(ta){
+    ta.addEventListener('input',ckVorpruefung);
+    // Der Fokus MUSS ins Feld: Chrome stellt 'paste' nur zu, wenn ein Eingabefeld fokussiert ist.
+    // Ohne das lief Strg+V ins Leere - der document-Listener allein reichte nicht (gemeldet 21.07.).
+    ta.focus();
+    // Eine kopierte DATEI kann eine Textarea nicht selbst verarbeiten - die muss hier abgefangen werden.
+    // Reiner Text laeuft bewusst durch: das Feld fuellt sich normal, 'input' loest die Pruefung aus.
+    ta.addEventListener('paste',function(ev){
+      var f=ev.clipboardData&&ev.clipboardData.files&&ev.clipboardData.files[0];
+      if(f){ ev.preventDefault(); ckDateiLesen(f); }
+    });
+  }
   if(!drop||!fi)return;
   var rahmen=function(an){drop.style.borderColor=an?'var(--brand)':'var(--line)';drop.style.background=an?'rgba(37,99,235,.06)':'';};
   drop.addEventListener('click',function(){fi.click();});
@@ -1568,6 +1579,7 @@ function ckDialogVerdrahten(){
     window._ckPaste=function(ev){
       var drop=document.getElementById('ckDrop');
       if(!drop){ document.removeEventListener('paste',window._ckPaste); window._ckPaste=null; return; }  // Dialog zu -> abmelden
+      if(ev.defaultPrevented)return;   // schon vom Feld-Listener erledigt - sonst wird die Datei doppelt gelesen
       var cd=ev.clipboardData; if(!cd)return;
       var f=cd.files&&cd.files[0];
       if(f){ ev.preventDefault(); ckDateiLesen(f); return; }
