@@ -1531,16 +1531,49 @@ function ckDialog(){
     +'<ol style="margin:0 0 12px 18px;padding:0;color:var(--muted);font-size:12.5px;line-height:1.7">'
     +'<li>Browser-Erweiterung <b>„Get cookies.txt LOCALLY"</b> installieren (Chrome Web Store)</li>'
     +'<li>Auf <b>youtube.com</b> gehen und sicherstellen, dass du <b>eingeloggt</b> bist</li>'
-    +'<li>Erweiterung anklicken → <b>Export</b> → die Datei mit einem Texteditor öffnen</li>'
-    +'<li>Alles markieren (Strg+A), kopieren (Strg+C) und unten einfügen</li></ol>'
-    +'<textarea id="ckTa" placeholder="# Netscape HTTP Cookie File&#10;…" style="width:100%;height:150px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--fg);resize:vertical"></textarea>'
+    +'<li>Erweiterung anklicken → <b>Export</b> (die Datei landet in deinen Downloads)</li>'
+    +'<li>Die Datei unten auswählen oder hierher ziehen – <b>nicht</b> öffnen nötig</li></ol>'
+    +'<div id="ckDrop" style="border:2px dashed var(--line);border-radius:9px;padding:18px 14px;text-align:center;cursor:pointer;transition:border-color .12s,background .12s">'
+    +'<i class="ti ti-file-upload" style="font-size:26px;color:var(--muted)"></i>'
+    +'<div style="font-size:13px;font-weight:600;margin-top:6px">Cookie-Datei hierher ziehen oder klicken</div>'
+    +'<div style="font-size:11.5px;color:var(--muted);margin-top:3px">meist <code>www.youtube.com_cookies.txt</code></div>'
+    +'<input type="file" id="ckFile" accept=".txt,text/plain" style="display:none"></div>'
+    +'<details style="margin-top:9px"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Oder den Inhalt von Hand einfügen</summary>'
+    +'<textarea id="ckTa" placeholder="# Netscape HTTP Cookie File&#10;…" style="width:100%;height:120px;margin-top:7px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--fg);resize:vertical"></textarea></details>'
     +'<div id="ckPruef" style="font-size:12px;color:var(--muted);margin-top:7px;min-height:18px"></div>'
     +'<div style="font-size:11.5px;color:var(--muted);margin-top:10px;padding:8px 10px;background:var(--panel2);border-radius:7px;line-height:1.5">'
     +'<b>Das ist ein Zugang zu deinem Google-Konto</b>, kein gewöhnlicher Text. Er wird sofort nach der Übernahme '
     +'gelöscht und lässt sich hier nicht wieder auslesen. Für den Dauerbetrieb ist ein separates Google-Konto sinnvoll, '
     +'das nur YouTube ansieht.</div></div>',
     '<span class="tb" onclick="closeAov()">Abbrechen</span> <span class="tb primary" onclick="ckSpeichern()"><i class="ti ti-device-floppy"></i> Übernehmen</span>');
-  setTimeout(function(){var t=document.getElementById('ckTa');if(t){t.focus();t.addEventListener('input',ckVorpruefung);}},60);
+  setTimeout(ckDialogVerdrahten,60);
+}
+// Datei-Auswahl und Ziehen-und-Ablegen. Die Datei verlaesst den Browser NICHT als Datei - sie wird hier
+// gelesen und geht denselben Weg wie eingefuegter Text. Kein Upload, kein Storage, keine zweite Ablage.
+function ckDialogVerdrahten(){
+  var ta=document.getElementById('ckTa'), drop=document.getElementById('ckDrop'), fi=document.getElementById('ckFile');
+  if(ta)ta.addEventListener('input',ckVorpruefung);
+  if(!drop||!fi)return;
+  var rahmen=function(an){drop.style.borderColor=an?'var(--brand)':'var(--line)';drop.style.background=an?'rgba(37,99,235,.06)':'';};
+  drop.addEventListener('click',function(){fi.click();});
+  ['dragenter','dragover'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();ev.stopPropagation();rahmen(true);});});
+  ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();ev.stopPropagation();rahmen(false);});});
+  drop.addEventListener('drop',function(ev){var f=ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files[0];if(f)ckDateiLesen(f);});
+  fi.addEventListener('change',function(){if(fi.files&&fi.files[0])ckDateiLesen(fi.files[0]);});
+}
+function ckDateiLesen(f){
+  var p=document.getElementById('ckPruef');
+  // 2 MB ist grosszuegig - eine Cookie-Datei hat wenige Kilobyte. Groesser heisst: falsche Datei erwischt.
+  if(f.size>2*1024*1024){ if(p)p.innerHTML='<span style="color:#b45309">Diese Datei ist zu groß für eine Cookie-Datei ('+Math.round(f.size/1024)+' KB) – vermutlich die falsche.</span>'; return; }
+  var r=new FileReader();
+  r.onerror=function(){ if(p)p.innerHTML='<span style="color:#b45309">Datei ließ sich nicht lesen.</span>'; };
+  r.onload=function(){
+    var ta=document.getElementById('ckTa'); if(ta)ta.value=r.result||'';
+    var d=document.getElementById('ckDrop');
+    if(d){var n=d.querySelector('div');if(n)n.textContent=f.name;}
+    ckVorpruefung();
+  };
+  r.readAsText(f);
 }
 // Vorpruefung im Browser: haelt die haeufigsten Fehler ab, bevor irgendetwas gespeichert wird.
 function ckVorpruefung(){
