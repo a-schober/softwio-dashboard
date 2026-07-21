@@ -2402,12 +2402,17 @@ async function pwsOpen(id){
       // 21.07.: Fuer die Schritt-Fuehrung. Entscheidend ist nicht nur OB geprueft wurde, sondern ob
       // seither Daten dazukamen - eine Pruefung von gestern Nacht bewertet den heutigen Stand nicht.
       sb.from('skill_status').select('skill,status,gelaufen_am').eq('software_id',id),
+      // Laufende Jobs: Die Fuehrung darf nicht zum Klicken auffordern, waehrend genau dieser
+      // Schritt schon arbeitet. 21.07.: Toni klickte "Vergleichstabelle holen", der Job lief
+      // 9 Minuten - und der Kasten sagte die ganze Zeit weiter "hol die Tabelle".
+      sb.from('skill_jobs').select('skill,status,begonnen_am').eq('software_id',id).in('status',['offen','in_arbeit']),
       sb.from('funktionen').select('geaendert_am').eq('software_id',id).order('geaendert_am',{ascending:false}).limit(1)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
     PWS.beleg=pwsBelegAus((res[9]&&res[9].data)||[]);
     PWS.skills=(res[10]&&res[10].data)||[];
-    PWS.datenStand=(((res[11]&&res[11].data)||[])[0]||{}).geaendert_am||null;
+    PWS.laufendeJobs=(res[11]&&res[11].data)||[];
+    PWS.datenStand=(((res[12]&&res[12].data)||[])[0]||{}).geaendert_am||null;
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
     dlgRow._d={full:PWS.full,funk:PWS.funk,preise:PWS.preise,integ:PWS.integ,faelle:PWS.faelle,lade:false};
@@ -2766,6 +2771,18 @@ function pwsStepperHtml(P){
     return S('Alles erledigt','Der Artikel ist live. Die Aktualität wird automatisch überwacht.',null,null,'ti-circle-check',9);
   }
   var NS=naechsterSchritt();
+  // Läuft gerade ein Job, wird NICHT zum Klicken aufgefordert - egal welcher. Zwei Läufe
+  // gleichzeitig bringen nichts, und ein zweiter Klick auf denselben Schritt erzeugt Doppelarbeit.
+  var LJ=(P.laufendeJobs||[])[0];
+  if(LJ){
+    var lm=LJ.begonnen_am?Math.max(0,Math.round((Date.now()-new Date(LJ.begonnen_am).getTime())/60000)):null;
+    var erw=SKILL_DAUER[LJ.skill]||10;
+    NS={titel:SKILL_LABEL[LJ.skill]||LJ.skill,
+        warum:(LJ.status==='offen')
+          ? 'Eingereiht – der Runner nimmt den Auftrag binnen einer Minute auf. Du kannst das Fenster schließen.'
+          : ('Läuft seit '+(lm!=null?lm:'?')+' Min (erfahrungsgemäß bis '+erw+' Min). Du kannst das Fenster schließen, der Lauf geht weiter.'),
+        akt:null,knopf:null,ikon:'ti-loader-2',stufe:null,laeuft:true};
+  }
 
   var FLOW=[
    {k:'anlegen',n:1,t:'Angelegt',pflicht:1,info:'Stammdaten: Name, Hersteller, Website-URL und Kategorie. Basis für alles Weitere.',sum:done.anlegen?'Name, Hersteller, URL und Kategorie sind erfasst':'Stammdaten noch unvollständig',act:["pwsEditor('stammdaten')",done.anlegen?'Stammdaten ansehen':'Stammdaten ausfüllen','ti-id-badge-2']},
@@ -2794,14 +2811,15 @@ function pwsStepperHtml(P){
   }).join('');
   // Die Führung steht ÜBER den Stufen und nennt genau eine Handlung. Die Stufenliste darunter
   // bleibt als Übersicht erhalten - wer wissen will, wo er steht, sieht es weiterhin.
-  var fertig=!NS.akt;
-  var ns='<div style="border:2px solid '+(fertig?'#059669':'var(--brand)')+';border-radius:12px;padding:14px 16px;margin-bottom:14px;'
-    +'background:'+(fertig?'rgba(5,150,105,.06)':'rgba(37,99,235,.05)')+'">'
+  var laeuft=!!NS.laeuft, fertig=!NS.akt&&!laeuft;
+  var rahmen=laeuft?'#b45309':(fertig?'#059669':'var(--brand)');
+  var flaeche=laeuft?'rgba(245,158,11,.08)':(fertig?'rgba(5,150,105,.06)':'rgba(37,99,235,.05)');
+  var ns='<div style="border:2px solid '+rahmen+';border-radius:12px;padding:14px 16px;margin-bottom:14px;background:'+flaeche+'">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px">'
-      +(fertig?'Status':'Dein nächster Schritt')+(NS.stufe?(' · Stufe '+NS.stufe):'')+'</div>'
+      +(laeuft?'Läuft gerade – bitte warten':(fertig?'Status':'Dein nächster Schritt'))+(NS.stufe?(' · Stufe '+NS.stufe):'')+'</div>'
     +'<div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">'
       +'<div style="flex:1;min-width:220px">'
-        +'<div style="font-size:16px;font-weight:700;line-height:1.3"><i class="ti '+NS.ikon+'"></i> '+esc(NS.titel)+'</div>'
+        +'<div style="font-size:16px;font-weight:700;line-height:1.3"><i class="ti '+NS.ikon+(laeuft?' spin':'')+'"></i> '+esc(NS.titel)+'</div>'
         +'<div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5">'+esc(NS.warum)+'</div>'
       +'</div>'
       +(NS.akt?('<div style="flex:none">'+pwsBtn(esc(NS.knopf),NS.akt,NS.ikon,true)+'</div>'):'')
@@ -2817,6 +2835,12 @@ function pwsStepperHtml(P){
 // Bewusst der Hoechst- und nicht der Mittelwert: eine zu optimistische Angabe erzeugt genau die Frage
 // "laeuft hier ueberhaupt was?", die diese Anzeige beantworten soll.
 const SKILL_DAUER={klaeren:20,qualitaetsgate:14,videoauswertung:11,anreichern:9,extraktion:8,cleanup:6,bilder:6,distribution:3,bewertungen:10,matrix:8,belege:12,bildabgleich:10};
+// Klartext statt technischer Skill-Namen. In der Führung liest sonst niemand "matrix" oder
+// "qualitaetsgate" - und der Kasten soll ohne Vorwissen verständlich sein.
+const SKILL_LABEL={klaeren:'Befunde werden geklärt',qualitaetsgate:'Qualitätsprüfung läuft',videoauswertung:'Video wird ausgewertet',
+  anreichern:'Fakten werden angereichert',extraktion:'Fakten werden extrahiert',cleanup:'Crawl wird aufbereitet',
+  bilder:'Screenshots werden geholt',distribution:'Social-Paket wird erzeugt',bewertungen:'Bewertungen werden ausgewertet',
+  matrix:'Vergleichstabelle wird geholt',belege:'Beweisbilder werden aufgenommen',bildabgleich:'Abgleich gegen Beweisbilder läuft'};
 async function skillJobInline(sid,skill,args,label,statusEl){
   if(!sid)throw new Error('Keine Software-ID');
   const setz=function(t){try{if(statusEl)statusEl.innerHTML='<i class="ti ti-loader-2 spin"></i> '+t;}catch(_){}};
