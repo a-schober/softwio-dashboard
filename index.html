@@ -1710,7 +1710,16 @@ async function bwPasteAnMax(sid){
     bwJobPoll(sid);
   }catch(e){toast('Konnte nicht ablegen: '+(e&&e.message?e.message:e));}
 }
-async function bwJobPoll(sid){const box=document.getElementById('bwJobStatus');if(!box||!sid)return;try{const r=await sb.from('bewertungs_jobs').select('status,phase,log,geaendert_am').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1);const j=(r.data||[])[0];if(!j){box.innerHTML='';return;}const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};const m=map[j.status]||['#475569',esc(j.status)];box.innerHTML='<div style="font-size:12px;color:'+m[0]+';font-weight:600;margin-top:8px">'+m[1]+(j.phase?' · '+esc(j.phase):'')+(j.log?' <span style="color:var(--faint);font-weight:400">– '+esc(j.log)+'</span>':'')+'</div>';if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){bwJobPoll(sid);},4000);}else if(j.status==='fertig'){ladeBwSyn(sid);}}catch(e){}}
+async function bwJobPoll(sid){const box=document.getElementById('bwJobStatus');if(!box||!sid)return;try{const r=await sb.from('bewertungs_jobs').select('status,phase,log,geaendert_am,begonnen_am,anzahl').eq('software_id',sid).order('erstellt_am',{ascending:false}).limit(1);const j=(r.data||[])[0];if(!j){box.innerHTML='';return;}const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};const m=map[j.status]||['#475569',esc(j.status)];
+  // 21.07.: auch hier stand der Phasen-Rohwert ("läuft · laeuft"). Die Ernte oeffnet Trustpilot und
+  // Play Store im echten Browser und laesst JEDE Bewertung einzeln bewerten - gemessene Laeufe lagen
+  // zwischen 3 und 53 Minuten. Ohne Zeitangabe wirkt das wie ein Haenger.
+  var zus='';
+  if(j.status==='in_arbeit'&&j.begonnen_am){
+    var s=Math.max(0,Math.round((Date.now()-new Date(j.begonnen_am).getTime())/1000));
+    zus=' · seit '+Math.floor(s/60)+':'+((s%60)<10?'0':'')+(s%60)+' Min <span style="font-weight:400;color:var(--muted)">(bei '+(j.anzahl||30)+' Bewertungen je Plattform erfahrungsgemäß 5–50 Min – jede wird einzeln gelesen)</span>';
+  }
+  box.innerHTML='<div style="font-size:12px;color:'+m[0]+';font-weight:600;margin-top:8px">'+m[1]+zus+(j.log&&j.log!=='arbeitet ...'?' <span style="color:var(--faint);font-weight:400">– '+esc(j.log)+'</span>':'')+'</div>';if(j.status==='offen'||j.status==='in_arbeit'){setTimeout(function(){bwJobPoll(sid);},4000);}else if(j.status==='fertig'){ladeBwSyn(sid);}}catch(e){}}
 async function ladeBwSyn(sid){const box=$("#bwSynBox");if(!box)return;if(!sid){box.innerHTML="";return;}
   try{const res=await Promise.all([sb.from('bewertungs_synthesen').select('*').eq('software_id',sid).order('erstellt_am',{ascending:false}),sb.from('bewertungs_analysen').select('erfasst_am,segment').eq('software_id',sid),sb.from('bewertungs_ernte').select('plattform,modus,anzahl,neu_uebernommen,segment,geerntet_am').eq('software_id',sid).order('geerntet_am',{ascending:false})]);
     const synth=res[0].data||[];const an=res[1].data||[];
