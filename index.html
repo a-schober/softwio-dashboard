@@ -2755,10 +2755,20 @@ function pwsStepperHtml(P){
   // 124 blieben offen (nicht belegbar) - die Schwelle war weiter überschritten, also hiess es wieder
   // "Fakten anreichern". Toni zu Recht: "Das hatte ich doch eben schon gemacht?!?!"
   // Was nach einem Lauf offen bleibt, ist meist nicht belegbar - ein zweiter Lauf ändert daran nichts.
-  var frischGelaufen=function(skill,minuten){
+  // 22.07., zweiter Anlauf: Die erste Fassung sperrte 90 Minuten - danach kam derselbe Vorschlag
+  // wieder, obwohl sich nichts geändert hatte. Toni um 06:57: "Also wieder hier Stufe 3?"
+  // Richtig ist nicht "wie lange her", sondern: Kamen seit dem Lauf NEUE Rohdaten? Wenn nicht,
+  // ändert ein zweiter Lauf nichts - was offen blieb, ist nicht belegbar.
+  var skillZeit=function(skill){
     var r=(P.skills||[]).find(function(x){return x.skill===skill;});
-    if(!r||!r.gelaufen_am)return false;
-    return (Date.now()-new Date(r.gelaufen_am).getTime())<(minuten||90)*60000;
+    return (r&&r.gelaufen_am)?new Date(r.gelaufen_am).getTime():0;
+  };
+  // Zuflüsse = Schritte, die neue Rohdaten liefern. Läuft einer davon, lohnt Aufbereiten erneut.
+  var letzterZufluss=Math.max(skillZeit('matrix'),skillZeit('videoauswertung'),skillZeit('extraktion'),skillZeit('cleanup'),
+    (P.full&&P.full.crawl_bericht_am)?new Date(P.full.crawl_bericht_am).getTime():0);
+  var erledigtSeitZufluss=function(skill){
+    var t=skillZeit(skill);
+    return t>0 && t>=letzterZufluss;   // lief NACH dem letzten Zufluss -> nichts Neues zu holen
   };
   var harteBefunde=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden'&&x.schwere==='hart';}).length;
 
@@ -2766,15 +2776,19 @@ function pwsStepperHtml(P){
     var S=function(t,w,akt,knopf,ikon,stufe){return {titel:t,warum:w,akt:akt,knopf:knopf,ikon:ikon,stufe:stufe};};
     if(!done.anlegen) return S('Stammdaten vervollständigen','Name, Hersteller, Website und Kategorie fehlen – ohne sie kann nichts gecrawlt werden.',"pwsEditor('stamm')",'Stammdaten öffnen','ti-edit',1);
     if(!done.sammeln) return S('Website crawlen','Es liegen noch keine Fakten vor. Der Crawl liest die Herstellerseite aus – alles Weitere baut darauf auf.',"pwsCrawl('"+P.id+"')",'Crawl starten','ti-spider',2);
-    if(funkN>0&&matrixN===0&&ohneTarif>funkN*0.3&&!frischGelaufen('matrix')) return S('Tarif-Vergleichstabelle holen','Mehr als ein Drittel der Funktionen hat keine Tarif-Zuordnung. Die Tabelle steht hinter einem Klick auf der Preisseite – der Crawler sieht sie nie.',"skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",'Vergleichstabelle holen','ti-table',2);
-    if((offFunk>0||ohneTarif>funkN*0.3)&&!frischGelaufen('anreichern')) return S('Fakten anreichern','Funktionen ohne Oberbegriff oder Tarif-Zuordnung. Dieser Schritt verteilt die Daten aus Crawl und Vergleichstabelle.',"skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern','ti-wand',3);
-    if(!synth&&!frischGelaufen('bewertungen')) return S('Bewertungen auswerten','Ohne Nutzerbewertungen fehlt der Seite die Außensicht – und dem Schlusscheck eine Pflichtangabe.',"pwsEditor('bewertungen')",'Bewertungen holen','ti-star',4);
+    if(funkN>0&&matrixN===0&&ohneTarif>funkN*0.3) return S('Tarif-Vergleichstabelle holen','Mehr als ein Drittel der Funktionen hat keine Tarif-Zuordnung. Die Tabelle steht hinter einem Klick auf der Preisseite – der Crawler sieht sie nie.',"skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",'Vergleichstabelle holen','ti-table',2);
+    if((offFunk>0||ohneTarif>funkN*0.3)&&!erledigtSeitZufluss('anreichern')) return S('Fakten anreichern','Funktionen ohne Oberbegriff oder Tarif-Zuordnung. Dieser Schritt verteilt die Daten aus Crawl und Vergleichstabelle.',"skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern','ti-wand',3);
+    if(!synth&&skillZeit('bewertungen')===0) return S('Bewertungen auswerten','Ohne Nutzerbewertungen fehlt der Seite die Außensicht – und dem Schlusscheck eine Pflichtangabe.',"pwsEditor('bewertungen')",'Bewertungen holen','ti-star',4);
     if(quellenN===0) return S('Belegquellen fehlen','Die Liste der gelesenen Seiten ist leer. Sie belegt, worauf sich die Fakten stützen.',"pwsEditor('bewertungen')",'Belege öffnen','ti-link',4);
     if(!logo) return S('Logo hinterlegen','Ohne Logo sieht das Produkt in Listen und Vergleichen unfertig aus.',"pwsEditor('logo')",'Logo verwalten','ti-photo',5);
-    if(bilderN===0&&!frischGelaufen('bilder')) return S('Screenshots holen','Bilder der Oberfläche machen die Seite belegbar und anschaulich.',"skillJobStart('"+P.id+"','bilder','','Screenshots holen')",'Screenshots holen','ti-camera',5);
+    if(bilderN===0&&skillZeit('bilder')===0) return S('Screenshots holen','Bilder der Oberfläche machen die Seite belegbar und anschaulich.',"skillJobStart('"+P.id+"','bilder','','Screenshots holen')",'Screenshots holen','ti-camera',5);
     if(qsZeit===0) return S('Qualitätsprüfung starten','Sieben Prüfungen gegen die echte Quelle. Jeder harte Befund sperrt die Veröffentlichung – das ist der Schutz vor falschen Aussagen.',"skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Qualitätsprüfung starten','ti-shield-check',6);
     if(pruefungVeraltet) return S('Qualitätsprüfung wiederholen','Seit der letzten Prüfung sind Daten dazugekommen. Ihr Ergebnis bewertet einen Stand, den es nicht mehr gibt.',"skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Erneut prüfen','ti-shield-check',6);
-    if(harteBefunde>0) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Diese sperren die Veröffentlichung – die Sperre sitzt in der Datenbank und gilt für jeden Weg. Entscheide jeden einzeln.',"route('freigaben')",'Freigaben öffnen','ti-alert-triangle',6);
+    // 22.07.: Vorher fuehrte der Weg nur zu den Freigaben - dort kann man Befunde aber nur ANSEHEN.
+    // Der Wortfeld-Befund ("getestet" in der Bewertungssynthese) war so gar nicht loesbar: das Feld
+    // ist im Dashboard nicht bearbeitbar. /klaeren korrigiert eigene Texte jetzt selbst.
+    if(harteBefunde>0&&!erledigtSeitZufluss('klaeren')) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Diese sperren die Veröffentlichung. Der Klärungslauf beantwortet sie mit Beweisbildern und korrigiert eigene Formulierungen selbst – was er nicht lösen kann, legt er dir vor.',"skillJobStart('"+P.id+"','klaeren','','Befunde klären')",'Befunde klären lassen','ti-search',6);
+    if(harteBefunde>0) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Der Klärungslauf konnte sie nicht auflösen – jetzt brauchst du eine Entscheidung. Die Sperre sitzt in der Datenbank und gilt für jeden Weg.',"route('freigaben')",'Freigaben öffnen','ti-alert-triangle',6);
     if(freiOffen>0) return S(freiOffen+' offene Freigabe'+(freiOffen===1?'':'n'),'Grenzfälle, die eine Entscheidung brauchen. Danach ist der Weg zum Artikel frei.',"route('freigaben')",'Freigaben öffnen','ti-checkbox',6);
     if(!art) return S('Artikel bauen','Alle Pflichtschritte stehen. Der Artikel entsteht automatisch aus den geprüften Fakten.',"artikelBauen('"+P.id+"')",'Artikel jetzt bauen','ti-sparkles',8);
     if(!liveOK) return S('Artikel prüfen und live schalten','Der Entwurf ist fertig. Letzter Halt: dein Blick darauf.',"pwsPublish()",'Prüfen & veröffentlichen','ti-cloud-upload',8);
