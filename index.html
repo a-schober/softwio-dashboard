@@ -85,6 +85,25 @@
   .pws-hint{font-size:12.5px;color:var(--muted);padding:8px 11px;background:var(--panel2);border-radius:8px}
   .pws-hint.ok{color:#15803d;background:#dcfce7}
   .pws-i{display:inline-grid;place-items:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-style:italic;font-family:Georgia,serif;opacity:.55;margin-left:6px;cursor:help;flex:none}
+  /* Verlauf (22.07.2026) — Zeitleiste im Stil einer Wawi-Historie: Zeit links, Sache rechts. */
+  .pws-vl-box{border:1px solid var(--line);border-radius:12px;margin:14px 0 4px;background:var(--panel);overflow:hidden}
+  .pws-vl-kopf{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:12px 15px;
+    border-bottom:1px solid var(--line);background:var(--panel2,#f8fafc);font-size:14px}
+  .pws-vl-sub{color:var(--muted);font-size:12px}
+  .pws-vl{max-height:340px;overflow-y:auto}
+  .pws-vl-z{display:grid;grid-template-columns:96px 26px 1fr;align-items:start;gap:8px;
+    padding:10px 15px;border-bottom:1px solid var(--line)}
+  .pws-vl-z:last-child{border-bottom:0}
+  .pws-vl-t{color:var(--muted);font-size:12px;padding-top:1px;font-variant-numeric:tabular-nums}
+  .pws-vl-i{text-align:center;font-size:15px;color:var(--muted);line-height:1.2}
+  .pws-vl-z.ok .pws-vl-i{color:#059669}
+  .pws-vl-z.laeuft .pws-vl-i{color:#2563eb}
+  .pws-vl-z.fehler .pws-vl-i{color:#dc2626}
+  .pws-vl-h{font-size:13.5px;font-weight:600;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .pws-vl-d{font-weight:400;font-size:11.5px;color:var(--muted)}
+  .pws-vl-d.laeuft{color:#2563eb;font-weight:600}
+  .pws-vl-d.fehler{color:#dc2626;font-weight:600}
+  .pws-vl-e{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px}
   /* Feste Datenleiste (22.07.2026). Immer erreichbar, unabhaengig vom Workflow. */
   .pws-daten{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 4px}
   .pws-dtab{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
@@ -175,6 +194,13 @@
       margin:12px -4px 4px;padding:0 4px 6px;scrollbar-width:none}
     .pws-daten::-webkit-scrollbar{display:none}
     .pws-dtab{flex:none;padding:10px 13px;font-size:13.5px}
+    /* Am Telefon steht die Zeit ueber der Sache statt daneben — 96 px Spalte waeren
+       dort ein Drittel der Breite. */
+    .pws-vl-z{grid-template-columns:24px 1fr;gap:7px;padding:10px 13px}
+    .pws-vl-t{grid-column:2;grid-row:1;font-size:11.5px;padding:0}
+    .pws-vl-i{grid-column:1;grid-row:1/span 2}
+    .pws-vl-b{grid-column:2;grid-row:2}
+    .pws-vl{max-height:none}
     .pws-h-prog{min-width:120px;flex:1}
     .pws-panel{padding:14px}
     .view-search{max-width:none}
@@ -2470,13 +2496,22 @@ async function pwsOpen(id){
       // Schritt schon arbeitet. 21.07.: Toni klickte "Vergleichstabelle holen", der Job lief
       // 9 Minuten - und der Kasten sagte die ganze Zeit weiter "hol die Tabelle".
       sb.from('skill_jobs').select('skill,status,begonnen_am').eq('software_id',id).in('status',['offen','in_arbeit']),
-      sb.from('funktionen').select('geaendert_am').eq('software_id',id).order('geaendert_am',{ascending:false}).limit(1)
+      sb.from('funktionen').select('geaendert_am').eq('software_id',id).order('geaendert_am',{ascending:false}).limit(1),
+      // 22.07.2026 — VERLAUF. Bis hierher gab es keine Stelle, an der man sah, WAS WANN gelaufen ist
+      // und was dabei herauskam. Toni musste stattdessen fragen ("schlaefst du schon wieder?"), weil
+      // ein arbeitendes System von einem stehenden nicht zu unterscheiden war.
+      sb.from('skill_jobs').select('skill,status,phase,log,erstellt_am,begonnen_am,fertig_am')
+        .eq('software_id',id).order('erstellt_am',{ascending:false}).limit(40),
+      sb.from('content_jobs').select('status,phase,log,erstellt_am,begonnen_am,fertig_am')
+        .eq('software_id',id).order('erstellt_am',{ascending:false}).limit(10)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
     PWS.beleg=pwsBelegAus((res[9]&&res[9].data)||[]);
     PWS.skills=(res[10]&&res[10].data)||[];
     PWS.laufendeJobs=(res[11]&&res[11].data)||[];
     PWS.datenStand=(((res[12]&&res[12].data)||[])[0]||{}).geaendert_am||null;
+    PWS.jobsAlle=(res[13]&&res[13].data)||[];
+    PWS.contentJobs=(res[14]&&res[14].data)||[];
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
     dlgRow._d={full:PWS.full,funk:PWS.funk,preise:PWS.preise,integ:PWS.integ,faelle:PWS.faelle,lade:false};
@@ -2536,6 +2571,68 @@ function tabEd(name){return !!(window.TAB_EDIT&&window.TAB_EDIT[name]);}
 function tabEdit(name){window.TAB_EDIT=window.TAB_EDIT||{};window.TAB_EDIT[name]=!window.TAB_EDIT[name];renderTab();}
 function editBar(name,activeMsg){var ed=tabEd(name);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:14px"><span style="font-size:12.5px;color:var(--muted)">'+(ed?'<i class="ti ti-pencil"></i> '+activeMsg:'<i class="ti ti-eye"></i> Nur Ansicht · Fakten aus Crawl/SSoT')+'</span><button class="tb'+(ed?' primary':'')+'" onclick="tabEdit(\''+name+'\')"><i class="ti ti-'+(ed?'check':'edit')+'"></i> '+(ed?'Fertig':'Bearbeiten')+'</button></div>';}
 function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise','integrationen','faelle']:n===4?['bewertungen','bilder','videos']:n===7?['content']:[];}
+// ===== VERLAUF (22.07.2026) =====
+// Eine Zeitleiste je Produkt: was lief wann, wie lange, was kam dabei heraus.
+// Zweck: Die Frage "passiert hier ueberhaupt etwas?" muss ohne Nachfragen beantwortbar sein.
+// Quellen: skill_jobs (Lauf + Ergebnis), content_jobs (Artikelbau), skill_status (Bilanz je Skill).
+function pwsZeit(iso){
+  if(!iso)return '';
+  try{
+    var d=new Date(iso),n=new Date();
+    var heute=d.toDateString()===n.toDateString();
+    var gestern=new Date(n.getTime()-864e5).toDateString()===d.toDateString();
+    var uhr=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    return heute?('heute '+uhr):(gestern?('gestern '+uhr):(d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+uhr));
+  }catch(e){return '';}
+}
+function pwsDauer(von,bis){
+  if(!von||!bis)return '';
+  var ms=new Date(bis)-new Date(von); if(!(ms>0))return '';
+  var min=Math.round(ms/60000);
+  return min<1?'unter 1 Min':(min<60?(min+' Min'):(Math.floor(min/60)+' Std '+(min%60)+' Min'));
+}
+function pwsVerlaufHtml(P){
+  var eintraege=[];
+  var lbl=(typeof SKILL_LABEL!=='undefined')?SKILL_LABEL:{};
+  var bilanz={};(P.skills||[]).forEach(function(s){bilanz[s.skill]=s;});
+  (P.jobsAlle||[]).forEach(function(j){
+    var b=bilanz[j.skill]||{};
+    eintraege.push({
+      zeit: j.fertig_am||j.begonnen_am||j.erstellt_am,
+      sort: new Date(j.fertig_am||j.begonnen_am||j.erstellt_am||0).getTime(),
+      titel: lbl[j.skill]||j.skill,
+      status: j.status,
+      dauer: pwsDauer(j.begonnen_am,j.fertig_am),
+      /* Die Bilanz aus skill_status ist die aussagekraeftige Zeile ("70 Funktionen, 11 Preise").
+         Das Job-Log ist oft nur "arbeitet ..." und damit wertlos. */
+      ergebnis: (j.status==='fertig'&&b.qualitaet)?b.qualitaet:(j.log&&j.log!=='arbeitet …'&&j.log!=='arbeitet ...'?j.log:'')
+    });
+  });
+  (P.contentJobs||[]).forEach(function(c){
+    eintraege.push({
+      zeit: c.fertig_am||c.begonnen_am||c.erstellt_am,
+      sort: new Date(c.fertig_am||c.begonnen_am||c.erstellt_am||0).getTime(),
+      titel:'Artikel wird gebaut', status:(c.status==='wartet_freigabe'?'fertig':c.status),
+      dauer: pwsDauer(c.begonnen_am,c.fertig_am),
+      ergebnis:(c.log&&!/^arbeitet/.test(c.log))?c.log:''
+    });
+  });
+  if(!eintraege.length) return '<div class="pws-hint">Noch nichts gelaufen — der Verlauf füllt sich mit dem ersten Schritt.</div>';
+  eintraege.sort(function(a,b){return b.sort-a.sort;});
+  var ic={fertig:'ti-circle-check',in_arbeit:'ti-loader-2 spin',offen:'ti-clock',fehler:'ti-alert-triangle'};
+  return '<div class="pws-vl">'+eintraege.slice(0,25).map(function(e){
+    var kl=e.status==='fehler'?'fehler':(e.status==='fertig'?'ok':(e.status==='in_arbeit'?'laeuft':'wartet'));
+    return '<div class="pws-vl-z '+kl+'">'
+      +'<div class="pws-vl-t">'+esc(pwsZeit(e.zeit))+'</div>'
+      +'<div class="pws-vl-i"><i class="ti '+(ic[e.status]||'ti-point')+'"></i></div>'
+      +'<div class="pws-vl-b"><div class="pws-vl-h">'+esc(e.titel)
+        +(e.dauer?'<span class="pws-vl-d">'+esc(e.dauer)+'</span>':'')
+        +(e.status==='in_arbeit'?'<span class="pws-vl-d laeuft">läuft gerade</span>':'')
+        +(e.status==='fehler'?'<span class="pws-vl-d fehler">fehlgeschlagen</span>':'')+'</div>'
+      +(e.ergebnis?'<div class="pws-vl-e">'+esc(String(e.ergebnis).slice(0,260))+'</div>':'')
+      +'</div></div>';
+  }).join('')+'</div>';
+}
 // Feste Reiterleiste ueber dem Workflow — jeder Datenbereich in EINEM Klick erreichbar,
 // unabhaengig davon, welche Stufe gerade "dran" ist. Zaehler zeigen den Bestand, damit man
 // sieht, wo etwas fehlt, ohne hineinzuklicken. Mobil scrollt die Leiste waagerecht.
@@ -3161,6 +3258,9 @@ function pwsRender(){
        Daten muessen immer erreichbar sein; der Workflow ist ein Ratgeber, kein Tuersteher. */
     pwsDatenLeiste(P)+
     pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div><div id="pwsSkillStatus"></div>'+
+    '<div class="pws-vl-box"><div class="pws-vl-kopf"><i class="ti ti-history"></i> <b>Verlauf</b>'
+      +'<span class="pws-vl-sub">Was wann gelaufen ist — und was dabei herauskam</span></div>'
+      +pwsVerlaufHtml(P)+'</div>'+
     '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:6px 2px"><i class="ti ti-tool"></i> Technische Details &amp; Report (optional)</summary><div style="padding-top:6px">'+meilensteinHtml(_swr)+'<div id="pwsKosten"></div><div id="pwsReport"></div></div></details>'+
     '</div>';
 }
