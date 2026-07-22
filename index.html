@@ -554,10 +554,10 @@
       <div class="dn active" data-tab="stammdaten" onclick="setTab('stammdaten')"><i class="ti ti-id-badge"></i> Stammdaten</div>
       <div class="dn" data-tab="bilder" onclick="setTab('bilder')"><i class="ti ti-photo"></i> Bilder <span class="c" id="dnBild"></span></div>
       <div class="dn" data-tab="funktionen" onclick="setTab('funktionen')"><i class="ti ti-list-check"></i> Funktionen <span class="c" id="dnFunk"></span></div>
-      <div class="dn" data-tab="preise" onclick="setTab('preise')"><i class="ti ti-coin-euro"></i> Preise &amp; Tarife</div>
-      <div class="dn" data-tab="integrationen" onclick="setTab('integrationen')"><i class="ti ti-plug"></i> Integrationen</div>
-      <div class="dn" data-tab="faelle" onclick="setTab('faelle')"><i class="ti ti-user-search"></i> Anwendungsfälle</div>
-      <div class="dn" data-tab="videos" onclick="setTab('videos')"><i class="ti ti-brand-youtube"></i> Videos</div>
+      <div class="dn" data-tab="preise" onclick="setTab('preise')"><i class="ti ti-coin-euro"></i> Preise &amp; Tarife <span class="c" id="dnPreis"></span></div>
+      <div class="dn" data-tab="integrationen" onclick="setTab('integrationen')"><i class="ti ti-plug"></i> Integrationen <span class="c" id="dnInteg"></span></div>
+      <div class="dn" data-tab="faelle" onclick="setTab('faelle')"><i class="ti ti-user-search"></i> Anwendungsfälle <span class="c" id="dnFaelle"></span></div>
+      <div class="dn" data-tab="videos" onclick="setTab('videos')"><i class="ti ti-brand-youtube"></i> Videos <span class="c" id="dnVideo"></span></div>
       <div class="dn" data-tab="bewertungen" onclick="setTab('bewertungen')"><i class="ti ti-star"></i> Bewertungen</div>
       <div class="dn" data-tab="content" onclick="setTab('content')"><i class="ti ti-article"></i> Content / Artikel</div>
     </div>
@@ -1990,6 +1990,17 @@ function geldBlur(el){if(!el)return;const n=geldParse(el.value);el.value=(n==nul
 async function openDlg(i){DLGFORM="dForm";window.TAB_EDIT={};window.STAMM_EDIT=false;var _navR=document.querySelector('#ov .dlg-nav');if(_navR)_navR.style.display='';const neu=i<0;dlgRow=neu?{name:"",hersteller:"",kat:"Buchhaltung",markt:"DE",angelegt:"",funk:0,pct:0,status:"neu",geprueft:"",_hue:"#64748b"}:VIEWS.software.rows[i];const r=dlgRow,s=ST[r.status];
   if(r._logo){$("#dLogo").innerHTML='<img src="'+r._logo+'" alt="" style="width:100%;height:100%;object-fit:contain">';$("#dLogo").style.background="#fff";}else{$("#dLogo").innerHTML="";$("#dLogo").textContent=(r.name||"NN").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase()||"NN";$("#dLogo").style.background=r._hue||"#64748b";}
   $("#dName").textContent=neu?"Neue Software anlegen":r.name;$("#dSub").textContent=neu?"Stammdaten erfassen":(r.hersteller+" · "+r.kat);$("#dBadge").textContent=s.l;$("#dnFunk").textContent=r.funk||0;setBildCount(r.id||(r._d&&r._d.full&&r._d.full.id));
+  /* 22.07.2026: Zaehler an ALLEN Bereichen, wie in einer Wawi. Vorher trugen nur Bilder und
+     Funktionen eine Zahl — man musste jeden Reiter oeffnen, um zu sehen, ob dort etwas liegt.
+     Die Werte stammen aus dem bereits geladenen PWS, kosten also keine zusaetzliche Abfrage. */
+  try{
+    var _p=(typeof PWS!=='undefined'&&PWS&&String(PWS.id)===String(r.id||(r._d&&r._d.full&&r._d.full.id)))?PWS:null;
+    var _setz=function(id,wert){var e=$("#"+id);if(e)e.textContent=(wert==null?'':wert);};
+    _setz('dnPreis', _p?(_p.preise||[]).length:'');
+    _setz('dnInteg', _p?(_p.integ||[]).length:'');
+    _setz('dnFaelle',_p?(_p.faelle||[]).length:'');
+    _setz('dnVideo', _p?(_p.videoN||0):'');
+  }catch(e){}
   r._d=neu?{full:{},funk:[],preise:[],integ:[],faelle:[],lade:false}:{lade:true,funk:[],preise:[],integ:[],faelle:[],full:{}};
   setTab("stammdaten");$("#ov").classList.add("show");
   if(!neu&&r.id){const id=r.id;
@@ -2583,7 +2594,21 @@ function pwsStages(P){
 function pwsResume(){try{const id=localStorage.getItem('pws_last');if(!id)return '';const r=VIEWS.software.rows.find(function(x){return String(x.id)===String(id);});if(!r)return '';return '<div class="resume-card" onclick="pwsOpen(\''+id+'\')"><span class="rc-l"><i class="ti ti-player-play-filled"></i> Weiterarbeiten</span><span class="rc-m"><b>'+esc(r.name)+'</b><span>'+esc(r.kat||'')+' · zuletzt geöffnet</span></span><span class="rc-go">Workflow öffnen <i class="ti ti-arrow-right"></i></span></div>';}catch(e){return '';}}
 function pwsRow(ok,label,info,btn){return '<div class="pws-crit"><span class="pws-c-ic '+(ok?'ok':'no')+'">'+(ok?'✔':'●')+'</span><span class="pws-c-l">'+label+(info?infoH(info):'')+'</span>'+(btn||'')+'</div>';}
 function pwsBtn(label,onclick,icon,primary){return '<button class="pws-act'+(primary?' primary':'')+'" onclick="'+onclick+'"><i class="ti '+(icon||'ti-arrow-right')+'"></i> '+label+'</button>';}
-function pwsEditor(tab){if(!PWS)return;const i=VIEWS.software.rows.findIndex(function(r){return String(r.id)===String(PWS.id);});if(i<0){toast('Produkt nicht in der Liste – bitte „Alle Produkte" aktualisieren');return;}window.STAMM_EDIT=false;openDlg(i);var _nav=document.querySelector('#ov .dlg-nav');if(_nav)_nav.style.display=tab?'none':'';if(tab)setTab(tab);}
+function pwsEditor(tab){
+  if(!PWS)return;
+  const i=VIEWS.software.rows.findIndex(function(r){return String(r.id)===String(PWS.id);});
+  if(i<0){toast('Produkt nicht in der Liste – bitte „Alle Produkte" aktualisieren');return;}
+  window.STAMM_EDIT=false;
+  openDlg(i);
+  // 22.07.2026: Hier stand `_nav.style.display = tab ? 'none' : ''` — kam man aus dem Workflow,
+  // wurde die Bereichs-Navigation AUSGEBLENDET. Man landete in einem Bereich und musste schliessen
+  // und neu oeffnen, um in einen anderen zu kommen. Genau das Gegenteil dessen, was Toni von
+  // JTL Wawi kennt: dort ist der Datensatz offen und alle Reiter sind jederzeit erreichbar.
+  // Die Leiste bleibt jetzt IMMER sichtbar.
+  var _nav=document.querySelector('#ov .dlg-nav');
+  if(_nav)_nav.style.display='';
+  if(tab)setTab(tab);
+}
 function stammEdit(){window.STAMM_EDIT=!window.STAMM_EDIT;renderTab();}
 function tabEd(name){return !!(window.TAB_EDIT&&window.TAB_EDIT[name]);}
 function tabEdit(name){window.TAB_EDIT=window.TAB_EDIT||{};window.TAB_EDIT[name]=!window.TAB_EDIT[name];renderTab();}
