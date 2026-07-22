@@ -85,6 +85,24 @@
   .pws-hint{font-size:12.5px;color:var(--muted);padding:8px 11px;background:var(--panel2);border-radius:8px}
   .pws-hint.ok{color:#15803d;background:#dcfce7}
   .pws-i{display:inline-grid;place-items:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-style:italic;font-family:Georgia,serif;opacity:.55;margin-left:6px;cursor:help;flex:none}
+  /* "Es fehlt noch" (22.07.2026) — Klartext statt Prozentzahl. */
+  .pws-fehlt{border:1px solid var(--line);border-left:4px solid #2563eb;border-radius:12px;
+    background:var(--panel);margin:14px 0 4px;overflow:hidden}
+  .pws-fehlt.alles-gut{border-left-color:#059669;padding:14px 16px;font-size:14px;color:#065f46;background:#f0fdf4}
+  .pws-fehlt-kopf{display:flex;align-items:center;gap:11px;padding:11px 15px 9px;font-size:14px}
+  .pws-fehlt-pct{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+  .pws-fehlt-kopf .pws-bar{flex:1;min-width:60px}
+  .pws-fehlt-liste{list-style:none;margin:0;padding:0 0 4px}
+  .pws-fehlt-liste li{display:flex;align-items:center;gap:9px;padding:9px 15px;font-size:13.5px;
+    border-top:1px solid var(--line);color:var(--ink)}
+  .pws-fehlt-liste li i:first-child{font-size:15px;color:var(--muted);flex:none}
+  .pws-fehlt-liste li.klickbar{cursor:pointer}
+  .pws-fehlt-liste li.klickbar:hover{background:#f5f7ff}
+  .pws-fehlt-liste li.schwer i:first-child{color:#dc2626}
+  .pws-fehlt-liste li.bereit{background:#f0fdf4;color:#065f46;font-weight:600}
+  .pws-fehlt-liste li.bereit i:first-child{color:#059669}
+  .pws-fehlt-pf{margin-left:auto;color:var(--muted);font-size:14px}
+  .pws-fehlt-liste li span{flex:1;min-width:0;overflow-wrap:anywhere}
   /* Verlauf (22.07.2026) — Zeitleiste im Stil einer Wawi-Historie: Zeit links, Sache rechts. */
   .pws-vl-box{border:1px solid var(--line);border-radius:12px;margin:14px 0 4px;background:var(--panel);overflow:hidden}
   .pws-vl-kopf{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:12px 15px;
@@ -2571,6 +2589,67 @@ function tabEd(name){return !!(window.TAB_EDIT&&window.TAB_EDIT[name]);}
 function tabEdit(name){window.TAB_EDIT=window.TAB_EDIT||{};window.TAB_EDIT[name]=!window.TAB_EDIT[name];renderTab();}
 function editBar(name,activeMsg){var ed=tabEd(name);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:14px"><span style="font-size:12.5px;color:var(--muted)">'+(ed?'<i class="ti ti-pencil"></i> '+activeMsg:'<i class="ti ti-eye"></i> Nur Ansicht · Fakten aus Crawl/SSoT')+'</span><button class="tb'+(ed?' primary':'')+'" onclick="tabEdit(\''+name+'\')"><i class="ti ti-'+(ed?'check':'edit')+'"></i> '+(ed?'Fertig':'Bearbeiten')+'</button></div>';}
 function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise','integrationen','faelle']:n===4?['bewertungen','bilder','videos']:n===7?['content']:[];}
+// ===== WAS FEHLT (22.07.2026, Schritt 2 der JTL-Annaeherung) =====
+// Ersetzt "50 % fertig" durch Klartext. Eine Prozentzahl beantwortet nie die Frage, die man
+// tatsaechlich hat: WAS fehlt mir noch? Toni sah bei Seobility "50 %" und musste raten —
+// dahinter steckten genau zwei Dinge: keine Screenshots (Anbieter sperrt) und eine offene
+// Entscheidung. Beides ist benennbar, also wird es benannt.
+function pwsWasFehlt(P, stages){
+  var offen=[], f=P.full||{};
+  var done={}; (stages||[]).forEach(function(s){done[s.key]=s.done;});
+  var offeneFunk=(P.funk||[]).filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
+  var offeneFrei=(P.freigaben||[]).filter(function(x){return x.status!=='entschieden'&&x.art!=='neuer_canonical';}).length;
+
+  if(!done.anlegen){
+    var luecke=[];
+    if(!f.name)luecke.push('Name'); if(!f.hersteller)luecke.push('Hersteller');
+    if(!f.hersteller_url)luecke.push('Website'); if(!f.kategorie)luecke.push('Kategorie');
+    offen.push({t:'Stammdaten unvollständig'+(luecke.length?': '+luecke.join(', '):''),tab:'stammdaten',schwer:true});
+  }
+  if(!done.sammeln) offen.push({t:'Noch keine Daten — das Produkt muss gecrawlt werden',tab:null,schwer:true});
+  if(!done.ordnen){
+    if(offeneFunk>0) offen.push({t:offeneFunk+' Funktion'+(offeneFunk===1?'':'en')+' ohne Zuordnung',tab:'funktionen'});
+    else if(!(P.preise||[]).length) offen.push({t:'Keine Tarife erfasst',tab:'preise'});
+  }
+  if(!done.belegen){
+    var b=[];
+    if(!(P.quellen||[]).length)b.push('Quellen');
+    if(!P.synthese)b.push('Bewertungen');
+    if(!f.logo_pfad)b.push('Logo');
+    // Aufzaehlung wie im Deutschen ueblich: Komma, letztes Glied mit "und".
+    if(b.length){
+      var txt=b.length===1?b[0]:(b.slice(0,-1).join(', ')+' und '+b[b.length-1]);
+      offen.push({t:txt+' fehl'+(b.length===1?'t':'en'),tab:b[0]==='Bewertungen'?'bewertungen':'stammdaten'});
+    }
+  }
+  if(!done.medien){
+    /* Wenn der Anbieter uns aussperrt, ist das KEIN Versaeumnis von Toni — das gehoert dazugesagt,
+       sonst sucht er den Fehler bei sich. Der Bilder-Skill hinterlegt den Grund im skill_status. */
+    var bs=(P.skills||[]).find(function(s){return s.skill==='bilder';});
+    var gesperrt=bs&&/403|gesperrt|sperre/i.test(String(bs.qualitaet||'')+String(bs.detail||''));
+    offen.push({t: gesperrt ? 'Keine Bilder — der Anbieter sperrt Screenshots aus. Videos gehen trotzdem.'
+                            : 'Bilder oder Videos fehlen', tab:'bilder'});
+  }
+  if(!done.pruefen && offeneFrei>0)
+    offen.push({t:offeneFrei+' Entscheidung'+(offeneFrei===1?'':'en')+' offen',tab:null,frei:true});
+  if(done.schluss && !done.veroeffentlichen)
+    offen.push({t:'Bereit — wartet auf deine Freigabe',tab:'content',bereit:true});
+  return offen;
+}
+function pwsStatusStreifen(P, stages, pct){
+  var offen=pwsWasFehlt(P,stages);
+  if(!offen.length) return '<div class="pws-fehlt alles-gut"><i class="ti ti-circle-check"></i> <b>Alles erledigt</b> — das Produkt ist vollständig und veröffentlicht.</div>';
+  return '<div class="pws-fehlt">'
+    +'<div class="pws-fehlt-kopf"><b>Es fehlt noch</b><span class="pws-fehlt-pct">'+pct+' %</span>'
+    +'<div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'
+    +'<ul class="pws-fehlt-liste">'+offen.map(function(o){
+      var cls=o.bereit?'bereit':(o.schwer?'schwer':'');
+      var klick=o.frei?' onclick="gotoFreigaben()"':(o.tab?' onclick="pwsEditor(\''+o.tab+'\')"':'');
+      var klickbar=(o.frei||o.tab)?' klickbar':'';
+      return '<li class="'+cls+klickbar+'"'+klick+'><i class="ti '+(o.bereit?'ti-rocket':(o.schwer?'ti-alert-triangle':'ti-point-filled'))+'"></i>'
+        +'<span>'+esc(o.t)+'</span>'+((o.frei||o.tab)?'<i class="ti ti-chevron-right pws-fehlt-pf"></i>':'')+'</li>';
+    }).join('')+'</ul></div>';
+}
 // ===== VERLAUF (22.07.2026) =====
 // Eine Zeitleiste je Produkt: was lief wann, wie lange, was kam dabei heraus.
 // Zweck: Die Frage "passiert hier ueberhaupt etwas?" muss ohne Nachfragen beantwortbar sein.
@@ -3250,12 +3329,15 @@ function pwsRender(){
     '<span class="pws-logo"'+(_lg?' style="background:#fff"':'')+'>'+(_lg?'<img src="'+esc(_lg)+'" alt="" style="width:100%;height:100%;object-fit:contain">':mono)+'</span>'+
     '<div class="pws-h-main"><div class="pws-h-name">'+esc(f.name||'—')+'</div><div class="pws-h-sub">'+esc(f.hersteller||'')+(f.kategorie?(' · '+esc(f.kategorie)):'')+'</div></div>'+
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
-    '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+'% fertig</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
+    /* 22.07.2026: Die Prozentzahl im Kopf ist bewusst klein geworden — der Klartext darunter
+       ("Es fehlt noch …") beantwortet die eigentliche Frage. Der Balken bleibt als Anker. */
+    '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+' %</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
     '</div>'+
     /* 22.07.2026: Feste Reiterleiste. Die Datenbereiche steckten AUSSCHLIESSLICH in den
        Workflow-Stufen — als ich die Stufenliste einklappte, war die Bedienung mit weggeraeumt.
        Toni: "ich komme in die einzelnen Menuepunkte wie Stammdaten gar nicht mehr hinein".
        Daten muessen immer erreichbar sein; der Workflow ist ein Ratgeber, kein Tuersteher. */
+    pwsStatusStreifen(P,stages,swpct)+
     pwsDatenLeiste(P)+
     pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div><div id="pwsSkillStatus"></div>'+
     '<div class="pws-vl-box"><div class="pws-vl-kopf"><i class="ti ti-history"></i> <b>Verlauf</b>'
