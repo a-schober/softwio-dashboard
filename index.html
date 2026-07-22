@@ -2789,10 +2789,25 @@ function pwsStepperHtml(P){
   // Schritt. Die Reihenfolge bildet die echten Abhängigkeiten ab, nicht die Nummerierung der Stufen.
   // WICHTIG: 'pruefung_veraltet' steht bewusst VOR den Freigaben - eine Prüfung von gestern bewertet
   // den heutigen Datenstand nicht, und genau daran ist Toni heute hängengeblieben.
-  var qsRow=(P.skills||[]).find(function(x){return x.skill==='qualitaetsgate';});
-  var qsZeit=qsRow&&qsRow.gelaufen_am?new Date(qsRow.gelaufen_am).getTime():0;
-  var datenZeit=P.datenStand?new Date(P.datenStand).getTime():0;
-  var pruefungVeraltet=qsZeit>0&&datenZeit>qsZeit+60000;   // 1 Min Toleranz
+  var skillZeit=function(skill){
+    var r=(P.skills||[]).find(function(x){return x.skill===skill;});
+    return (r&&r.gelaufen_am)?new Date(r.gelaufen_am).getTime():0;
+  };
+  // Zuflüsse = Schritte, die neue ROHDATEN liefern. Nur sie entwerten eine Prüfung oder machen
+  // ein erneutes Aufbereiten sinnvoll.
+  var letzterZufluss=Math.max(skillZeit('matrix'),skillZeit('videoauswertung'),skillZeit('extraktion'),skillZeit('cleanup'),
+    (P.full&&P.full.crawl_bericht_am)?new Date(P.full.crawl_bericht_am).getTime():0);
+  var erledigtSeitZufluss=function(skill){
+    var t=skillZeit(skill);
+    return t>0 && t>=letzterZufluss;   // lief NACH dem letzten Zufluss -> nichts Neues zu holen
+  };
+  var qsZeit=skillZeit('qualitaetsgate');
+  // 22.07., Korrektur: Vorher galt die Prüfung als veraltet, sobald sich IRGENDEIN Datum geändert
+  // hatte. Aber das Klären ändert selbst Daten - also war die Prüfung nach jedem Klärungslauf
+  // sofort wieder "veraltet". Toni nach dem dritten Durchgang zu Recht: "prüfen wir uns hier zu Tode?"
+  // Korrekturen an Befunden entwerten keine Prüfung - sie SIND ihr Ergebnis.
+  // (P.datenStand bleibt geladen, wird hierfür aber bewusst nicht mehr benutzt.)
+  var pruefungVeraltet=qsZeit>0&&letzterZufluss>qsZeit+60000;
   var ohneTarif=(P.funk||[]).filter(function(x){return !(x.verfuegbar_ab_tarif||'').trim();}).length;
   // 22.07.: Ein Aufbereitungsschritt wird NICHT erneut vorgeschlagen, wenn er gerade gelaufen ist.
   // Sonst schickt die Führung endlos auf denselben Knopf: /anreichern hat 41 Zuordnungen geschafft,
@@ -2801,19 +2816,9 @@ function pwsStepperHtml(P){
   // Was nach einem Lauf offen bleibt, ist meist nicht belegbar - ein zweiter Lauf ändert daran nichts.
   // 22.07., zweiter Anlauf: Die erste Fassung sperrte 90 Minuten - danach kam derselbe Vorschlag
   // wieder, obwohl sich nichts geändert hatte. Toni um 06:57: "Also wieder hier Stufe 3?"
-  // Richtig ist nicht "wie lange her", sondern: Kamen seit dem Lauf NEUE Rohdaten? Wenn nicht,
-  // ändert ein zweiter Lauf nichts - was offen blieb, ist nicht belegbar.
-  var skillZeit=function(skill){
-    var r=(P.skills||[]).find(function(x){return x.skill===skill;});
-    return (r&&r.gelaufen_am)?new Date(r.gelaufen_am).getTime():0;
-  };
-  // Zuflüsse = Schritte, die neue Rohdaten liefern. Läuft einer davon, lohnt Aufbereiten erneut.
-  var letzterZufluss=Math.max(skillZeit('matrix'),skillZeit('videoauswertung'),skillZeit('extraktion'),skillZeit('cleanup'),
-    (P.full&&P.full.crawl_bericht_am)?new Date(P.full.crawl_bericht_am).getTime():0);
-  var erledigtSeitZufluss=function(skill){
-    var t=skillZeit(skill);
-    return t>0 && t>=letzterZufluss;   // lief NACH dem letzten Zufluss -> nichts Neues zu holen
-  };
+  // Richtig ist nicht "wie lange her", sondern: Kamen seit dem Lauf NEUE Rohdaten?
+  // (skillZeit/letzterZufluss/erledigtSeitZufluss stehen weiter oben - sie werden schon für
+  //  pruefungVeraltet gebraucht.)
   var harteBefunde=(P.freigaben||[]).filter(function(x){return (x.status||'offen')!=='entschieden'&&x.schwere==='hart';}).length;
 
   function naechsterSchritt(){
