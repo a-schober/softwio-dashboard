@@ -1022,8 +1022,38 @@ function freigabeOeffnen(i){const row=VIEWS.freigaben.rows[i];if(!row)return;con
     +'<div style="font-weight:600;font-size:12.5px;margin:16px 0 9px">Deine Entscheidung:</div>'
     +'<div style="display:flex;flex-direction:column;gap:8px">'
     +opts.map(function(o,k){var icon=o.op?'<i class="ti ti-circle-check" style="color:#16a34a;font-size:16px"></i>':'<i class="ti ti-circle-minus" style="color:var(--muted);font-size:16px"></i>';var note=o.op?'<span style="color:var(--muted);font-size:11px;display:block;margin-top:2px">→ wird in <b>'+esc(o.op.collection)+'</b> übernommen</span>':'<span style="color:var(--muted);font-size:11px;display:block;margin-top:2px">→ keine Übernahme – nur als erledigt abhaken</span>';return '<button class="tb" style="display:flex;align-items:flex-start;gap:9px;justify-content:flex-start;text-align:left;height:auto;padding:11px 13px;white-space:normal;line-height:1.4" onclick="freigabeWaehle(\''+f.id+'\','+k+')">'+icon+'<span>'+esc(o.label||("Option "+(k+1)))+note+'</span></button>';}).join("")
+    // 22.07.: Dritter Weg für Befunde, die bekannt und bewusst hingenommen sind. Abhaken allein
+    // reicht nicht - das Gate legt sie beim nächsten Lauf erneut an, weil die Ursache besteht.
+    // Beispiel: 8 Wildcard-Subdomains als Startseiten-Kopien. Ändert am Artikel nichts, käme aber
+    // bei jedem Lauf zurück. Gilt für JEDE Freigabe, deshalb fest angehängt statt vom Skill geliefert.
+    +'<button class="tb" style="display:flex;align-items:flex-start;gap:9px;justify-content:flex-start;text-align:left;height:auto;padding:11px 13px;white-space:normal;line-height:1.4;border-style:dashed" onclick="freigabeAkzeptieren(\''+f.id+'\')">'
+      +'<i class="ti ti-eye-off" style="color:var(--muted);font-size:16px"></i>'
+      +'<span>Akzeptiert, aber nicht bewertet'
+      +'<span style="color:var(--muted);font-size:11px;display:block;margin-top:2px">→ bleibt bestehen, wird künftig nicht mehr als Befund gemeldet</span></span></button>'
     +'</div></div>';
   aov("Erkenntnis prüfen",row.software+(f.video_titel?' · '+f.video_titel:''),body,'<span class="tb" onclick="closeAov()">Abbrechen</span>');
+}
+// "Akzeptiert, aber nicht bewertet" (22.07.2026, Formulierung von Toni).
+// Der Befund bleibt sachlich bestehen - er wird nur nicht mehr als Mangel gewertet. Das Gate legt ihn
+// künftig nicht erneut an, weist ihn aber im Status aus: hingenommen ist nicht dasselbe wie verschwunden.
+async function freigabeAkzeptieren(id){
+  var f=(window._freigaben||{})[id]; if(!f)return;
+  var grund=prompt('Warum wird dieser Punkt hingenommen?\n\nDie Begründung bleibt dauerhaft dokumentiert – auch für dich in einem halben Jahr.','');
+  if(grund===null)return;                       // abgebrochen
+  if(!grund.trim()){ toast('Ohne Begründung nicht möglich – sonst weiß später niemand warum'); return; }
+  try{
+    // Muster = die ersten Worte der Beschreibung. Bewusst grob: es soll denselben Befund wiedererkennen,
+    // ohne bei kleinen Formulierungsänderungen des Gates zu versagen.
+    var muster=(f.beschreibung||'').replace(/^(WEICH|HART)\s*\([^)]*\):\s*/i,'').slice(0,70);
+    var gate=null; var m=(f.beschreibung||'').match(/Gate\s+([A-I])/i); if(m)gate=m[1].toUpperCase();
+    var r=await sb.from('gate_ausnahmen').insert({software_id:f.software_id,gate:gate,muster:muster,
+                                                  begruendung:grund.trim(),freigabe_id:id});
+    if(r.error)throw r.error;
+    await dbW('update','freigaben',id,{status:'entschieden',entscheidung:'akzeptiert_nicht_bewertet',
+                                       entschieden_am:new Date().toISOString()});
+    closeAov(); toast('Akzeptiert – wird künftig nicht mehr als Befund gemeldet ✓');
+    await ladeFreigabenView(); render();
+  }catch(e){ alert('Fehlgeschlagen: '+(e&&e.message?e.message:e)); }
 }
 async function freigabeWaehle(id,optIdx){const f=(window._freigaben||{})[id];if(!f)return;var o=(Array.isArray(f.optionen)?f.optionen:[])[optIdx];if(!o)return;
   try{
