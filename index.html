@@ -2838,7 +2838,7 @@ function pwsStepperHtml(P){
     // ist im Dashboard nicht bearbeitbar. /klaeren korrigiert eigene Texte jetzt selbst.
     if(harteBefunde>0&&!erledigtSeitZufluss('klaeren')) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Diese sperren die Veröffentlichung. Der Klärungslauf beantwortet sie mit Beweisbildern und korrigiert eigene Formulierungen selbst – was er nicht lösen kann, legt er dir vor.',"skillJobStart('"+P.id+"','klaeren','','Befunde klären')",'Befunde klären lassen','ti-search',6);
     if(harteBefunde>0) return S(harteBefunde+' harte'+(harteBefunde===1?'r':'')+' Befund'+(harteBefunde===1?'':'e'),'Der Klärungslauf konnte sie nicht auflösen – jetzt brauchst du eine Entscheidung. Die Sperre sitzt in der Datenbank und gilt für jeden Weg.',"route('freigaben')",'Freigaben öffnen','ti-alert-triangle',6);
-    if(freiOffen>0) return S(freiOffen+' offene Freigabe'+(freiOffen===1?'':'n'),'Grenzfälle, die eine Entscheidung brauchen. Danach ist der Weg zum Artikel frei.',"route('freigaben')",'Freigaben öffnen','ti-checkbox',6);
+    if(freiOffen>0) return S(freiOffen+' offene Freigabe'+(freiOffen===1?'':'n'),'Keine davon sperrt die Veröffentlichung – es sind Grenzfälle, bei denen deine Entscheidung fehlt. Danach ist der Weg zum Artikel frei.',"route('freigaben')",'Freigaben öffnen','ti-checkbox',6);
     if(!art) return S('Artikel bauen','Alle Pflichtschritte stehen. Der Artikel entsteht automatisch aus den geprüften Fakten.',"artikelBauen('"+P.id+"')",'Artikel jetzt bauen','ti-sparkles',8);
     if(!liveOK) return S('Artikel prüfen und live schalten','Der Entwurf ist fertig. Letzter Halt: dein Blick darauf.',"pwsPublish()",'Prüfen & veröffentlichen','ti-cloud-upload',8);
     return S('Alles erledigt','Der Artikel ist live. Die Aktualität wird automatisch überwacht.',null,null,'ti-circle-check',9);
@@ -2873,7 +2873,12 @@ function pwsStepperHtml(P){
    {k:'veroeffentlichen',n:8,t:'Veröffentlichen',pflicht:1,info:'Artikel automatisch bauen (0 Credits), prüfen und live schalten. Letzter Halt davor: der Bildabgleich hält jede harte Aussage der fertigen Seite gegen die Beweisbilder der Hersteller-Seite. Ein Widerspruch wird als harter Befund angelegt und sperrt die Veröffentlichung — die Sperre sitzt in der Datenbank und gilt für jeden Weg. Danach baut das Portal automatisch; nur live-Artikel erscheinen im Portal.',sum:vSum,act:vAct,act2:["skillJobStart('"+P.id+"','bildabgleich','','Bildabgleich gegen Beweisbilder')",'Gegen Beweisbilder prüfen (0 Credits)','ti-photo-check']},
    {k:'pflege',n:9,t:'Aktuell halten',pflicht:0,dauer:1,info:'Die Aktualität wird laufend gesichert. Bei 180 Tagen ohne Update wird automatisch neu gecrawlt und verglichen; bei Preisänderungen bekommst du einen Entwurf zur Prüfung.',sum:pflegeSum,act:pflegeAct}
   ];
-  var cur=null;for(var i=0;i<FLOW.length;i++){if(FLOW[i].pflicht&&!done[FLOW[i].k]){cur=FLOW[i].k;break;}}
+  // 22.07.: EINE Wahrheit, nicht zwei. Vorher markierte die Liste die erste unfertige Pflichtstufe
+  // als "jetzt dran" (Stufe 3), während der Kasten oben Stufe 6 nannte - zwei Systeme, die sich
+  // widersprachen. Toni: "total unübersichtlich, nicht selbsterklärend und auch nicht logisch."
+  // Die Markierung folgt jetzt der Führung; die Liste ist reine Übersicht.
+  var STUFE_ZU_K={1:'anlegen',2:'sammeln',3:'ordnen',4:'belegen',5:'medien',6:'pruefen',7:'schluss',8:'veroeffentlichen',9:'pflege'};
+  var cur=NS.stufe?STUFE_ZU_K[NS.stufe]:null;
   if(!cur&&liveOK)cur='pflege';
   var rows=FLOW.map(function(s){
     var isDone=(s.k==='pflege')?false:!!done[s.k];
@@ -2912,7 +2917,15 @@ function pwsStepperHtml(P){
         +'">'+esc(letzterLauf.qualitaet)+'</div>'):'')
       +'</div>'):'')
     +'</div>';
-  return PWS_FLOW_STYLE+ns+'<div class="pws-flow">'+rows+'</div>';
+  // 22.07.: Die Stufenliste ist Übersicht, nicht Bedienung. Zwölf Knöpfe neben dem einen richtigen
+  // Schritt machen die Seite unübersichtlich und laden zum Raten ein. Standardmäßig eingeklappt -
+  // wer wissen will, wo er insgesamt steht, klappt sie auf.
+  var fertigN=FLOW.filter(function(s){return s.k!=='pflege'&&done[s.k];}).length;
+  return PWS_FLOW_STYLE+ns
+    +'<details style="margin-top:2px">'
+    +'<summary style="cursor:pointer;font-size:12.5px;color:var(--muted);padding:8px 2px;user-select:none">'
+      +'Alle Stufen anzeigen <span style="color:var(--faint)">('+fertigN+' von 8 erledigt)</span></summary>'
+    +'<div class="pws-flow" style="margin-top:8px">'+rows+'</div></details>';
  }catch(_e){return '<div class="pws-hint" style="color:#b91c1c">Ablauf-Ansicht Fehler: '+esc(String((_e&&_e.message)||_e))+'</div>';}
 }
 // --- Generischer Starter fuer Claude-Max-Skills ueber skill_jobs (0 API-Kosten) ---
