@@ -1456,7 +1456,12 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
 }
 async function ytRefresh(){await ytLadeDone();ytRenderAll();}
 function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"warte auf Heimrechner":s==="fehler"?"Fehler":"wartet";}
-function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}route("freigaben");}
+function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}
+  /* Kommt der Sprung aus einem Produkt-Workflow, zeigt die Liste NUR dieses Produkt.
+     Ohne das standen Tonis 4 Papierkram-Befunde zwischen 20 fremden Zeilen (22.07.2026). */
+  try{var _n=(window.PWS&&PWS.name)?PWS.name:null;
+      if(_n&&VIEWS.freigaben){VIEWS.freigaben._q=_n;}}catch(e){}
+  route("freigaben");}
 function ytEtaFmt(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),ss=s%60;return m+":"+(ss<10?"0":"")+ss;}
 function ytEtaTick(){clearInterval(window._ytEtaTimer);var run=function(){var el=document.getElementById("ytEta");if(!el){clearInterval(window._ytEtaTimer);return;}var st=el.getAttribute("data-start");if(!st){el.textContent="";return;}var sec=(Date.now()-Date.parse(st))/1000;if(!(sec>=0)){el.textContent="";return;}var SCHAETZ=12*60;var rest=SCHAETZ-sec;var t=" · läuft seit "+ytEtaFmt(sec);t+=(rest>30)?" · ca. noch "+ytEtaFmt(rest):" · gleich fertig (dauert evtl. etwas länger)";el.textContent=t;};run();window._ytEtaTimer=setInterval(run,1000);}
 function ytPollStart(){clearTimeout(window._ytPollTimer);const inf=window._ytQInfo||[];const aktiv=inf.filter(function(x){return x.status==="offen"||x.status==="in_arbeit"||x.status==="wartet_auf_crawl";}).length;if(!aktiv)return;window._ytPollTimer=setTimeout(async function(){if(!document.getElementById("ytStatBox"))return;await ytLadeDone();if(document.getElementById("ytStatBox"))ytRenderStat();},15000);}
