@@ -2401,7 +2401,7 @@ async function pwsOpen(id){
       sb.from('ssot_verifikation').select('status,tabelle,ref,grund').eq('software_id',id),
       // 21.07.: Fuer die Schritt-Fuehrung. Entscheidend ist nicht nur OB geprueft wurde, sondern ob
       // seither Daten dazukamen - eine Pruefung von gestern Nacht bewertet den heutigen Stand nicht.
-      sb.from('skill_status').select('skill,status,gelaufen_am').eq('software_id',id),
+      sb.from('skill_status').select('skill,status,gelaufen_am,qualitaet').eq('software_id',id),
       // Laufende Jobs: Die Fuehrung darf nicht zum Klicken auffordern, waehrend genau dieser
       // Schritt schon arbeitet. 21.07.: Toni klickte "Vergleichstabelle holen", der Job lief
       // 9 Minuten - und der Kasten sagte die ganze Zeit weiter "hol die Tabelle".
@@ -2795,6 +2795,11 @@ function pwsStepperHtml(P){
     return S('Alles erledigt','Der Artikel ist live. Die Aktualität wird automatisch überwacht.',null,null,'ti-circle-check',9);
   }
   var NS=naechsterSchritt();
+  // 22.07.: "die Ergebnisse der letzten Bearbeitung anzeigen" (Toni). Bisher stand das Ergebnis nur
+  // in skill_status - sichtbar nur, wer danach sucht. Nach einem Lauf will man wissen, was er bewirkt
+  // hat, ohne die Zahlen selbst zu vergleichen.
+  var letzterLauf=(P.skills||[]).filter(function(x){return x.gelaufen_am;})
+    .sort(function(a,b){return new Date(b.gelaufen_am)-new Date(a.gelaufen_am);})[0];
   // Läuft gerade ein Job, wird NICHT zum Klicken aufgefordert - egal welcher. Zwei Läufe
   // gleichzeitig bringen nichts, und ein zweiter Klick auf denselben Schritt erzeugt Doppelarbeit.
   var LJ=(P.laufendeJobs||[])[0];
@@ -2847,7 +2852,17 @@ function pwsStepperHtml(P){
         +'<div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5">'+esc(NS.warum)+'</div>'
       +'</div>'
       +(NS.akt?('<div style="flex:none">'+pwsBtn(esc(NS.knopf),NS.akt,NS.ikon,true)+'</div>'):'')
-    +'</div></div>';
+    +'</div>'
+    // Ergebnis des letzten Laufs: beantwortet "was hat mein Klick von vorhin bewirkt?", ohne dass
+    // man Zahlen selbst vergleichen muss. Farbe nach Ausgang - eine Warnung soll nicht wie Erfolg aussehen.
+    +(letzterLauf?('<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;line-height:1.5">'
+      +'<span style="color:var(--muted)">Zuletzt erledigt · '+esc(SKILL_LABEL[letzterLauf.skill]||letzterLauf.skill)
+      +' · '+esc(String(letzterLauf.gelaufen_am||'').replace('T',' ').slice(0,16))+'</span>'
+      +(letzterLauf.qualitaet?('<div style="margin-top:3px;color:'
+        +(letzterLauf.status==='fehler'?'#b91c1c':(letzterLauf.status==='warnung'?'#b45309':'#15803d'))
+        +'">'+esc(letzterLauf.qualitaet)+'</div>'):'')
+      +'</div>'):'')
+    +'</div>';
   return PWS_FLOW_STYLE+ns+'<div class="pws-flow">'+rows+'</div>';
  }catch(_e){return '<div class="pws-hint" style="color:#b91c1c">Ablauf-Ansicht Fehler: '+esc(String((_e&&_e.message)||_e))+'</div>';}
 }
