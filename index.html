@@ -2601,6 +2601,30 @@ async function pwsBelegAck(oi){if(!PWS||!PWS.beleg||!PWS.beleg.offen||!PWS.beleg
   if(!confirm('„'+o.ref+'" als manuell GEPRÜFT markieren?\nNur bestätigen, wenn die Aussage nachweislich korrekt ist – sonst korrigieren oder entfernen.'))return;
   try{await sb.from('ssot_verifikation').update({status:'mensch_bestaetigt',grund:'manuell als geprüft bestätigt'}).eq('software_id',PWS.id).eq('tabelle',o.tabelle).eq('ref',o.ref).eq('status','unbelegt');await pwsLadeBeleg();try{pwsSyncRail();}catch(e){}toast('Als geprüft markiert ✓');}
   catch(e){alert('Fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+// ===== SEO-Optimierung gegen den ECHTEN NeuronWriter-Bauplan =====
+// 22.07.2026: Der Content-Runner holt den Bauplan VOR dem Bau. Fehlt zu dem Zeitpunkt die
+// inhalts_artikel-Zeile, schlaegt der Aufruf fehl, der Fehler wird geschluckt - und es gab
+// KEINEN Weg, das nachzuholen. Der Score kommt ausschliesslich aus NeuronWriter, nie geschaetzt.
+async function pwsSeo(btn){
+  if(!PWS)return;const sid=PWS.id;const _o=btn?btn.innerHTML:'';
+  var el=document.getElementById('pwsJobStatus');
+  try{
+    if(btn){btn.disabled=true;}
+    const vor=await sb.from('inhalts_artikel').select('nw_punktzahl_v1,nw_soll_punktzahl').eq('software_id',sid).maybeSingle();
+    const alt=(vor&&vor.data&&vor.data.nw_punktzahl_v1)||null;
+    await skillJobInline(sid,'seo','','SEO-Optimierung (NeuronWriter)',el);
+    // GEGENLESEN statt der Rueckmeldung glauben (Lehre 20.07.: gelaufen != angekommen).
+    const nach=await sb.from('inhalts_artikel').select('nw_punktzahl_v1,nw_soll_punktzahl,nw_query').eq('software_id',sid).maybeSingle();
+    const d=(nach&&nach.data)||{};
+    const neu=d.nw_punktzahl_v1,soll=d.nw_soll_punktzahl;
+    if(neu==null){toast('Kein NeuronWriter-Score zurückgekommen — bitte Skill-Status prüfen.');}
+    else if(alt!=null&&neu>alt){toast('✓ NeuronWriter-Score '+alt+' → '+neu+(soll?' (Soll '+soll+')':''));}
+    else if(alt!=null&&neu===alt){toast('Score unverändert bei '+neu+' — Details im Automatik-Status.');}
+    else{toast('NeuronWriter-Score: '+neu+(soll?' (Soll '+soll+')':''));}
+    try{await pwsOpen(sid);}catch(_){}
+  }catch(e){toast('SEO-Optimierung fehlgeschlagen: '+(e&&e.message?e.message:e));}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=_o;}}
+}
 // ===== Auto-Build (Content-Warteschlange) =====
 async function artikelBauen(sid){
   if(!sid)return;
@@ -2670,7 +2694,14 @@ function pwsBody(P,st){
     var ab='';if(P.audit&&P.audit.befunde&&P.audit.befunde.length){ab='<div style="border:1px solid var(--line);border-left:4px solid #f59e0b;border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--soft,#f8fafc)"><b style="font-size:13px">🔎 Kategorisierungs-Check</b><div style="font-size:11.5px;color:var(--muted);margin:4px 0 8px">Hinweise zu Fehlkategorisierung/Widersprüchen (beratend, blockiert nicht).</div>'+P.audit.befunde.slice(0,6).map(function(x){return '<div style="font-size:12px;margin:4px 0;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(x.bereich||'')+':</b> '+esc(x.fund||'')+'</div>';}).join('')+'</div>';}
     return pwsRow(st.offeneFrei===0,'Offene Freigaben: '+st.offeneFrei,'',pwsBtn('Freigaben öffnen','route(\'freigaben\')','ti-checkbox'))+bb+ab+pwsRow(true,'Crawl-Status','',pwsBtn('Crawl-Status','route(\'crawl\')','ti-spider'));}
   if(k==='schluss'){const ss=pwsStages(P);const pflicht=['anlegen','sammeln','ordnen','belegen','pruefen'];const need=ss.filter(function(s){return pflicht.indexOf(s.key)>=0&&!s.done;});return ss.filter(function(s){return pflicht.indexOf(s.key)>=0;}).map(function(s){return pwsRow(s.done,esc(s.t));}).join('')+(need.length?'<div class="pws-hint">Noch offen: '+need.map(function(s){return esc(s.t);}).join(', ')+'</div>':'<div class="pws-hint ok">Alles vollständig – bereit zur Veröffentlichung!</div>');}
-  if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});var swpct=_swr?(_swr.pct||0):0;setTimeout(function(){try{ladeJobStatus(P.id,liveOK);}catch(e){}},30);var acts='<div class="pws-acts">'+((swpct>=100)?pwsBtn((hasArt?'Artikel neu bauen (Auto)':'Artikel automatisch bauen'),'artikelBauen(\''+P.id+'\')','ti-sparkles',(!hasArt)):'')+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(hasArt?pwsBtn('Note neu berechnen','pwsScoreNeu(this)','ti-calculator'):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';return pwsRow(hasArt,'Content erzeugt')+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+'<div id="pwsJobStatus"></div>'+(hasArt?'':(swpct>=100?'<div class="pws-hint">Klick „Artikel automatisch bauen" – der Runner erzeugt den Entwurf (0 Credits), danach hier prüfen &amp; freigeben.</div>':'<div class="pws-hint">Sobald der Fortschritt 100 % erreicht ist, kannst du den Artikel automatisch bauen lassen.</div>'));}
+  if(k==='veroeffentlichen'){var liveOK=!!(P.artikel&&P.artikel.inhalts_status==='live');var hasArt=!!P.artikel;var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});var swpct=_swr?(_swr.pct||0):0;setTimeout(function(){try{ladeJobStatus(P.id,liveOK);}catch(e){}},30);var acts='<div class="pws-acts">'+((swpct>=100)?pwsBtn((hasArt?'Artikel neu bauen (Auto)':'Artikel automatisch bauen'),'artikelBauen(\''+P.id+'\')','ti-sparkles',(!hasArt)):'')+pwsBtn('Inhalt prüfen / bearbeiten','pwsTab(\'content\')','ti-file-text')+(!liveOK&&hasArt?pwsBtn('Jetzt veröffentlichen (live schalten)','pwsPublish()','ti-cloud-upload',1):'')+(hasArt?pwsBtn('SEO optimieren (NeuronWriter)','pwsSeo(this)','ti-trending-up'):'')+(hasArt?pwsBtn('Note neu berechnen','pwsScoreNeu(this)','ti-calculator'):'')+(liveOK?'<a class="pws-act primary" href="https://staging.schober.media" target="_blank" rel="noopener" style="text-decoration:none"><i class="ti ti-external-link"></i> Live-Seite öffnen</a>'+pwsBtn('Portal neu bauen','runBuild(\'de\')','ti-hammer'):'')+'</div>';var _nw='';
+    if(hasArt){var _s=P.artikel.nw_punktzahl_v1,_z=P.artikel.nw_soll_punktzahl;
+      _nw=(_s==null)
+        ? '<div class="pws-hint">Noch kein NeuronWriter-Score gemessen — Knopf „SEO optimieren" holt Bauplan und Score aus deiner Lizenz.</div>'
+        : '<div class="pws-hint'+((_z!=null&&_s>=_z)?' ok':'')+'"><b>NeuronWriter-Score '+_s+'</b>'
+          +(_z!=null?' · Wettbewerbs-Soll '+_z+(_s>=_z?' — erreicht':' — noch '+(_z-_s)+' Punkte'):'')
+          +'<br><span style="color:var(--muted);font-size:12px">Gemessen von NeuronWriter'+(P.artikel.nw_query?' (Analyse '+esc(P.artikel.nw_query)+')':'')+', nicht geschätzt.</span></div>';}
+    return pwsRow(hasArt,'Content erzeugt')+_nw+pwsRow(liveOK,'Live veröffentlicht'+(!liveOK&&P.artikel&&P.artikel.inhalts_status?' – Status: '+esc(P.artikel.inhalts_status):''))+acts+'<div id="pwsJobStatus"></div>'+(hasArt?'':(swpct>=100?'<div class="pws-hint">Klick „Artikel automatisch bauen" – der Runner erzeugt den Entwurf (0 Credits), danach hier prüfen &amp; freigeben.</div>':'<div class="pws-hint">Sobald der Fortschritt 100 % erreicht ist, kannst du den Artikel automatisch bauen lassen.</div>'));}
   return pwsRow(true,'Zuletzt geprüft: '+(f.letzte_pruefung_am?String(f.letzte_pruefung_am).slice(0,10):'—'))+'<div class="pws-hint">Dauerstufe: Aktualität wird laufend gesichert (Auto-Checks, AppSumo).</div>'+pwsRefreshBlock(P);
 }
 function pwsRefreshBlock(P){
@@ -2940,13 +2971,14 @@ function pwsStepperHtml(P){
 // Erfahrungswerte in Minuten (Hoechstwert echter Laeufe der letzten 7 Tage, Stand 21.07.2026).
 // Bewusst der Hoechst- und nicht der Mittelwert: eine zu optimistische Angabe erzeugt genau die Frage
 // "laeuft hier ueberhaupt was?", die diese Anzeige beantworten soll.
-const SKILL_DAUER={klaeren:20,qualitaetsgate:14,videoauswertung:11,anreichern:9,extraktion:8,cleanup:6,bilder:6,distribution:3,bewertungen:10,matrix:8,belege:12,bildabgleich:10};
+const SKILL_DAUER={klaeren:20,qualitaetsgate:14,videoauswertung:11,anreichern:9,extraktion:8,cleanup:6,bilder:6,distribution:3,bewertungen:10,matrix:8,belege:12,bildabgleich:10,seo:18};
 // Klartext statt technischer Skill-Namen. In der Führung liest sonst niemand "matrix" oder
 // "qualitaetsgate" - und der Kasten soll ohne Vorwissen verständlich sein.
 const SKILL_LABEL={klaeren:'Befunde werden geklärt',qualitaetsgate:'Qualitätsprüfung läuft',videoauswertung:'Video wird ausgewertet',
   anreichern:'Fakten werden angereichert',extraktion:'Fakten werden extrahiert',cleanup:'Crawl wird aufbereitet',
   bilder:'Screenshots werden geholt',distribution:'Social-Paket wird erzeugt',bewertungen:'Bewertungen werden ausgewertet',
-  matrix:'Vergleichstabelle wird geholt',belege:'Beweisbilder werden aufgenommen',bildabgleich:'Abgleich gegen Beweisbilder läuft'};
+  matrix:'Vergleichstabelle wird geholt',belege:'Beweisbilder werden aufgenommen',bildabgleich:'Abgleich gegen Beweisbilder läuft',
+  seo:'SEO-Optimierung läuft (NeuronWriter)'};
 async function skillJobInline(sid,skill,args,label,statusEl){
   if(!sid)throw new Error('Keine Software-ID');
   const setz=function(t){try{if(statusEl)statusEl.innerHTML='<i class="ti ti-loader-2 spin"></i> '+t;}catch(_){}};
