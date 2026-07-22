@@ -85,6 +85,15 @@
   .pws-hint{font-size:12.5px;color:var(--muted);padding:8px 11px;background:var(--panel2);border-radius:8px}
   .pws-hint.ok{color:#15803d;background:#dcfce7}
   .pws-i{display:inline-grid;place-items:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-style:italic;font-family:Georgia,serif;opacity:.55;margin-left:6px;cursor:help;flex:none}
+  /* Feste Datenleiste (22.07.2026). Immer erreichbar, unabhaengig vom Workflow. */
+  .pws-daten{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 4px}
+  .pws-dtab{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;cursor:pointer;line-height:1.2}
+  .pws-dtab:hover{border-color:#c7d2fe;background:#f5f7ff}
+  .pws-dtab i{font-size:15px;color:var(--muted)}
+  .pws-dtab.leer{color:var(--muted)}
+  .pws-dz{background:var(--panel2,#eef2f7);border-radius:20px;padding:1px 7px;font-size:11.5px;font-weight:600;color:var(--muted)}
+  .pws-dz.null{background:#fef2f2;color:#b91c1c}
   .pws-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px;border-bottom:1px solid var(--line);padding-bottom:10px}
   .pws-subtab{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:7px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer}
   .pws-subtab:hover{color:var(--ink)}
@@ -160,6 +169,12 @@
     .pws-rail{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px;position:static;max-height:none}
     .pws-step{flex:none}
     .pws-head{gap:10px}
+    /* Am Telefon nicht umbrechen, sondern waagerecht wischen — sonst frisst die Leiste
+       den halben Bildschirm, bevor der eigentliche Inhalt beginnt. */
+    .pws-daten{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      margin:12px -4px 4px;padding:0 4px 6px;scrollbar-width:none}
+    .pws-daten::-webkit-scrollbar{display:none}
+    .pws-dtab{flex:none;padding:10px 13px;font-size:13.5px}
     .pws-h-prog{min-width:120px;flex:1}
     .pws-panel{padding:14px}
     .view-search{max-width:none}
@@ -2521,6 +2536,29 @@ function tabEd(name){return !!(window.TAB_EDIT&&window.TAB_EDIT[name]);}
 function tabEdit(name){window.TAB_EDIT=window.TAB_EDIT||{};window.TAB_EDIT[name]=!window.TAB_EDIT[name];renderTab();}
 function editBar(name,activeMsg){var ed=tabEd(name);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:14px"><span style="font-size:12.5px;color:var(--muted)">'+(ed?'<i class="ti ti-pencil"></i> '+activeMsg:'<i class="ti ti-eye"></i> Nur Ansicht · Fakten aus Crawl/SSoT')+'</span><button class="tb'+(ed?' primary':'')+'" onclick="tabEdit(\''+name+'\')"><i class="ti ti-'+(ed?'check':'edit')+'"></i> '+(ed?'Fertig':'Bearbeiten')+'</button></div>';}
 function pwsStageTabs(n){return n===1?['stammdaten']:n===3?['funktionen','preise','integrationen','faelle']:n===4?['bewertungen','bilder','videos']:n===7?['content']:[];}
+// Feste Reiterleiste ueber dem Workflow — jeder Datenbereich in EINEM Klick erreichbar,
+// unabhaengig davon, welche Stufe gerade "dran" ist. Zaehler zeigen den Bestand, damit man
+// sieht, wo etwas fehlt, ohne hineinzuklicken. Mobil scrollt die Leiste waagerecht.
+function pwsDatenLeiste(P){
+  var f=P.full||{};
+  var eintraege=[
+    {t:'stammdaten',   i:'ti-id-badge-2',    l:'Stammdaten', n:null},
+    {t:'funktionen',   i:'ti-list-check',    l:'Funktionen', n:(P.funk||[]).length},
+    {t:'preise',       i:'ti-currency-euro', l:'Tarife',     n:(P.preise||[]).length},
+    {t:'integrationen',i:'ti-plug',          l:'Integrationen', n:(P.integrationen||[]).length},
+    {t:'faelle',       i:'ti-users',         l:'Anwendungsfälle', n:(P.faelle||[]).length},
+    {t:'bewertungen',  i:'ti-star',          l:'Bewertungen', n:(P.synthese?1:0)},
+    {t:'bilder',       i:'ti-photo',         l:'Bilder',     n:(P.bilderN||0)},
+    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:(P.videoN||0)},
+    {t:'content',      i:'ti-file-text',     l:'Artikel',    n:(P.artikel?1:0)}
+  ];
+  return '<div class="pws-daten">'+eintraege.map(function(e){
+    var leer=(e.n!==null&&e.n===0);
+    return '<button class="pws-dtab'+(leer?' leer':'')+'" onclick="pwsEditor(\''+e.t+'\')" title="'+esc(e.l)+' öffnen">'
+      +'<i class="ti '+e.i+'"></i> '+esc(e.l)
+      +(e.n!==null?'<span class="pws-dz'+(leer?' null':'')+'">'+e.n+'</span>':'')+'</button>';
+  }).join('')+'</div>';
+}
 const PWS_TABLBL={stammdaten:'Stammdaten',funktionen:'Funktionen',preise:'Tarife',integrationen:'Integrationen',faelle:'Anwendungsfälle',bewertungen:'Bewertungen',bilder:'Bilder',videos:'Videos',content:'Content',distribution:'Distribution'};
 function pwsTab(tab){dlgTab=tab;DLGFORM='pwsForm';renderTab();document.querySelectorAll('.pws-subtab').forEach(function(b){b.classList.toggle('on',b.dataset.t===tab);});}
 // Harte, offene Befunde sperren die Veroeffentlichung. Die eigentliche Sperre sitzt als Trigger
@@ -3117,6 +3155,11 @@ function pwsRender(){
     '<button class="tb" title="Status aktualisieren" onclick="pwsOpen(PWS.id)"><i class="ti ti-refresh"></i></button>'+
     '<div class="pws-h-prog"><div class="pws-h-pct">'+swpct+'% fertig</div><div class="pws-bar"><span style="width:'+swpct+'%"></span></div></div>'+
     '</div>'+
+    /* 22.07.2026: Feste Reiterleiste. Die Datenbereiche steckten AUSSCHLIESSLICH in den
+       Workflow-Stufen — als ich die Stufenliste einklappte, war die Bedienung mit weggeraeumt.
+       Toni: "ich komme in die einzelnen Menuepunkte wie Stammdaten gar nicht mehr hinein".
+       Daten muessen immer erreichbar sein; der Workflow ist ein Ratgeber, kein Tuersteher. */
+    pwsDatenLeiste(P)+
     pwsStepperHtml(P)+_warn+'<div id="pwsJobStatus"></div><div id="pwsSkillStatus"></div>'+
     '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:6px 2px"><i class="ti ti-tool"></i> Technische Details &amp; Report (optional)</summary><div style="padding-top:6px">'+meilensteinHtml(_swr)+'<div id="pwsKosten"></div><div id="pwsReport"></div></div></details>'+
     '</div>';
