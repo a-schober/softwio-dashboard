@@ -116,6 +116,8 @@
   .pws-vl-i{text-align:center;font-size:15px;color:var(--muted);line-height:1.2}
   .pws-vl-z.ok .pws-vl-i{color:#059669}
   .pws-vl-z.laeuft .pws-vl-i{color:#2563eb}
+  .pws-vl-z.blockiert .pws-vl-i{color:#b45309}
+  .pws-vl-d.blockiert{color:#b45309;font-weight:600}
   .pws-vl-z.fehler .pws-vl-i{color:#dc2626}
   .pws-vl-h{font-size:13.5px;font-weight:600;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .pws-vl-d{font-weight:400;font-size:11.5px;color:var(--muted)}
@@ -2863,13 +2865,19 @@ function pwsVerlaufHtml(P){
   eintraege.sort(function(a,b){return b.sort-a.sort;});
   var ic={fertig:'ti-circle-check',in_arbeit:'ti-loader-2 spin',offen:'ti-clock',fehler:'ti-alert-triangle'};
   return '<div class="pws-vl">'+eintraege.slice(0,25).map(function(e){
-    var kl=e.status==='fehler'?'fehler':(e.status==='fertig'?'ok':(e.status==='in_arbeit'?'laeuft':'wartet'));
+    // 23.07.2026 (Punkt 3): Ein "fertig"-Lauf mit 403/0-Ergebnis ist KEIN gruener Erfolg. Gelb als
+    // "blockiert" - konsistent mit der Ergebnisanzeige (skillJobPoll), damit ein extern gescheiterter
+    // Lauf ueberall gleich aussieht, nicht mal gruen (Verlauf), mal gelb (Ergebnis).
+    var blockiert=e.status==='fertig'&&/403|gesperrt|\bsperre\b|nicht abrufbar|0 zeilen|0 von 0|quelle gesperrt/i.test(String(e.ergebnis||''));
+    var kl=e.status==='fehler'?'fehler':(blockiert?'blockiert':(e.status==='fertig'?'ok':(e.status==='in_arbeit'?'laeuft':'wartet')));
+    var ikon=blockiert?'ti-player-pause':(ic[e.status]||'ti-point');
     return '<div class="pws-vl-z '+kl+'">'
       +'<div class="pws-vl-t">'+esc(pwsZeit(e.zeit))+'</div>'
-      +'<div class="pws-vl-i"><i class="ti '+(ic[e.status]||'ti-point')+'"></i></div>'
+      +'<div class="pws-vl-i"><i class="ti '+ikon+'"></i></div>'
       +'<div class="pws-vl-b"><div class="pws-vl-h">'+esc(e.titel)
-        +(e.dauer?'<span class="pws-vl-d">'+esc(e.dauer)+'</span>':'')
+        +(e.dauer&&!blockiert?'<span class="pws-vl-d">'+esc(e.dauer)+'</span>':'')
         +(e.status==='in_arbeit'?'<span class="pws-vl-d laeuft">läuft gerade</span>':'')
+        +(blockiert?'<span class="pws-vl-d blockiert">blockiert – Anbieter sperrt</span>':'')
         +(e.status==='fehler'?'<span class="pws-vl-d fehler">fehlgeschlagen</span>':'')+'</div>'
       +(e.ergebnis?'<div class="pws-vl-e">'+esc(String(e.ergebnis).slice(0,260))+'</div>':'')
       +'</div></div>';
