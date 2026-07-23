@@ -1596,7 +1596,15 @@ function cbTryCopy(){var ta=document.getElementById('cbManualTa');var text=(wind
 function ytCopy(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert – in Claude Max einfügen");}
 function ytCopyAll(){if(!ytSel.size){toast("Keine Videos ausgewählt");return;}const t=[...ytSel].map(id=>"/watch https://www.youtube.com/watch?v="+id).join("\n");cbCopy(t,ytSel.size+" /watch-Befehle kopiert – in Claude Max einfügen");}
 async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!ytSel.size){toast("Bitte Videos markieren");return;}if(!sid){toast("Keine Software-ID");return;}
-  try{const{data:swc}=await sb.from("software").select("crawl_metadaten").eq("id",sid).single();if(!swc||!swc.crawl_metadaten){aov("Noch kein Crawl",sw,`<div style="padding:16px;font-size:13px;line-height:1.6">Für <b>${esc(sw)}</b> wurde die Website noch nicht gecrawlt. Ohne gecrawlte SSoT-Fakten darf nicht priorisiert werden (Halluzinationsschutz). Bitte zuerst „Crawl &amp; Anreichern".</div>`,'<span class="tb" onclick="closeAov()">Verstanden</span>');return;}}catch(e){}
+  // 23.07.2026: Prueffeld korrigiert. Vorher wurde `crawl_metadaten` abgefragt - ein Feld, das der
+  // neue Max-Crawl NICHT mehr fuellt. Seobility hatte 27.569 Zeichen Rohtext, 70 Funktionen und einen
+  // fertigen Artikel, bekam aber trotzdem "Noch kein Crawl" und konnte keine Videos priorisieren.
+  // Der echte Beleg fuer "gecrawlt" ist Rohtext ODER extrahierte Funktionen - wie in der Pruefung
+  // bei Zeile ~758.
+  try{const{data:swc}=await sb.from("software").select("ssot_rohtext").eq("id",sid).single();
+    var _funkDa=(dlgRow&&dlgRow.funk)||(dlgRow&&dlgRow._d&&dlgRow._d.funk)||[];
+    var _gecrawlt=(swc&&_repVoll(swc.ssot_rohtext))||_funkDa.length>0;
+    if(!_gecrawlt){aov("Noch kein Crawl",sw,`<div style="padding:16px;font-size:13px;line-height:1.6">Für <b>${esc(sw)}</b> wurde die Website noch nicht gecrawlt. Ohne gecrawlte SSoT-Fakten darf nicht priorisiert werden (Halluzinationsschutz). Bitte zuerst „Crawl &amp; Anreichern".</div>`,'<span class="tb" onclick="closeAov()">Verstanden</span>');return;}}catch(e){}
   const videos=ytListe.filter(v=>v.art==="video"&&ytSel.has(v.id)).map(v=>({id:v.id,titel:v.t,kanal:v.k,schon_ausgewertet:ytDone.has(v.id)}));
   aov("Priorisierung – "+sw,ytSel.size+" Videos · KI-Bewertung (Opus)",'<div id="prioOut" style="padding:18px;color:var(--muted)">Analysiere …</div>');
   try{const r=await sb.functions.invoke("ranking-proxy",{body:{software:{name:sw,kategorie:(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.kategorie)||""},videos:videos}});if(r&&r.error)throw new Error(r.error.message||"Fehler");const ranking=(r.data&&r.data.ranking)||[];const ranked=ranking.map(x=>{const v=videos.find(y=>y.id===x.video_id);return v?Object.assign({},x,{titel:v.titel,schon:ytDone.has(x.video_id)}):null;}).filter(Boolean).sort((a,b)=>a.rang-b.rang);const offen=ranked.filter(x=>!x.schon).length;window._ytRanked=ranked;
