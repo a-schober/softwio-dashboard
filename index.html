@@ -2940,7 +2940,14 @@ async function pwsPublish(){if(!PWS||!PWS.artikel||!PWS.artikel.id){toast('Kein 
   try{const now=new Date().toISOString();
     // Bewertung frisch berechnen, damit die Live-Note dem aktuellen Datenstand entspricht (best-effort, blockiert nicht).
     try{toast('Bewertung wird aktualisiert … (~1 Min)');const sr=await sb.functions.invoke('bewertung-berechnen',{body:{software_id:PWS.id}});if(sr&&sr.data&&typeof sr.data.gesamt!=='undefined'&&PWS.artikel.sektionen&&PWS.artikel.sektionen.artikel){PWS.artikel.sektionen.artikel.bewertung=Object.assign({},PWS.artikel.sektionen.artikel.bewertung,{gesamt:sr.data.gesamt,kriterien:sr.data.kriterien});}}catch(e){}
-    await dbW('update','inhalts_artikel',PWS.artikel.id,{inhalts_status:'live',geaendert_am:now});try{await dbW('update','software',PWS.id,{letzte_pruefung_am:now});}catch(e){}PWS.artikel.inhalts_status='live';if(PWS.full)PWS.full.letzte_pruefung_am=now;toast('Veröffentlicht ✓ – Artikel ist live');try{pwsSyncRail();}catch(e){}try{await ladeSW();}catch(e){}finalisierenUndBauen(PWS.id);}catch(e){alert('Veröffentlichen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
+    await dbW('update','inhalts_artikel',PWS.artikel.id,{inhalts_status:'live',geaendert_am:now});try{await dbW('update','software',PWS.id,{letzte_pruefung_am:now});}catch(e){}PWS.artikel.inhalts_status='live';if(PWS.full)PWS.full.letzte_pruefung_am=now;toast('Veröffentlicht ✓ – Artikel ist live');try{pwsSyncRail();}catch(e){}try{await ladeSW();}catch(e){}finalisierenUndBauen(PWS.id);
+    // 23.07.2026 (Weg B): Schluss-Abgleich einreihen. Der Skill wartet auf den Build, haelt dann die
+    // gerenderte Seite gegen die Herstellerseite und zieht bei einem harten Fund die Seite SOFORT
+    // zurueck + legt eine harte Freigabe an. So ist eine fehlerhafte Seite hoechstens Minuten (und nur
+    // hinter Basic-Auth) sichtbar - genau der Fall, der heute erst Toni auffiel.
+    try{await sb.from('skill_jobs').insert({software_id:PWS.id,skill:'schlussabgleich',args:'nach_live',status:'offen'});
+      toast('Schluss-Abgleich läuft — prüft die Live-Seite gegen die Herstellerseite.');}catch(e){}
+    }catch(e){alert('Veröffentlichen fehlgeschlagen: '+(e&&e.message?e.message:e));}}
 async function pwsScoreNeu(btn){
   if(!PWS||!PWS.artikel||!PWS.artikel.id){toast('Kein Artikel vorhanden – erst Content erzeugen.');return;}
   var _o=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Note wird berechnet …';}
