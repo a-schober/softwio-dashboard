@@ -648,19 +648,34 @@ async function nachLogin(){
 }
 async function lgLogin(){
   if(_recovery){return lgSetNew();}
-  lgErr("");const mail=_$("lgMail").value.trim(),pw=_$("lgPw").value,code=_$("lgCode").value.trim();
-  if(_$("lgCode").style.display==="block"&&code){
-    const {data:f}=await sb.auth.mfa.listFactors();const fac=f&&f.totp&&(f.totp.find(x=>x.status==="verified")||f.totp[0]);
+  lgErr("");
+  const mail=_$("lgMail").value.trim(),pw=_$("lgPw").value,code=_$("lgCode").value.trim();
+  // 23.07.2026: Reihenfolge korrigiert. Vorher lief die 2FA-Pruefung (listFactors/challenge) ZUERST,
+  // wenn das Code-Feld sichtbar war - aber listFactors braucht eine EINGELOGGTE Session. Stand das
+  // Code-Feld offen (z.B. direkt nach dem Passwort-Reset), scheiterte es mit "Kein 2FA-Faktor
+  // gefunden", weil noch kein Passwort-Login stattgefunden hatte. Jetzt: 1) Session sicherstellen,
+  // 2) dann erst 2FA. Robust, egal in welcher Reihenfolge Toni die Felder ausfuellt.
+  let sess=null; try{sess=(await sb.auth.getSession()).data.session;}catch(e){}
+  if(!sess){
+    if(!mail||!pw){lgErr("Bitte E-Mail und Passwort eingeben.");return;}
+    const {error}=await sb.auth.signInWithPassword({email:mail,password:pw});
+    if(error){lgErr("Anmeldung fehlgeschlagen – E-Mail oder Passwort prüfen.");return;}
+  }
+  const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aal&&aal.currentLevel==="aal1"&&aal.nextLevel==="aal2"){
+    if(!code){
+      _$("lgCode").style.display="block";
+      lgInfo("2FA aktiv – jetzt den 6-stelligen Code aus deiner Authenticator-App eingeben und erneut auf Anmelden.");
+      return;
+    }
+    const {data:f}=await sb.auth.mfa.listFactors();
+    const fac=f&&f.totp&&(f.totp.find(x=>x.status==="verified")||f.totp[0]);
     if(!fac){lgErr("Kein 2FA-Faktor gefunden.");return;}
     const {data:ch,error:e1}=await sb.auth.mfa.challenge({factorId:fac.id});
     if(e1){lgErr("2FA-Anforderung fehlgeschlagen.");return;}
     const {error:e2}=await sb.auth.mfa.verify({factorId:fac.id,challengeId:ch.id,code});
-    if(e2){lgErr("Code ungültig oder abgelaufen.");return;}
-    await nachLogin();return;
+    if(e2){lgErr("Code ungültig oder abgelaufen – neuen Code aus der App holen.");return;}
   }
-  if(!mail||!pw){lgErr("Bitte E-Mail und Passwort eingeben.");return;}
-  const {error}=await sb.auth.signInWithPassword({email:mail,password:pw});
-  if(error){lgErr("Anmeldung fehlgeschlagen – E-Mail oder Passwort prüfen.");return;}
   await nachLogin();
 }
 async function lgReset(){
