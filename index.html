@@ -883,9 +883,14 @@ async function ladeSW(){
       sb.from('software_bilder').select('software_id'),
       sb.from('hersteller_videos').select('software_id'),
       sb.from('ssot_verifikation').select('software_id,status'),
-      sb.from('content_refresh').select('software_id,status,zusammenfassung')
+      sb.from('content_refresh').select('software_id,status,zusammenfassung'),
+      // 23.07.2026: ANS ENDE (Index 11) — feste qs[]-Indizes duerfen sich nicht verschieben.
+      // Ausgewertete Videos fuer die Medien-Stufe; quellen/youtube ist leer, weil /videoauswertung
+      // dort nicht schreibt.
+      sb.from('video_warteschlange').select('software_id').eq('status','fertig')
     ]);
     (qs[10].data||[]).forEach(function(x){refreshMap[x.software_id]={status:x.status,info:x.zusammenfassung};});
+    (qs[11].data||[]).forEach(function(x){_g(x.software_id).videosAusg++;});
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
     (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
     (qs[2].data||[]).forEach(function(x){_g(x.software_id).preise++;});
@@ -1535,8 +1540,15 @@ function ytPollStart(){clearTimeout(window._ytPollTimer);const inf=window._ytQIn
 async function ytDoneShow(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!sid)return;
   aov('Ausgewertete Videos','Bereits in den SSoT übernommen (Quelle: YouTube)','<div id="ytDoneOut" style="padding:16px;color:var(--muted)">Lade …</div>','<span class="tb" onclick="closeAov()">Schließen</span>');
   try{
-    const res=await sb.from('quellen').select('*').eq('software_id',sid).eq('quellentyp','youtube');
-    let rows=res.data||[];rows.sort(function(a,b){return String(b.erfasst_am||b.erstellt_am||'').localeCompare(String(a.erfasst_am||a.erstellt_am||''));});
+    // 23.07.2026: Quelle korrigiert. Vorher las diese Liste `quellen/quellentyp=youtube` — dort
+    // schreibt /videoauswertung aber nicht hin, die Liste war deshalb IMMER leer, obwohl Videos
+    // ausgewertet waren. Die ausgewerteten Videos stehen in video_warteschlange (status='fertig').
+    const res=await sb.from('video_warteschlange').select('video_id,video_url,video_titel,status,fertig_am,log')
+      .eq('software_id',sid).eq('status','fertig');
+    let rows=(res.data||[]).map(function(r){return {
+      url: r.video_url||('https://www.youtube.com/watch?v='+r.video_id),
+      titel: r.video_titel, erfasst_am: r.fertig_am, log: r.log };});
+    rows.sort(function(a,b){return String(b.erfasst_am||'').localeCompare(String(a.erfasst_am||''));});
     const out=document.getElementById('ytDoneOut');if(!out)return;
     if(!rows.length){out.innerHTML='<div style="padding:8px;font-size:13px">Noch keine ausgewerteten Videos für dieses Produkt.</div>';return;}
     var meta={};
