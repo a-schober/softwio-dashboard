@@ -2746,8 +2746,15 @@ function pwsWasFehlt(P, stages){
   }
   if(!done.pruefen && offeneFrei>0)
     offen.push({t:offeneFrei+' Entscheidung'+(offeneFrei===1?'':'en')+' offen',tab:null,frei:true});
-  if(done.schluss && !done.veroeffentlichen)
-    offen.push({t:'Bereit — wartet auf deine Freigabe',tab:'content',bereit:true});
+  // 23.07.2026: Der Veroeffentlichen-Weg darf NICHT von weichen frueheren Stufen abhaengen.
+  // Seobility hatte einen fertigen Artikel und 0 harte Befunde, aber 5 von 88 Funktionen ohne
+  // Oberbegriff hielten die Ordnen-Stufe offen -> der Workflow sprang auf Stufe 3 zurueck und der
+  // Veroeffentlichen-Knopf war unerreichbar. Toni: "wo soll ich das veroeffentlichen koennen?"
+  // Regel: Fertiger Artikel + KEIN harter Befund + noch nicht live = veroeffentlichbar. Punkt.
+  var _harteOffen=(P.freigaben||[]).filter(function(x){return x.status!=='entschieden'&&x.schwere==='hart';}).length;
+  var _hatArtikel=!!P.artikel, _istLive=!!(P.artikel&&P.artikel.inhalts_status==='live');
+  if(_hatArtikel && !_istLive && _harteOffen===0)
+    offen.push({t:'Bereit — jetzt veröffentlichen',tab:'content',bereit:true});
   return offen;
 }
 function pwsStatusStreifen(P, stages, pct){
@@ -2758,7 +2765,7 @@ function pwsStatusStreifen(P, stages, pct){
     +'<div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'
     +'<ul class="pws-fehlt-liste">'+offen.map(function(o){
       var cls=o.bereit?'bereit':(o.schwer?'schwer':'');
-      var klick=o.frei?' onclick="gotoFreigaben()"':(o.tab?' onclick="pwsEditor(\''+o.tab+'\')"':'');
+      var klick=o.bereit?' onclick="pwsPublish()"':(o.frei?' onclick="gotoFreigaben()"':(o.tab?' onclick="pwsEditor(\''+o.tab+'\')"':''));
       var klickbar=(o.frei||o.tab)?' klickbar':'';
       return '<li class="'+cls+klickbar+'"'+klick+'><i class="ti '+(o.bereit?'ti-rocket':(o.schwer?'ti-alert-triangle':'ti-point-filled'))+'"></i>'
         +'<span>'+esc(o.t)+'</span>'+((o.frei||o.tab)?'<i class="ti ti-chevron-right pws-fehlt-pf"></i>':'')+'</li>';
