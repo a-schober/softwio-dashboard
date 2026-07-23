@@ -3229,6 +3229,12 @@ function pwsStepperHtml(P){
 
   function naechsterSchritt(){
     var S=function(t,w,akt,knopf,ikon,stufe){return {titel:t,warum:w,akt:akt,knopf:knopf,ikon:ikon,stufe:stufe};};
+    // 23.07.2026: Ist die Seite LIVE, ist sie FERTIG - Schluss. Vorher lief diese Funktion die
+    // Bedingungen der Reihe nach durch und blieb schon bei "5 Funktionen ohne Oberbegriff" (Stufe 3)
+    // haengen, bevor sie unten den Live-Status prueft. Seobility war live, der Kasten sagte trotzdem
+    // "Dein naechster Schritt: Stufe 3 anreichern". Toni: "jetzt bin ich wieder bei anreichern???"
+    // Eine live Seite hat keinen naechsten Schritt mehr - weiche Restpunkte stehen im Statusstreifen.
+    if(liveOK) return S('Seite ist live','Der Artikel ist veröffentlicht – die Aktualität wird automatisch überwacht. Offene Kleinigkeiten (z. B. Funktionen ohne Oberbegriff) sind optional und stehen oben unter „Es fehlt noch".',"window.open('https://staging.schober.media','_blank')",'Live-Seite öffnen','ti-circle-check',9);
     if(!done.anlegen) return S('Stammdaten vervollständigen','Name, Hersteller, Website und Kategorie fehlen – ohne sie kann nichts gecrawlt werden.',"pwsEditor('stamm')",'Stammdaten öffnen','ti-edit',1);
     if(!done.sammeln) return S('Website crawlen','Es liegen noch keine Fakten vor. Der Crawl liest die Herstellerseite aus – alles Weitere baut darauf auf.',"pwsCrawl('"+P.id+"')",'Crawl starten','ti-spider',2);
     if(funkN>0&&matrixN===0&&ohneTarif>funkN*0.3) return S('Tarif-Vergleichstabelle holen','Mehr als ein Drittel der Funktionen hat keine Tarif-Zuordnung. Die Tabelle steht hinter einem Klick auf der Preisseite – der Crawler sieht sie nie.',"skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",'Vergleichstabelle holen','ti-table',2);
