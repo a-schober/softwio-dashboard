@@ -2564,6 +2564,10 @@ async function pwsOpen(id){
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
     PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
+    // 23.07.2026: Die Datenleiste zeigte "Videos 0", obwohl 11 ausgewertet waren — sie zaehlte nur
+    // hersteller_videos. Die ausgewerteten Videos leben in video_warteschlange. Fuer die Leiste
+    // zaehlt beides zusammen; die ausgewerteten sind die aussagekraeftige Zahl.
+    if((PWS.videoN||0)===0)PWS.videoN=PWS.videoAusgewertet;
     PWS.matrixN=0;try{const _mx=await sb.from('tarif_matrix').select('id',{count:'exact',head:true}).eq('software_id',id);PWS.matrixN=_mx.count||0;}catch(e){}
     PWS.refresh=null;try{const _cr=await sb.from('content_refresh').select('status,zusammenfassung,diff,notiz,geaendert_am').eq('software_id',id).eq('markt_id','de').maybeSingle();PWS.refresh=(_cr&&_cr.data)||null;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
@@ -2766,7 +2770,7 @@ function pwsDatenLeiste(P){
     {t:'faelle',       i:'ti-users',         l:'Anwendungsfälle', n:(P.faelle||[]).length},
     {t:'bewertungen',  i:'ti-star',          l:'Bewertungen', n:(P.synthese?1:0)},
     {t:'bilder',       i:'ti-photo',         l:'Bilder',     n:(P.bilderN||0)},
-    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:(P.videoN||0)},
+    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:(P.videoAusgewertet||P.videoN||0)},
     {t:'content',      i:'ti-file-text',     l:'Artikel',    n:(P.artikel?1:0)}
   ];
   return '<div class="pws-daten">'+eintraege.map(function(e){
