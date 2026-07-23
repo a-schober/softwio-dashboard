@@ -3343,7 +3343,12 @@ async function skillJobPoll(jid){
     const r=await sb.from('skill_jobs').select('status,phase,log,skill,begonnen_am,erstellt_am').eq('id',jid).single();
     const j=r.data;if(!j){return;}
     const map={offen:['#b45309','⏳ in Warteschlange'],in_arbeit:['#2563eb','⚙ läuft'],fertig:['#059669','✓ fertig'],fehler:['#e11d48','⚠ Fehler']};
-    const m=map[j.status]||['#475569',esc(j.status)];
+    // 23.07.2026: Ein "fertig"-Lauf, der wegen einer ANBIETERSPERRE 0 Ergebnisse lieferte, ist kein
+    // gruener Erfolg. Toni sah "✓ fertig — 0 Zeilen importiert — 403-Sperre" und fragte zu Recht,
+    // was das soll. Solche Laeufe jetzt gelb als "blockiert (extern)" — ehrlich statt beschoenigend.
+    var m=map[j.status]||['#475569',esc(j.status)];
+    if(j.status==='fertig' && /403|gesperrt|\bsperre\b|nicht abrufbar|0 zeilen importiert|0 von 0|quelle gesperrt/i.test(String(j.log||'')))
+      m=['#b45309','⏸ blockiert – Anbieter sperrt (nicht dein Fehler)'];
     // 21.07.: Statt des Phasen-Rohwerts (ergab "läuft · laeuft") die verstrichene Zeit und eine
     // Erwartung. Wer minutenlang "läuft" liest, ohne dass sich etwas rührt, fragt sich zu Recht,
     // ob überhaupt etwas passiert.
