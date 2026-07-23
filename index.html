@@ -2671,7 +2671,12 @@ function pwsStages(P){
   done.schluss=done.anlegen&&done.sammeln&&done.ordnen&&done.belegen&&done.pruefen;
   done.veroeffentlichen=!!(P.artikel&&P.artikel.inhalts_status==='live');
   const total=defs.length;
-  let cur=total;for(var i=0;i<total-1;i++){if(!done[defs[i].key]){cur=i+1;break;}}
+  // 23.07.2026: Ist die Seite LIVE, springt die Fuehrung NICHT mehr auf weiche fruehere Stufen
+  // zurueck. Seobility war live, aber der Kasten sagte "Dein naechster Schritt: Stufe 3 anreichern"
+  // (5 Funktionen ohne Oberbegriff). Toni: "jetzt bin ich wieder bei anreichern???" Eine live
+  // Seite ist fertig - naechster Schritt ist die Pflege-Stufe, nicht ein Ruecksprung.
+  let cur=total;
+  if(!done.veroeffentlichen){for(var i=0;i<total-1;i++){if(!done[defs[i].key]){cur=i+1;break;}}}
   return defs.map(function(m,idx){var n=idx+1;var state;
     if(m.key==='pflege')state=done.veroeffentlichen?'pflege':'gesperrt';
     else if(done[m.key])state='done';
@@ -3453,7 +3458,11 @@ function pwsRender(){
   const cv=$("#customview");if(!cv||!PWS)return;
   const P=PWS,f=P.full||{};const stages=pwsStages(P);
   const cur=stages[0].cur;const view=P._view||cur;const total=stages.length;
-  const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;const pct=Math.round(doneN/(total-1)*100);
+  // 23.07.2026: Eine LIVE Seite ist 100 % - weiche offene Punkte (Funktionen ohne Oberbegriff)
+  // druecken den Balken nicht mehr unter 100. Sonst stand eine veroeffentlichte Seite auf 63 %.
+  const _liveFertig=stages.some(function(s){return s.key==='veroeffentlichen'&&s.done;});
+  const doneN=stages.filter(function(s){return s.key!=='pflege'&&s.done;}).length;
+  const pct=_liveFertig?100:Math.round(doneN/(total-1)*100);
   const viewStage=stages.find(function(s){return s.n===view;})||stages.find(function(s){return s.n===cur;});
   const mono=esc((f.name||'NN').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'NN');const _lg=dlgRow&&dlgRow._logo;
   var doneMap={};stages.forEach(function(s){doneMap[s.key]=s.done;});
