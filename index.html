@@ -1164,18 +1164,27 @@ async function freigabeAkzeptieren(id){
                                                   begruendung:grund.trim(),freigabe_id:id});
     if(r.error)throw r.error;
     await dbW('update','freigaben',id,{status:'entschieden',entscheidung:'akzeptiert_nicht_bewertet',
-                                       entschieden_am:new Date().toISOString()});
+                                       entschieden_am:new Date().toISOString(),
+                                       ausgefuehrt_am:new Date().toISOString(),ausfuehrungs_ergebnis:'akzeptiert (keine Aktion noetig)'});
     closeAov(); toast('Akzeptiert – wird künftig nicht mehr als Befund gemeldet ✓');
     await ladeFreigabenView(); render();
   }catch(e){ alert('Fehlgeschlagen: '+(e&&e.message?e.message:e)); }
 }
 async function freigabeWaehle(id,optIdx){const f=(window._freigaben||{})[id];if(!f)return;var o=(Array.isArray(f.optionen)?f.optionen:[])[optIdx];if(!o)return;
   try{
+    // 23.07.2026 (Punkt 3): Ausfuehrungsnachweis. Vorher wurde die Freigabe auf "entschieden" gesetzt,
+    // auch wenn die Aktion nichts bewirkte - genau die 7 verpufften Klicks von heute (eine op zeigte
+    // auf skill='content', den es nicht gibt; die Zeile wurde angelegt, aber kein Runner fuehrt sie aus).
+    var ausgefuehrt=null, ergebnis='';
     if(o.op&&o.op.action){
-      if(o.op.action==='create'){await dbW('create',o.op.collection,null,o.op.data||{});}
-      else if(o.op.action==='update'){var q=sb.from(o.op.collection).select('id');var mt=o.op.match||{};Object.keys(mt).forEach(function(k){q=q.eq(k,mt[k]);});var fr=await q.limit(1);var zid=fr.data&&fr.data[0]&&fr.data[0].id;if(!zid)throw new Error('Zieldatensatz für Update nicht gefunden');await dbW('update',o.op.collection,zid,o.op.data||{});}
-    }
-    await dbW('update','freigaben',id,{status:'entschieden',entscheidung:o.key||String(optIdx),entschieden_am:new Date().toISOString()});
+      // Zeigt die op auf einen Ablauf, den es NICHT gibt, wuerde der Klick garantiert verpuffen -> stoppen.
+      if(o.op.collection==='skill_jobs'&&o.op.data&&o.op.data.skill&&!SKILL_LABEL[o.op.data.skill])
+        throw new Error('Diese Option verweist auf einen unbekannten Ablauf („'+esc(o.op.data.skill)+'") — sie würde nichts bewirken. Der Befund muss im Skill korrigiert werden.');
+      if(o.op.action==='create'){await dbW('create',o.op.collection,null,o.op.data||{});ergebnis='angelegt in '+o.op.collection;}
+      else if(o.op.action==='update'){var q=sb.from(o.op.collection).select('id');var mt=o.op.match||{};Object.keys(mt).forEach(function(k){q=q.eq(k,mt[k]);});var fr=await q.limit(1);var zid=fr.data&&fr.data[0]&&fr.data[0].id;if(!zid)throw new Error('Zieldatensatz für Update nicht gefunden');await dbW('update',o.op.collection,zid,o.op.data||{});ergebnis='aktualisiert in '+o.op.collection;}
+      ausgefuehrt=new Date().toISOString();
+    } else { ausgefuehrt=new Date().toISOString(); ergebnis='Entscheidung ohne Aktion'; }  // reine Entscheidung -> sofort erledigt
+    await dbW('update','freigaben',id,{status:'entschieden',entscheidung:o.key||String(optIdx),entschieden_am:new Date().toISOString(),ausgefuehrt_am:ausgefuehrt,ausfuehrungs_ergebnis:ergebnis});
     // 21.07.: Ein neuer Woerterbuch-Begriff allein aendert an den Funktionen NICHTS - erst ein erneuter
     // canonical-Lauf ordnet sie zu. Ohne das klickt man frei und sieht wieder keinen Effekt (genau der Bug,
     // der diese Freigabe-Kette ausgeloest hat). Ein Job pro Produkt reicht, daher der Dedupe-Check.
@@ -3361,7 +3370,7 @@ const SKILL_LABEL={klaeren:'Befunde werden geklärt',qualitaetsgate:'Qualitätsp
   anreichern:'Fakten werden angereichert',extraktion:'Fakten werden extrahiert',cleanup:'Crawl wird aufbereitet',
   bilder:'Screenshots werden geholt',distribution:'Social-Paket wird erzeugt',bewertungen:'Bewertungen werden ausgewertet',
   matrix:'Vergleichstabelle wird geholt',belege:'Beweisbilder werden aufgenommen',bildabgleich:'Abgleich gegen Beweisbilder läuft',
-  seo:'SEO-Optimierung läuft (NeuronWriter)'};
+  seo:'SEO-Optimierung läuft (NeuronWriter)',schlussabgleich:'Schluss-Abgleich gegen Herstellerseite'};
 async function skillJobInline(sid,skill,args,label,statusEl){
   if(!sid)throw new Error('Keine Software-ID');
   const setz=function(t){try{if(statusEl)statusEl.innerHTML='<i class="ti ti-loader-2 spin"></i> '+t;}catch(_){}};
