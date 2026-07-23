@@ -1843,6 +1843,11 @@ async function bwPasteAnMax(sid){
     if(r2.error)throw r2.error;
     if(ta)ta.value='';
     toast('Text von '+plat+' abgelegt – Max wertet ihn in Kürze aus');
+    // 23.07.2026: Bleibende Bestaetigung direkt am Knopf. Vorher gab es nur einen fluechtigen Toast
+    // und eine winzige Statuszeile weiter unten - Toni sah nach dem Klick "alles weg" und dachte, der
+    // Text sei verloren. Er war es nie; nur die Rueckmeldung fehlte.
+    var _bb=document.getElementById('bwJobStatus');
+    if(_bb)_bb.innerHTML='<div style="margin-top:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:10px 13px;font-size:13px;color:#1e40af;display:flex;align-items:center;gap:8px"><i class="ti ti-loader-2 spin"></i> <span><b>'+esc(plat)+'-Bewertungen abgelegt.</b> Max wertet sie jetzt aus – Fortschritt hier und im Verlauf oben. Du kannst das Fenster schließen, es läuft weiter.</span></div>';
     bwJobPoll(sid);
   }catch(e){toast('Konnte nicht ablegen: '+(e&&e.message?e.message:e));}
 }
@@ -2560,6 +2565,11 @@ async function pwsOpen(id){
       sb.from('skill_jobs').select('skill,status,phase,log,erstellt_am,begonnen_am,fertig_am')
         .eq('software_id',id).order('erstellt_am',{ascending:false}).limit(40),
       sb.from('content_jobs').select('status,phase,log,erstellt_am,begonnen_am,fertig_am')
+        .eq('software_id',id).order('erstellt_am',{ascending:false}).limit(10),
+      // 23.07.2026: Bewertungen laufen ueber die EIGENE Tabelle bewertungs_jobs, nicht skill_jobs.
+      // Deshalb fehlten sie im Verlauf — Toni fuegte Google-Bewertungen ein, der Job lief, aber
+      // NICHTS zeigte es an. Jetzt erscheint "Bewertungen werden ausgewertet · laeuft" im Verlauf.
+      sb.from('bewertungs_jobs').select('status,phase,log,segment,anzahl,erstellt_am,begonnen_am,fertig_am')
         .eq('software_id',id).order('erstellt_am',{ascending:false}).limit(10)
     ]);
     PWS={id:id,full:res[0].data||{},funk:res[1].data||[],preise:res[2].data||[],integ:res[3].data||[],faelle:res[4].data||[],quellen:res[5].data||[],synthese:(res[6].data||[]).length>0,syntheseN:(((res[6].data||[])[0])||{}).anzahl_bewertungen||0,freigaben:res[7].data||[],artikel:(res[8].data||[])[0]||null};
@@ -2569,6 +2579,7 @@ async function pwsOpen(id){
     PWS.datenStand=(((res[12]&&res[12].data)||[])[0]||{}).geaendert_am||null;
     PWS.jobsAlle=(res[13]&&res[13].data)||[];
     PWS.contentJobs=(res[14]&&res[14].data)||[];
+    PWS.bewertungsJobs=(res[15]&&res[15].data)||[];
     const lr=VIEWS.software.rows.find(function(r){return String(r.id)===String(id);});
     dlgRow=lr||{id:id,name:PWS.full.name,hersteller:PWS.full.hersteller,kat:PWS.full.kategorie,markt:'DE',status:PWS.full.status||'neu',_hue:'#64748b'};
     dlgRow._d={full:PWS.full,funk:PWS.funk,preise:PWS.preise,integ:PWS.integ,faelle:PWS.faelle,lade:false};
@@ -2751,6 +2762,16 @@ function pwsVerlaufHtml(P){
       titel:'Artikel wird gebaut', status:(c.status==='wartet_freigabe'?'fertig':c.status),
       dauer: pwsDauer(c.begonnen_am,c.fertig_am),
       ergebnis:(c.log&&!/^arbeitet/.test(c.log))?c.log:''
+    });
+  });
+  (P.bewertungsJobs||[]).forEach(function(bj){
+    eintraege.push({
+      zeit: bj.fertig_am||bj.begonnen_am||bj.erstellt_am,
+      sort: new Date(bj.fertig_am||bj.begonnen_am||bj.erstellt_am||0).getTime(),
+      titel:'Bewertungen werden ausgewertet'+(bj.segment&&bj.segment!=='standard'?' ('+bj.segment+')':''),
+      status: bj.status,
+      dauer: pwsDauer(bj.begonnen_am,bj.fertig_am),
+      ergebnis:(bj.log&&!/^arbeitet/.test(bj.log))?bj.log:''
     });
   });
   if(!eintraege.length) return '<div class="pws-hint">Noch nichts gelaufen — der Verlauf füllt sich mit dem ersten Schritt.</div>';
