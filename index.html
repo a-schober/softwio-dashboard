@@ -538,6 +538,7 @@
     <main class="main">
       <div class="gsearch"><div class="inp"><i class="ti ti-search"></i><input id="gq" placeholder="Alles durchsuchen – Software, Kategorien, Features, Anwendungsfälle, Integrationen …" autocomplete="off"></div><div class="ac" id="gac"></div></div>
       <div class="crumb" id="crumb"></div>
+      <div id="liveAlarmSlot"></div>
       <div id="introSlot"></div>
       <div id="viewSearchBar" class="view-search"><i class="ti ti-search"></i><input id="tbSearch" placeholder="In dieser Liste suchen …" oninput="tbSearchInput(this.value)"></div>
       <div class="grid"><table><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
@@ -1371,6 +1372,46 @@ async function selbsttestStart(){
   }catch(e){
     box.innerHTML='<div style="color:#b91c1c;font-size:13px">Selbsttest fehlgeschlagen: '+esc(String(e&&e.message||e))+'</div>';
   }finally{ if(btn){btn.style.pointerEvents='';btn.innerHTML='<i class="ti ti-player-play"></i> Selbsttest starten';} }
+}
+
+// ---- Live-Alarm: JEDE live Seite mit offenem HARTEM Befund muss IMMER sichtbar sein ----
+// Anlass 28.07.2026: easybill ging live und BLIEB live, obwohl danach zwei harte Gate-Befunde
+// entstanden. Die Publish-Sperre greift nur beim Live-Schalten, nicht rueckwirkend. Dieser Banner
+// liest v_live_alarm und schlaegt an, solange ein harter Befund auf einer Live-Seite offen ist.
+async function ladeLiveAlarm(){
+  const slot=document.getElementById('liveAlarmSlot'); if(!slot) return 0;
+  try{
+    const r=await sb.from('v_live_alarm').select('*').order('harte_offen',{ascending:false});
+    const rows=(r&&r.data)||[]; window._liveAlarmRows=rows;
+    if(!rows.length){ slot.innerHTML=''; return 0; }
+    slot.innerHTML='<div style="border:1px solid #f3b0b0;border-left:4px solid #b91c1c;background:#fef2f2;border-radius:10px;padding:12px 14px;margin:8px 0 4px">'
+      +'<div style="font-weight:800;color:#991b1b;font-size:13.5px;display:flex;align-items:center;gap:7px"><i class="ti ti-alert-triangle-filled"></i> '+rows.length+' Live-Seite'+(rows.length>1?'n':'')+' mit ungelöstem HARTEM Befund</div>'
+      +'<div style="font-size:12px;color:#7f1d1d;margin:3px 0 9px">Öffentlich sichtbar, obwohl ein harter Qualitätsbefund offen ist. Bitte in den Freigaben beheben — oder die Seite zurücknehmen.</div>'
+      +rows.map(function(x,i){
+        var bef=(x.befunde||[]).map(function(s){return esc(String(s));}).join(' · ');
+        return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid #f6d5d5">'
+          +'<b style="font-size:13px;color:#7f1d1d">'+esc(x.name)+'</b>'
+          +'<span style="font-size:11.5px;color:#b91c1c;font-weight:700">'+x.harte_offen+' Befund'+(x.harte_offen>1?'e':'')+'</span>'
+          +'<span style="font-size:11.5px;color:#9a5b5b;min-width:0;overflow-wrap:anywhere;flex:1 1 180px">'+bef+'</span>'
+          +'<span class="tb" style="font-size:11.5px" onclick="route(\'freigaben\')"><i class="ti ti-checkbox"></i> Freigaben</span>'
+          +'<span class="tb" style="font-size:11.5px;color:#b91c1c;border-color:#e6a6a6" onclick="seiteZuruecknehmenIdx('+i+')"><i class="ti ti-arrow-back-up"></i> Seite zurücknehmen</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+    return rows.length;
+  }catch(e){ slot.innerHTML=''; return 0; }
+}
+function seiteZuruecknehmenIdx(i){ var x=(window._liveAlarmRows||[])[i]; if(x) seiteZuruecknehmen(x.software_id,x.name); }
+async function seiteZuruecknehmen(sid,name){
+  if(!confirm('„'+name+'" von der Live-Seite nehmen?\n\nDie Seite verschwindet beim nächsten Portal-Build und geht zurück in Bearbeitung. Erst nach Behebung des Befunds wieder veröffentlichen.'))return;
+  try{
+    const r=await sb.rpc('seite_zuruecknehmen',{p_sid:sid,p_grund:'Cockpit-Ruecknahme wegen offenem hartem Befund'});
+    if(r.error)throw r.error;
+    toast('„'+name+'" zurückgenommen');
+    try{await sb.functions.invoke('portal-build-ausloesen',{body:{markt_id:'de'}});toast('Portal wird neu gebaut (~1–2 Min) – Seite geht dann offline');}catch(_){}
+    try{await ladeSW();}catch(_){}
+    ladeLiveAlarm();
+  }catch(e){toast('Rücknahme fehlgeschlagen: '+(e&&e.message?e.message:e));}
 }
 
 // ---- Beweisbilder-Ansicht: Vollbild-Aufnahme JEDER Hersteller-Seite ----
@@ -4207,7 +4248,7 @@ async function rechteSelbsttest(){
   return fehlend.length;
 }
 
-async function startApp(){ rechteSelbsttest(); await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); jobLeisteLaden(); setInterval(jobLeisteLaden,15000); }
+async function startApp(){ rechteSelbsttest(); await ladeSW(); await ladeKategorien(); gsInit(); const _h=(location.hash||'').slice(1); route((_h&&document.querySelector('#side .nav[data-v="'+_h+'"]'))?_h:"software"); if(_h==='produkt'){try{const _pl=localStorage.getItem('pws_last');if(_pl)pwsOpen(_pl);}catch(e){}} wbLoad().then(updateWbBadge); ladeFreigabenView(); updateNavCounts(); jobLeisteLaden(); setInterval(jobLeisteLaden,15000); ladeLiveAlarm(); setInterval(ladeLiveAlarm,60000); }
 _$("lgBtn").onclick=lgLogin;
 _$("lgReset").onclick=lgReset;
 ["lgPw","lgCode","lgMail"].forEach(id=>_$(id).addEventListener("keydown",e=>{if(e.key==="Enter")lgLogin();}));
