@@ -2877,7 +2877,9 @@ function pwsVerlaufHtml(P){
     // 23.07.2026 (Punkt 3): Ein "fertig"-Lauf mit 403/0-Ergebnis ist KEIN gruener Erfolg. Gelb als
     // "blockiert" - konsistent mit der Ergebnisanzeige (skillJobPoll), damit ein extern gescheiterter
     // Lauf ueberall gleich aussieht, nicht mal gruen (Verlauf), mal gelb (Ergebnis).
-    var blockiert=e.status==='fertig'&&/403|gesperrt|\bsperre\b|nicht abrufbar|0 zeilen|0 von 0|quelle gesperrt/i.test(String(e.ergebnis||''));
+    // 28.07.2026: NUR echte Anbieter-Sperren, nicht die eigene Publish-Sperre. "gesperrt" allein
+    // matchte auch "Veroeffentlichung gesperrt" (Qualitaetsgate) und meldete faelschlich "Anbieter sperrt".
+    var blockiert=e.status==='fertig'&&/403|quelle gesperrt|zugriff gesperrt|anbieter sperrt|screenshots[^.]{0,20}sperr|nicht abrufbar|0 zeilen|0 von 0/i.test(String(e.ergebnis||''));
     var kl=e.status==='fehler'?'fehler':(blockiert?'blockiert':(e.status==='fertig'?'ok':(e.status==='in_arbeit'?'laeuft':'wartet')));
     var ikon=blockiert?'ti-player-pause':(ic[e.status]||'ti-point');
     return '<div class="pws-vl-z '+kl+'">'
@@ -3437,7 +3439,7 @@ async function skillJobPoll(jid){
     // gruener Erfolg. Toni sah "✓ fertig — 0 Zeilen importiert — 403-Sperre" und fragte zu Recht,
     // was das soll. Solche Laeufe jetzt gelb als "blockiert (extern)" — ehrlich statt beschoenigend.
     var m=map[j.status]||['#475569',esc(j.status)];
-    if(j.status==='fertig' && /403|gesperrt|\bsperre\b|nicht abrufbar|0 zeilen importiert|0 von 0|quelle gesperrt/i.test(String(j.log||'')))
+    if(j.status==='fertig' && /403|quelle gesperrt|zugriff gesperrt|anbieter sperrt|screenshots[^.]{0,20}sperr|nicht abrufbar|0 zeilen importiert|0 von 0/i.test(String(j.log||'')))
       m=['#b45309','⏸ blockiert – Anbieter sperrt (nicht dein Fehler)'];
     // 21.07.: Statt des Phasen-Rohwerts (ergab "läuft · laeuft") die verstrichene Zeit und eine
     // Erwartung. Wer minutenlang "läuft" liest, ohne dass sich etwas rührt, fragt sich zu Recht,
