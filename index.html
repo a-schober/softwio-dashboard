@@ -3215,7 +3215,7 @@ function pwsStepperHtml(P){
   else{vSum='Wird freigeschaltet, sobald der Schlusscheck grün ist';vAct=null;}
   var pflegeSum,pflegeAct=null;
   if(!liveOK)pflegeSum='Erst nach der Veröffentlichung aktiv';
-  else if(rst==='pruefen'){pflegeSum='Aktualisierung wartet auf Prüfung: '+esc(rsum);pflegeAct=["pwsTab('content')",'Entwurf prüfen','ti-file-text'];}
+  else if(rst==='pruefen'){pflegeSum='Aktualisierung wartet auf Prüfung: '+esc(rsum);pflegeAct=["pwsEditor('content')",'Entwurf prüfen','ti-file-text'];}
   else if(rst==='crawl_laeuft'||rst==='faellig'){pflegeSum='Aktualisierung läuft … (Re-Crawl &amp; Faktenvergleich)';}
   else{pflegeSum='Content-Alter '+(age!=null?(age+' Tage'):'—')+(rst==='unveraendert'?' · zuletzt geprüft, keine Änderung':'');pflegeAct=["pwsAktualisieren('"+P.id+"')",'Jetzt aktualisieren','ti-refresh'];}
   if(rst==='crawl_laeuft'||rst==='faellig'){setTimeout(function(){try{pwsRefreshPoll(P.id);}catch(e){}},4000);}
