@@ -2771,11 +2771,20 @@ function pwsWasFehlt(P, stages){
   var _hatArtikel=!!P.artikel, _istLive=!!(P.artikel&&P.artikel.inhalts_status==='live');
   if(_hatArtikel && !_istLive && _harteOffen===0)
     offen.push({t:'Bereit — jetzt veröffentlichen',tab:'content',bereit:true});
+  // 28.07.2026: Sonst zeigte der Streifen faelschlich "vollstaendig und veroeffentlicht", obwohl weder
+  // Artikel noch Veroeffentlichung existierten (easybill: alle Daten da, aber Artikel=0,
+  // veroeffentlichungs_status=nicht_veroeffentlicht). Solange NICHT live und KEIN Artikel und sonst
+  // nichts offen ist, fehlt genau der Artikel - das ehrlich benennen statt "erledigt" zu behaupten.
+  else if(!_istLive && !_hatArtikel && !offen.length)
+    offen.push({t:'Artikel bauen & veröffentlichen',tab:'content',artikel:true});
   return offen;
 }
 function pwsStatusStreifen(P, stages, pct){
   var offen=pwsWasFehlt(P,stages);
-  if(!offen.length) return '<div class="pws-fehlt alles-gut"><i class="ti ti-circle-check"></i> <b>Alles erledigt</b> — das Produkt ist vollständig und veröffentlicht.</div>';
+  // 28.07.2026: "veröffentlicht" nur behaupten, wenn die Seite WIRKLICH live ist. Ist offen leer, aber
+  // die Seite nicht live, ist das kein "erledigt" — der Text darf dann keine Veröffentlichung vortäuschen.
+  var _live=!!(P.artikel&&P.artikel.inhalts_status==='live');
+  if(!offen.length) return '<div class="pws-fehlt alles-gut"><i class="ti ti-circle-check"></i> <b>Alles erledigt</b> — '+(_live?'das Produkt ist vollständig und veröffentlicht.':'alle Pflichtdaten stehen, bereit zur Veröffentlichung.')+'</div>';
   return '<div class="pws-fehlt">'
     +'<div class="pws-fehlt-kopf"><b>Es fehlt noch</b><span class="pws-fehlt-pct">'+pct+' %</span>'
     +'<div class="pws-bar"><span style="width:'+pct+'%"></span></div></div>'
