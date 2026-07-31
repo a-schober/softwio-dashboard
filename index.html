@@ -3557,6 +3557,10 @@ function pwsRender(){
   // Ansicht: Wer das Cockpit offen laesst und dann ein Produkt oeffnet, sieht einen alten Balken.
   // Damit lief auch der Fix vom 23.07. ("live = 100 %") ins Leere - er korrigierte `pct`,
   // gerendert wurde aber `swpct`. Jetzt zaehlt der frische Wert.
+  // ACHTUNG: `_swr` wird weiter unten noch gebraucht (schlussOk, meilensteinHtml) und muss
+  // definiert bleiben - beim ersten Anlauf am 30.07. hatte ich es mitentfernt, wodurch
+  // pwsRender mit einem ReferenceError abbrach und das Cockpit bei "Lade Produkt ..." haengen blieb.
+  var _swr=(SW||[]).find(function(x){return String(x.id)===String(P.id);});
   var swpct=pct;
   var _offFunk=(P.funk||[]).filter(function(x){return !(x.canonical_name&&String(x.canonical_name).trim());}).length;
   var _funkN=(P.funk||[]).length,_preiseN=(P.preise||[]).length;
