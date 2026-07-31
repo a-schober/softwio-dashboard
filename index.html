@@ -913,32 +913,41 @@ async function ladeSW(){
   try{
     const qs=await Promise.all([
       sb.from('software').select('id,name,hersteller,hersteller_url,kategorie,logo_pfad,appsumo_deal'),
-      sb.from('funktionen').select('software_id,canonical_name'),
-      sb.from('preise').select('software_id'),
-      sb.from('quellen').select('software_id,quellentyp'),
-      sb.from('bewertungs_synthesen').select('software_id'),
-      sb.from('freigaben').select('software_id,status'),
+      // 31.07.2026: Die sechs ZAEHL-Abfragen liefen frueher ueber alle Detailzeilen
+      // (funktionen, preise, quellen, bewertungs_synthesen, freigaben, software_bilder,
+      // hersteller_videos, video_warteschlange). Bei 1.438 Funktionen und dem PostgREST-
+      // Standardlimit von 1.000 fehlten 438 Zeilen — und welche, ist ohne ORDER BY nicht
+      // festgelegt. In einer Stichprobe fielen SIEBEN Produkte komplett heraus (darunter
+      // TruConversion mit allen 129 Funktionen). Fuer sie galt funkTotal=0, die Stufe
+      // "Funktionen zugeordnet" blieb offen, der Balken stand bei 75 % statt 100 %.
+      // Die Sicht `software_signale` aggregiert je Produkt: eine Zeile statt tausender.
+      // Die alten Plaetze bleiben als leere Zusagen erhalten, damit die festen qs[]-Indizes
+      // sich nicht verschieben (Lehre 23.07.2026).
+      sb.from('software_signale').select('*'),
+      Promise.resolve({data:[]}),
+      Promise.resolve({data:[]}),
+      Promise.resolve({data:[]}),
+      Promise.resolve({data:[]}),
       sb.from('inhalts_artikel').select('software_id,inhalts_status,letztes_update_am,erstveroeffentlicht_am,nw_soll_punktzahl'),
-      sb.from('software_bilder').select('software_id'),
-      sb.from('hersteller_videos').select('software_id'),
+      Promise.resolve({data:[]}),
+      Promise.resolve({data:[]}),
       sb.from('ssot_verifikation').select('software_id,status'),
       sb.from('content_refresh').select('software_id,status,zusammenfassung'),
-      // 23.07.2026: ANS ENDE (Index 11) — feste qs[]-Indizes duerfen sich nicht verschieben.
-      // Ausgewertete Videos fuer die Medien-Stufe; quellen/youtube ist leer, weil /videoauswertung
-      // dort nicht schreibt.
-      sb.from('video_warteschlange').select('software_id').eq('status','fertig')
+      Promise.resolve({data:[]})
     ]);
     (qs[10].data||[]).forEach(function(x){refreshMap[x.software_id]={status:x.status,info:x.zusammenfassung};});
-    (qs[11].data||[]).forEach(function(x){_g(x.software_id).videosAusg++;});
     (qs[0].data||[]).forEach(function(s){swMeta[s.id]={name:s.name,hersteller:s.hersteller,url:s.hersteller_url,kategorie:s.kategorie,logo:!!s.logo_pfad};asMap[s.id]=!!s.appsumo_deal;if(s.logo_pfad){try{logoMap[s.id]=sb.storage.from('software-logos').getPublicUrl(s.logo_pfad).data.publicUrl;}catch(e){}}});
-    (qs[1].data||[]).forEach(function(x){const g=_g(x.software_id);g.funkTotal++;if(!(x.canonical_name&&String(x.canonical_name).trim()))g.funkOffen++;});
-    (qs[2].data||[]).forEach(function(x){_g(x.software_id).preise++;});
-    (qs[3].data||[]).forEach(function(x){var g=_g(x.software_id);g.quellen++;if(x.quellentyp==='youtube')g.videosAusg++;});
-    (qs[4].data||[]).forEach(function(x){_g(x.software_id).synthese=true;});
-    (qs[5].data||[]).forEach(function(x){if((x.status||'offen')!=='entschieden')_g(x.software_id).freiOffen++;});
+    // Alle Zaehlwerte kommen jetzt aus der Aggregat-Sicht — eine Zeile je Produkt,
+    // damit unabhaengig vom Zeilenlimit und von der Zahl der Produkte.
+    (qs[1].data||[]).forEach(function(v){
+      var g=_g(v.software_id);
+      g.funkTotal=v.funk_total||0; g.funkOffen=v.funk_offen||0;
+      g.preise=v.preise||0; g.quellen=v.quellen||0;
+      g.synthese=!!v.synthese; g.freiOffen=v.frei_offen||0;
+      g.bilder=v.bilder||0; g.videos=v.videos||0;
+      g.videosAusg=(v.videos_ausgewertet||0)+(v.quellen_youtube||0);
+    });
     (qs[6].data||[]).forEach(function(x){if(x.nw_soll_punktzahl!=null)sollMap[x.software_id]=x.nw_soll_punktzahl;if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
-    (qs[7].data||[]).forEach(function(x){_g(x.software_id).bilder++;});
-    (qs[8].data||[]).forEach(function(x){_g(x.software_id).videos++;});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
   }catch(e){}
   SW=(data||[]).map(function(r,i){const m=mapRow(r,i);if(sig[r.id]&&sig[r.id].artikel)m.status='live';m._logo=logoMap[r.id]||null;m.ltd=!!asMap[r.id];m.pct=stagePct(swMeta[r.id],sig[r.id]);m._meilen=milestones(swMeta[r.id],sig[r.id]);m.belegHat=!!belegMap[r.id];m.belegOffen=belegMap[r.id]?belegMap[r.id].offen:0;m.veroeffAm=veroeffMap[r.id]||null;m.nwSoll=(sollMap[r.id]!=null?sollMap[r.id]:null);var _rf=refreshMap[r.id];m.refreshStatus=_rf?_rf.status:null;m.refreshInfo=_rf?_rf.info:null;return m;}); VIEWS.software.rows=SW;
