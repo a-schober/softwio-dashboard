@@ -741,7 +741,7 @@ function milestones(me,sg){
     {k:'sammeln',t:'Fakten erfasst',done:sammeln,manuell:false,d:funkTotal+' Funktionen · '+preise+' Tarife'},
     {k:'ordnen',t:'Funktionen zugeordnet',done:ordnen,manuell:false,d:funkOffen>0?(funkOffen+' noch offen'):(funkTotal>0?'alle zugeordnet':'keine Funktionen')},
     {k:'belegen',t:'Bewertungen & Belege',done:belegen,manuell:true,d:'Quellen '+((sg.quellen||0)>0?'✓':'–')+' · Bewertungs-Synthese '+(sg.synthese?'✓':'–')+' · Logo '+(me.logo?'✓':'–')},
-    {k:'medien',t:'Medien',done:medien,manuell:true,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos eingebettet'+((sg.videosAusg||0)>0?(' · '+(sg.videosAusg||0)+' ausgewertet'):'')+(medien?'':' → hinzufügen')},
+    {k:'medien',t:'Medien',done:medien,manuell:true,d:(sg.bilder||0)+' Bilder · '+(sg.videos||0)+' Videos eingebettet · '+(sg.videosAusg||0)+' ausgewertet'+(medien?'':' → hinzufügen')},
     {k:'pruefen',t:'Freigaben geprüft',done:pruefen,manuell:true,d:(sg.freiOffen||0)>0?((sg.freiOffen||0)+' offen'):'keine offenen'},
     {k:'schluss',t:'Schlusscheck',done:schluss,manuell:false,d:'automatisch grün, wenn alle Pflichtstufen stehen'},
     {k:'veroeff',t:'Artikel veröffentlicht',done:veroeff,manuell:true,d:veroeff?'live':'bauen & freigeben'}
@@ -945,7 +945,12 @@ async function ladeSW(){
       g.preise=v.preise||0; g.quellen=v.quellen||0;
       g.synthese=!!v.synthese; g.freiOffen=v.frei_offen||0;
       g.bilder=v.bilder||0; g.videos=v.videos||0;
-      g.videosAusg=(v.videos_ausgewertet||0)+(v.quellen_youtube||0);
+      // 02.08.2026: Hier stand videos_ausgewertet + quellen_youtube. Das addierte zwei
+      // verschiedene Dinge: ausgewertete Videos (video_warteschlange, status='fertig')
+      // und YouTube-Eintraege in `quellen`. ClickRank zeigte dadurch "21 ausgewertet",
+      // obwohl NULL ausgewertet waren (0 fertig + 21 Quellen). Ausgewertet heisst:
+      // Transkript liegt vor und wurde verarbeitet — das ist allein videos_ausgewertet.
+      g.videosAusg=v.videos_ausgewertet||0;
     });
     (qs[6].data||[]).forEach(function(x){if(x.nw_soll_punktzahl!=null)sollMap[x.software_id]=x.nw_soll_punktzahl;if(x.inhalts_status==='live'){_g(x.software_id).artikel=true;var d=x.letztes_update_am||x.erstveroeffentlicht_am;if(d)veroeffMap[x.software_id]=d;}});
     (qs[9].data||[]).forEach(function(x){var b=belegMap[x.software_id]||(belegMap[x.software_id]={offen:0});if(x.status==='unbelegt')b.offen++;});
@@ -2129,7 +2134,7 @@ async function openDlg(i){DLGFORM="dForm";window.TAB_EDIT={};window.STAMM_EDIT=f
     _setz('dnPreis', _p?(_p.preise||[]).length:'');
     _setz('dnInteg', _p?(_p.integ||[]).length:'');
     _setz('dnFaelle',_p?(_p.faelle||[]).length:'');
-    _setz('dnVideo', _p?(_p.videoN||0):'');
+    _setz('dnVideo', _p?((_p.videoN||0)+(_p.videoAusgewertet||0)):'');
   }catch(e){}
   r._d=neu?{full:{},funk:[],preise:[],integ:[],faelle:[],lade:false}:{lade:true,funk:[],preise:[],integ:[],faelle:[],full:{}};
   setTab("stammdaten");$("#ov").classList.add("show");
@@ -2695,9 +2700,12 @@ async function pwsOpen(id){
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
     PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
     // 23.07.2026: Die Datenleiste zeigte "Videos 0", obwohl 11 ausgewertet waren — sie zaehlte nur
-    // hersteller_videos. Die ausgewerteten Videos leben in video_warteschlange. Fuer die Leiste
-    // zaehlt beides zusammen; die ausgewerteten sind die aussagekraeftige Zahl.
-    if((PWS.videoN||0)===0)PWS.videoN=PWS.videoAusgewertet;
+    // hersteller_videos. Die ausgewerteten Videos leben in video_warteschlange.
+    // 02.08.2026: Hier stand `if(videoN===0)videoN=videoAusgewertet` — das schrieb die
+    // ausgewerteten in die Spalte der eingebetteten. rapidmail las sich als "14 Videos",
+    // obwohl 0 eingebettet und 14 ausgewertet sind. Die zwei Zahlen bleiben jetzt getrennt
+    // und werden in der Anzeige nebeneinander gezeigt (siehe pwsRailN / _z / Medien-Zeile).
+    PWS.videoWartet=0;try{const _vw=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).neq('status','fertig');PWS.videoWartet=_vw.count||0;}catch(e){}
     PWS.matrixN=0;try{const _mx=await sb.from('tarif_matrix').select('id',{count:'exact',head:true}).eq('software_id',id);PWS.matrixN=_mx.count||0;}catch(e){}
     PWS.refresh=null;try{const _cr=await sb.from('content_refresh').select('status,zusammenfassung,diff,notiz,geaendert_am').eq('software_id',id).eq('markt_id','de').maybeSingle();PWS.refresh=(_cr&&_cr.data)||null;}catch(e){}
   }catch(e){PWS={id:id,full:{},funk:[],preise:[],integ:[],faelle:[],quellen:[],synthese:false,syntheseN:0,freigaben:[],artikel:null};}
@@ -2724,7 +2732,9 @@ function pwsStages(P){
   ];
   const done={};
   done.anlegen=!!(f.name&&f.hersteller&&f.hersteller_url&&f.kategorie);
-  done.medien=((P.bilderN||0)>0)||((P.videoN||0)>0);
+  // 02.08.2026: videoAusgewertet fehlte hier — ein Produkt mit 14 ausgewerteten
+  // Videos und 0 eingebetteten galt als "keine Medien" (traf rapidmail).
+  done.medien=((P.bilderN||0)>0)||((P.videoN||0)>0)||((P.videoAusgewertet||0)>0);
   done.sammeln=funkA.length>0||preiseA.length>0;
   done.ordnen=offeneFunk===0&&funkA.length>0&&preiseA.length>0;
   done.belegen=(P.quellen||[]).length>0&&P.synthese&&!!f.logo_pfad;
@@ -2957,7 +2967,11 @@ function pwsDatenLeiste(P){
     {t:'faelle',       i:'ti-users',         l:'Anwendungsfälle', n:(P.faelle||[]).length},
     {t:'bewertungen',  i:'ti-star',          l:'Bewertungen', n:(P.synthese?1:0)},
     {t:'bilder',       i:'ti-photo',         l:'Bilder',     n:(P.bilderN||0)},
-    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:(P.videoAusgewertet||P.videoN||0)},
+    // 02.08.2026: Hier stand `videoAusgewertet || videoN` — ein ODER, das je nach Produkt
+    // mal die eine, mal die andere Zahl zeigte, ohne dass erkennbar war welche.
+    // Die Reiter-Zahl ist jetzt die Summe beider Bestaende; die Aufschluesselung
+    // steht in der Medien-Zeile und im Videos-Reiter selbst.
+    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:((P.videoN||0)+(P.videoAusgewertet||0))},
     {t:'content',      i:'ti-file-text',     l:'Artikel',    n:(P.artikel?1:0)}
   ];
   return '<div class="pws-daten">'+eintraege.map(function(e){
@@ -3254,7 +3268,7 @@ function pwsStepperHtml(P){
   done.sammeln=funkN>0||preiseN>0;
   done.ordnen=offFunk===0&&funkN>0&&preiseN>0;
   done.belegen=quellenN>0&&synth&&logo;
-  done.medien=bilderN>0||videoN>0;
+  done.medien=bilderN>0||videoN>0||videoA>0;
   done.pruefen=freiOffen===0&&belegOffen===0&&done.sammeln;
   done.schluss=done.anlegen&&done.sammeln&&done.ordnen&&done.belegen&&done.pruefen;
   done.veroeffentlichen=liveOK;
@@ -3367,7 +3381,7 @@ function pwsStepperHtml(P){
    {k:'sammeln',n:2,t:'Daten gesammelt',pflicht:1,auto:1,info:'Zwei Wege, die sich ergänzen. (1) Crawl (Firecrawl + KI, kostet Credits) liest den Fließtext der Website: Funktionen, Preise, Integrationen. (2) Vergleichstabelle holen (echter Browser, 0 Credits) klickt die große Feature×Tarif-Tabelle des Anbieters auf und liest sie aus — die steckt bei vielen Anbietern hinter einem Knopf („Alle Funktionen anzeigen") und fehlt deshalb in JEDEM Crawl. Genau daher kommen die vielen „k. A." in der Funktionsmatrix.',sum:(funkN>0||preiseN>0)?(funkN+' Funktionen · '+preiseN+' Tarife · '+integN+' Integrationen'+(matrixN>0?(' · <span style="color:#15803d">Vergleichstabelle: '+matrixN+' Zeilen</span>'):' · <span style="color:#b45309">keine Vergleichstabelle</span>')):'Noch keine Fakten von der Website',act:["pwsCrawl()",(funkN>0?'Erneut crawlen':'Fakten aus Website crawlen'),'ti-spider'],act2:["skillJobStart('"+P.id+"','matrix','','Vergleichstabelle holen')",(matrixN>0?'Vergleichstabelle neu holen':'Vergleichstabelle holen')+' (0 Credits)','ti-table']},
    {k:'ordnen',n:3,t:'Aufbereiten',pflicht:1,info:'Jede Roh-Funktion einem Standardbegriff (Feature-Wörterbuch) zuordnen, damit Programme vergleichbar werden. Tarife/Limits ergänzen. Ziel: 0 offene Funktionen.',sum:(funkN===0)?'Erst Fakten sammeln (Schritt 2)':(offFunk>0?('Noch '+offFunk+' von '+funkN+' Funktionen zuzuordnen'):('Alle '+funkN+' Funktionen zugeordnet · '+preiseN+' Tarife')),act:["pwsEditor('funktionen')",offFunk>0?'Funktionen zuordnen':'Funktionen ansehen','ti-list-check'],act2:["skillJobStart('"+P.id+"','anreichern','','Automatisch anreichern')",'Automatisch anreichern (Max)','ti-wand']},
    {k:'belegen',n:4,t:'Belegen',pflicht:1,info:'Bewertungen, Quellen und Logo ergänzen. Ziel: jede Aussage ist durch eine echte Quelle belegt (Anti-Halluzination).',sum:belSum,act:["pwsEditor('bewertungen')",'Bewertungen & Belege','ti-star']},
-   {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0||videoA>0)?(bilderN+' Bilder · '+videoN+' Videos'+(videoA>0?(' · '+videoA+' ausgewertet'):'')):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder verwalten','ti-photo'],act2:["pwsEditor('videos')",'Videos verwalten','ti-brand-youtube']},
+   {k:'medien',n:5,t:'Medien',pflicht:0,info:'Screenshots und Videos für die Detailseite. Optional, aber empfohlen – macht die Seite anschaulicher und vertrauenswürdiger.',sum:(bilderN>0||videoN>0||videoA>0)?(bilderN+' Bilder · '+videoN+' Videos eingebettet · '+videoA+' ausgewertet'):'Noch keine Screenshots oder Videos',act:["pwsEditor('bilder')",'Bilder verwalten','ti-photo'],act2:["pwsEditor('videos')",'Videos verwalten','ti-brand-youtube']},
    {k:'pruefen',n:6,t:'Prüfen & freigeben',pflicht:1,info:'Volle Qualitätsprüfung mit einem Klick — sieben automatische Gates gegen die echte Quelle: (1) Crawl-Vollständigkeit, (2) Grounding (jedes Beleg-Zitat steht in der Crawl-Quelle), (3) Hygiene (Dubletten/Widersprüche), (4) Tarif-Abgleich gegen die Herstellerseite, (5) Content-Fidelity (jede Zahl/Aussage im Artikel ist belegt), (6) adversariale Live-Website-Validierung + Auto-Auflösung, (7) Frontend-Wächter (liest die fertige Seite wie ein Kaufinteressent und findet Anzeige-Widersprüche/Platzhalter/inkonsistente Tarif-Angaben). Jeder harte Befund landet in den Freigaben und sperrt die Veröffentlichung wirklich — die Sperre sitzt als Trigger in der Datenbank und gilt für jeden Weg, auch für Skripte. Zusätzlich: „Beweisbilder aufnehmen“ legt Vollbild-Screenshots der Hersteller-Seiten im Ordner claude-softwio/belege ab (Reiter einzeln, Scrollbereiche in Streifen) — die kannst du jederzeit selbst öffnen und gegenlesen.',sum:prSum,act:["skillJobStart('"+P.id+"','qualitaetsgate','','Volle Qualitätsprüfung')",'Volle Qualitätsprüfung (Max)','ti-shield-check'],act2:["route('freigaben')",'Freigaben öffnen','ti-checkbox'],act3:["skillJobStart('"+P.id+"','belege','','Belege aufnehmen')",'Beweisbilder aufnehmen (0 Credits)','ti-camera'],act4:["skillJobStart('"+P.id+"','klaeren','','Befunde klären')",'Befunde mit Beweisbildern klären (0 Credits)','ti-search']},
    {k:'schluss',n:7,t:'Schlusscheck',pflicht:0,auto:1,info:'Nur Status: zeigt, ob alle Pflichtschritte erledigt sind. 100 % = bereit zur Veröffentlichung.',sum:done.schluss?'Alle Pflichtschritte erledigt – bereit zum Veröffentlichen':'Noch nicht alle Pflichtschritte erledigt',act:null},
    {k:'veroeffentlichen',n:8,t:'Veröffentlichen',pflicht:1,info:'Artikel automatisch bauen (0 Credits), prüfen und live schalten. Letzter Halt davor: der Bildabgleich hält jede harte Aussage der fertigen Seite gegen die Beweisbilder der Hersteller-Seite. Ein Widerspruch wird als harter Befund angelegt und sperrt die Veröffentlichung — die Sperre sitzt in der Datenbank und gilt für jeden Weg. Danach baut das Portal automatisch; nur live-Artikel erscheinen im Portal.',sum:vSum,act:vAct,act2:["skillJobStart('"+P.id+"','bildabgleich','','Bildabgleich gegen Beweisbilder')",'Gegen Beweisbilder prüfen (0 Credits)','ti-photo-check']},
@@ -3582,7 +3596,7 @@ function pwsRender(){
   function _z(icon,label,wert,ok,action,actLabel){return '<div class="slim-row'+(action?' clk':'')+'"'+(action?' onclick="'+action+'"':'')+'><span class="slim-ic '+(ok?'ok':(ok===false?'no':''))+'"><i class="ti '+icon+'"></i></span><span class="slim-l">'+esc(label)+'</span><span class="slim-v">'+wert+'</span>'+(action?'<button class="tb slim-b" onclick="event.stopPropagation();'+action+'">'+esc(actLabel||'öffnen')+'</button>':'')+'</div>';}
   var _eingabe=_z('ti-id-badge-2','Stammdaten',(doneMap.anlegen?'vollständig':'unvollständig'),!!doneMap.anlegen,"pwsEditor('stammdaten')",'bearbeiten')
     +_z('ti-photo','Bilder / Screenshots',((P.bilderN||0)+' Bilder'),(P.bilderN||0)>0,"pwsEditor('bilder')",'verwalten')
-    +_z('ti-brand-youtube','Videos',((P.videoN||0)+' Videos'+((P.videoAusgewertet||0)>0?(' · '+(P.videoAusgewertet||0)+' ausgewertet'):'')),((P.videoN||0)>0||(P.videoAusgewertet||0)>0),"pwsEditor('videos')",'verwalten')
+    +_z('ti-brand-youtube','Videos',((P.videoN||0)+' eingebettet · '+(P.videoAusgewertet||0)+' ausgewertet'+((P.videoWartet||0)>0?(' · '+(P.videoWartet||0)+' in Arbeit'):'')),((P.videoN||0)>0||(P.videoAusgewertet||0)>0),"pwsEditor('videos')",'verwalten')
     +_z('ti-star','Bewertungen & Community',(P.synthese?((P.syntheseN||0)>0?(P.syntheseN+' ausgewertet'):'ausgewertet'):((P.quellen||[]).length>0?'Quellen da':'—')),!!P.synthese,"pwsEditor('bewertungen')",'einpflegen');
   var _fWert=_offFunk>0?('<span style="color:#b45309">⚠ '+_offFunk+' zuordnen</span>'):(_funkN+' Funktionen · '+_preiseN+' Tarife');
   var _ergebnis=_z('ti-database','Fakten (SSoT)',_fWert,(_offFunk===0&&_funkN>0),"pwsEditor('funktionen')",(_offFunk>0?'zuordnen':'ansehen'))
