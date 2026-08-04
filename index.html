@@ -3483,7 +3483,14 @@ const SKILL_LABEL={klaeren:'Befunde werden geklärt',qualitaetsgate:'Qualitätsp
   anreichern:'Fakten werden angereichert',extraktion:'Fakten werden extrahiert',cleanup:'Crawl wird aufbereitet',
   bilder:'Screenshots werden geholt',distribution:'Social-Paket wird erzeugt',bewertungen:'Bewertungen werden ausgewertet',
   matrix:'Vergleichstabelle wird geholt',belege:'Beweisbilder werden aufgenommen',bildabgleich:'Abgleich gegen Beweisbilder läuft',
-  seo:'SEO-Optimierung läuft (NeuronWriter)',schlussabgleich:'Schluss-Abgleich gegen Herstellerseite'};
+  seo:'SEO-Optimierung läuft (NeuronWriter)',schlussabgleich:'Schluss-Abgleich gegen Herstellerseite',
+  // 04.08.2026: preischeck und videos_holen existieren als Läufer, fehlten aber hier.
+  // Folge: Der Schutz gegen tote Knöpfe hielt die Option für ungültig und verweigerte den
+  // Klick ("verweist auf einen unbekannten Ablauf") - obwohl der Läufer bereitsteht.
+  preischeck:'Preise werden im Browser nachgelesen',
+  videos_holen:'Video-Transkripte werden geholt',
+  staffeln:'Staffelpreise werden gelesen',
+  ssot_validieren:'SSoT wird gegen die Live-Seite geprüft'};
 async function skillJobInline(sid,skill,args,label,statusEl){
   if(!sid)throw new Error('Keine Software-ID');
   const setz=function(t){try{if(statusEl)statusEl.innerHTML='<i class="ti ti-loader-2 spin"></i> '+t;}catch(_){}};
