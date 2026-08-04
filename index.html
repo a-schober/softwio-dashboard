@@ -1629,7 +1629,7 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   b.innerHTML=html;ytEtaTick();ytPollStart();
 }
 async function ytRefresh(){await ytLadeDone();ytRenderAll();}
-function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"warte auf Heimrechner":s==="fehler"?"Fehler":"wartet";}
+function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"Altbestand – am Server nachholbar":s==="fehler"?"Fehler":"wartet";}
 function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}
   /* Kommt der Sprung aus einem Produkt-Workflow, zeigt die Liste NUR dieses Produkt.
      Ohne das standen Tonis 4 Papierkram-Befunde zwischen 20 fremden Zeilen (22.07.2026). */
@@ -1748,7 +1748,13 @@ function ytRankToggle(id,on){if(!window._ytRankSel)window._ytRankSel=new Set();o
 function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(function(c){c.checked=on;var id=c.getAttribute("data-vid");if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);});var n=$("#ytUebN");if(n)n.textContent=(window._ytRankSel?window._ytRankSel.size:0);}
 function ytRankInfo(id){cbCopy("/watch https://www.youtube.com/watch?v="+id,"/watch-Befehl kopiert — in Claude Max einfügen (kostenlos)");}
 function ytCopyRankSel(){var s=window._ytRankSel||new Set();if(!s.size){toast("Keine Videos ausgewählt — Häkchen setzen");return;}var t=Array.from(s).map(function(id){return "/watch https://www.youtube.com/watch?v="+id;}).join("\n");cbManual(t);}
-async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"wartet_auf_heimrechner"});}toast(offen.length+" Video(s) eingereiht ✓ — jetzt am Heimrechner „Videos holen“ starten");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
+async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=window._ytRankSel||new Set();const offen=ranked.filter(x=>!x.schon&&sel.has(x.video_id));if(!sid){toast("Keine Software-ID");return;}if(!offen.length){toast("Keine Videos ausgewählt — Häkchen setzen");return;}try{for(const r of offen){await dbW("create","video_warteschlange",null,{software_id:sid,video_id:r.video_id,video_url:"https://www.youtube.com/watch?v="+r.video_id,video_titel:r.titel||null,rang:r.rang!=null?r.rang:null,relevanz:r.relevanz!=null?r.relevanz:null,status:"offen"});}
+  // 04.08.2026: Der Umweg über den Heimrechner entfällt. Transkripte kommen jetzt
+  // über Supadata direkt am Server (videos-holen.mjs) - YouTubes Bot-Schutz greift
+  // dort nicht. Status "offen" statt "wartet_auf_heimrechner"; ein Skill-Job stösst
+  // das Holen an.
+  try{ await dbW("create","skill_jobs",null,{software_id:sid,skill:"videos_holen",args:offen.length+" Video(s) über Supadata",status:"offen"}); }catch(e){}
+  toast(offen.length+" Video(s) eingereiht ✓ — Transkripte werden am Server geholt");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- YouTube-Cookies aus dem Browser uebergeben (21.07.2026) ----
 // Toni arbeitet remote am Server, exportiert die Cookie-Datei aber auf seinem Heimrechner. Sie kam damit
 // nie dorthin, wo /watch sie braucht. Das Dashboard erreicht er von ueberall - also fuehrt der Weg hierueber.
