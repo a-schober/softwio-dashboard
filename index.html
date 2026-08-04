@@ -1753,7 +1753,8 @@ async function ytUebergabe(sid){const ranked=window._ytRanked||[];const sel=wind
   // über Supadata direkt am Server (videos-holen.mjs) - YouTubes Bot-Schutz greift
   // dort nicht. Status "offen" statt "wartet_auf_heimrechner"; ein Skill-Job stösst
   // das Holen an.
-  try{ await dbW("create","skill_jobs",null,{software_id:sid,skill:"videos_holen",args:offen.length+" Video(s) über Supadata",status:"offen"}); }catch(e){}
+  try{ await dbW("create","skill_jobs",null,{software_id:sid,skill:"videos_holen",args:offen.length+" Video(s) über Supadata",status:"offen"}); }
+  catch(e){ console.warn("Auftrag videos_holen nicht angelegt:",e); toast("Videos eingereiht, aber der Auftrag konnte nicht angelegt werden — bitte melden"); }
   toast(offen.length+" Video(s) eingereiht ✓ — Transkripte werden am Server geholt");closeAov();ytClear();await ytLadeDone();ytGrid();}catch(e){alert("Übergabe fehlgeschlagen: "+(e&&e.message?e.message:e));}}
 // ---- YouTube-Cookies aus dem Browser uebergeben (21.07.2026) ----
 // Toni arbeitet remote am Server, exportiert die Cookie-Datei aber auf seinem Heimrechner. Sie kam damit
