@@ -2986,9 +2986,13 @@ function pwsDatenLeiste(P){
     {t:'stammdaten',   i:'ti-id-badge-2',    l:'Stammdaten', n:null},
     {t:'funktionen',   i:'ti-list-check',    l:'Funktionen', n:(P.funk||[]).length},
     {t:'preise',       i:'ti-currency-euro', l:'Tarife',     n:(P.preise||[]).length},
-    {t:'integrationen',i:'ti-plug',          l:'Integrationen', n:(P.integrationen||[]).length},
+    // 04.08.2026: Hier stand `P.integrationen` - das Feld heisst aber `integ` (siehe PWS-Aufbau).
+    // Ergebnis: undefined -> 0. LifterLMS zeigte "Integrationen 0", der Reiter daneben 14.
+    {t:'integrationen',i:'ti-plug',          l:'Integrationen', n:(P.integ||[]).length},
     {t:'faelle',       i:'ti-users',         l:'Anwendungsfälle', n:(P.faelle||[]).length},
-    {t:'bewertungen',  i:'ti-star',          l:'Bewertungen', n:(P.synthese?1:0)},
+    // 04.08.2026: `P.synthese?1:0` zaehlte, OB eine Synthese existiert - nicht wie viele
+    // Bewertungen ausgewertet wurden. LifterLMS zeigte "Bewertungen 1" statt 42.
+    {t:'bewertungen',  i:'ti-star',          l:'Bewertungen', n:(P.syntheseN||0)},
     {t:'bilder',       i:'ti-photo',         l:'Bilder',     n:(P.bilderN||0)},
     // 02.08.2026: Hier stand `videoAusgewertet || videoN` — ein ODER, das je nach Produkt
     // mal die eine, mal die andere Zahl zeigte, ohne dass erkennbar war welche.
