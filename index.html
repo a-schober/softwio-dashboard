@@ -1197,7 +1197,23 @@ async function freigabeWaehle(id,optIdx){const f=(window._freigaben||{})[id];if(
       // Zeigt die op auf einen Ablauf, den es NICHT gibt, wuerde der Klick garantiert verpuffen -> stoppen.
       if(o.op.collection==='skill_jobs'&&o.op.data&&o.op.data.skill&&!SKILL_LABEL[o.op.data.skill])
         throw new Error('Diese Option verweist auf einen unbekannten Ablauf („'+esc(o.op.data.skill)+'") — sie würde nichts bewirken. Der Befund muss im Skill korrigiert werden.');
-      if(o.op.action==='create'){await dbW('create',o.op.collection,null,o.op.data||{});ergebnis='angelegt in '+o.op.collection;}
+      if(o.op.action==='create'){
+        // 04.08.2026: Ein Begriff, den es schon gibt, liess den Klick mit "duplicate key value violates
+        // unique constraint" scheitern - eine Datenbankmeldung, die wie ein Defekt aussieht, obwohl die
+        // Datenlage stimmt. Bei ueber 1.000 Woerterbuch-Eintraegen passiert das staendig. Existiert der
+        // Name bereits, wird verbunden statt angelegt (LifterLMS: Kurs-Bundles, Zertifikate,
+        // Teilnehmerverwaltung - drei Fehlversuche hintereinander).
+        var schonDa=null;
+        if(o.op.collection==='funktions_woerterbuch'&&o.op.data&&o.op.data.canonical_name){
+          try{
+            var vor=await sb.from('funktions_woerterbuch').select('id,canonical_name')
+                            .eq('canonical_name',o.op.data.canonical_name).limit(1);
+            schonDa=vor.data&&vor.data[0];
+          }catch(_){}
+        }
+        if(schonDa){ ergebnis='„'+schonDa.canonical_name+'" bestand bereits — verbunden statt neu angelegt'; }
+        else { await dbW('create',o.op.collection,null,o.op.data||{}); ergebnis='angelegt in '+o.op.collection; }
+      }
       else if(o.op.action==='update'){var q=sb.from(o.op.collection).select('id');var mt=o.op.match||{};Object.keys(mt).forEach(function(k){q=q.eq(k,mt[k]);});var fr=await q.limit(1);var zid=fr.data&&fr.data[0]&&fr.data[0].id;if(!zid)throw new Error('Zieldatensatz für Update nicht gefunden');await dbW('update',o.op.collection,zid,o.op.data||{});ergebnis='aktualisiert in '+o.op.collection;}
       ausgefuehrt=new Date().toISOString();
     } else { ausgefuehrt=new Date().toISOString(); ergebnis='Entscheidung ohne Aktion'; }  // reine Entscheidung -> sofort erledigt
