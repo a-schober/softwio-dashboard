@@ -11,6 +11,19 @@
 <style>
   :root{--bg:#e9ecf2;--panel:#fff;--panel2:#f6f7fa;--line:#d7dce4;--line2:#e7eaf0;--ink:#1f2733;--muted:#6b7280;--faint:#9aa3b0;--accent:#4f46e5;--accent-soft:#eef2ff;--accent-ink:#3730a3;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--head:#eef1f6;--zebra:#fafbfc;--sel:#eef2ff;}
   body.dark{--bg:#0f141b;--panel:#161c25;--panel2:#1b222d;--line:#2a323e;--line2:#222a35;--ink:#e6eaf0;--muted:#9aa6b6;--faint:#6b7785;--accent:#8b86f5;--accent-soft:#232046;--accent-ink:#c7c4fb;--head:#1b222d;--zebra:#141a22;--sel:#232046;}
+  /* 05.08.2026 — 18 Regeln im Blatt tragen einen fest hellen Hintergrund (#eef2ff, #fef3c7 …),
+     während der Text darauf aus einer Variablen kommt. Im Dunkelmodus ergab das hellen Text auf
+     hellem Grund: Der Softwarename im Balken "Weiterarbeiten" war schlicht nicht lesbar.
+     Auf hellen Flächen bleibt der Text daher immer dunkel — unabhängig vom Modus. */
+  body.dark .kat-ic.on,body.dark .pws-step.current .pws-st-n,body.dark .pws-c-ic.no,
+  body.dark .pws-fehlt.alles-gut,body.dark .pws-fehlt-liste li.klickbar:hover,
+  body.dark .pws-fehlt-liste li.bereit,body.dark .pws-dtab:hover,body.dark .pws-dz.null,
+  body.dark .pws-subtab.on,body.dark .pk-b.todo,body.dark .pk-b.info,body.dark .ltd-b,
+  body.dark .wbg-h,body.dark .wb-ai,body.dark .wb-ai-k.hi,body.dark .wb-ai-dup,
+  body.dark .badge-st,body.dark .catr.ok{color:#1f2733}
+  body.dark .kat-ic.on *,body.dark .pws-fehlt.alles-gut *,body.dark .pws-fehlt-liste li.bereit *,
+  body.dark .pws-dz.null *,body.dark .pk-b.todo *,body.dark .pk-b.info *,body.dark .ltd-b *,
+  body.dark .wbg-h *,body.dark .wb-ai *,body.dark .badge-st *,body.dark .catr.ok *{color:inherit}
   *{box-sizing:border-box}html,body{margin:0;height:100%}
   body{font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--ink);background:var(--bg)}
   .app{display:flex;flex-direction:column;height:100vh}
@@ -145,13 +158,22 @@
   .pk-b.todo{background:#fef3c7;color:#92400e}
   .pk-b.info{background:#e0e7ff;color:#4338ca}
   @media(min-width:1080px){#pwsForm .fgrid{grid-template-columns:1fr 1fr 1fr}#pwsForm .fgrid.one{grid-template-columns:1fr}#pwsForm .fgrid .fld:has(textarea){grid-column:1/-1}#pwsForm .fgrid .fld:has(.chipsel){grid-column:1/-1}}
-  .resume-card{display:flex;align-items:center;gap:14px;border:1px solid #c7d2fe;background:#eef2ff;border-radius:12px;padding:12px 16px;margin:0 0 14px;cursor:pointer}
-  .resume-card:hover{border-color:#6366f1}
-  .rc-l{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#4338ca;flex:none}
-  .rc-m{flex:1;display:flex;flex-direction:column;min-width:0}
-  .rc-m b{font-size:14.5px}
+  /* 05.08.2026: Hintergrund und Rahmen waren fest hell (#eef2ff/#c7d2fe), die Textfarbe kam
+     aber aus einer Variablen. Im Dunkelmodus wurde daraus heller Text auf hellem Grund —
+     der Softwarename war nicht mehr lesbar. Jetzt folgt die Karte durchgehend den Variablen. */
+  .resume-card{display:flex;align-items:center;gap:14px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:12px 16px;margin:0 0 14px;cursor:pointer;flex-wrap:wrap}
+  .resume-card:hover{border-color:var(--accent)}
+  .rc-l{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--accent-ink);flex:none}
+  .rc-m{flex:1 1 160px;display:flex;flex-direction:column;min-width:0}
+  .rc-m b{font-size:14.5px;color:var(--ink);overflow-wrap:anywhere}
   .rc-m span{font-size:12px;color:var(--muted)}
-  .rc-go{font-size:13px;font-weight:600;color:#4338ca;display:inline-flex;align-items:center;gap:4px;flex:none}
+  .rc-go{font-size:13px;font-weight:600;color:var(--accent-ink);display:inline-flex;align-items:center;gap:4px;flex:none}
+  /* Auf schmalen Geraeten untereinander statt in einer gequetschten Spalte */
+  @media(max-width:520px){
+    .resume-card{gap:8px;padding:10px 13px}
+    .rc-m{flex:1 1 100%;order:2}
+    .rc-go{order:3;margin-left:auto}
+  }
   @media(max-width:760px){.pws-body{grid-template-columns:1fr}.pws-rail{flex-direction:row;overflow:auto}}.tb.ok{border-color:var(--ok);color:var(--ok)}.tb.ok i{color:var(--ok)}
   .tb[disabled]{opacity:.45;pointer-events:none}.sep{width:1px;height:22px;background:var(--line);margin:0 6px}
   body.gen .ctx{display:none}
