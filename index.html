@@ -735,7 +735,24 @@ function lgErr(m){const e=_$("lgErr");if(e){e.textContent=m||"";e.style.display=
 function lgInfo(m){const i=_$("lgInfo");if(i){i.textContent=m||"";i.style.display=m?"block":"none";}if(m){const e=_$("lgErr");if(e)e.style.display="none";}}
 async function bootAuth(){
   // Listener VOR getSession registrieren, sonst geht das PASSWORD_RECOVERY-Event beim Laden verloren.
-  sb.auth.onAuthStateChange((ev)=>{if(ev==="PASSWORD_RECOVERY")lgRecoveryMode();});
+  // 05.08.2026 — Ursache der "non-2xx"-Meldungen: Laeuft die Sitzung ab, antworten ALLE
+  // Edge Functions mit 401 ("Nicht eingeloggt"). Das Cockpit merkte davon nichts und zeigte
+  // nur den nackten Statuscode - man sucht dann den Fehler beim Knopf statt bei der Anmeldung.
+  // Belegt am 05.08. um 18:28 Uhr: ranking-proxy POST | 401 im Edge-Function-Log.
+  sb.auth.onAuthStateChange((ev)=>{
+    if(ev==="PASSWORD_RECOVERY"){lgRecoveryMode();return;}
+    if(ev==="SIGNED_OUT"){sitzungAbgelaufen("Die Sitzung wurde beendet.");}
+  });
+  // Alle 5 Minuten still nachsehen, ob die Sitzung noch traegt - so faellt es auf, BEVOR
+  // ein Knopf ins Leere laeuft.
+  setInterval(async function(){
+    try{
+      const {data}=await sb.auth.getSession();
+      if(!data||!data.session){ sitzungAbgelaufen("Die Sitzung ist abgelaufen."); return; }
+      const rest=(data.session.expires_at*1000)-Date.now();
+      if(rest<0) sitzungAbgelaufen("Die Sitzung ist abgelaufen.");
+    }catch(e){}
+  }, 300000);
   try{const {data:{session}}=await sb.auth.getSession();
     if(_recovery)return; // über Reset-Link gekommen → im Recovery-Modus bleiben
     if(session){await nachLogin();}else{_$("loginGate").style.display="grid";}
@@ -808,6 +825,8 @@ async function lgLogin(){
     if(mfehler){lgErr(mfehler);return;}
     const {error}=await sb.auth.signInWithPassword({email:mail,password:pw});
     if(error){lgErr("Anmeldung fehlgeschlagen – E-Mail oder Passwort prüfen.");return;}
+    // Adresse merken: Bei abgelaufener Sitzung steht sie beim erneuten Anmelden schon da.
+    try{ localStorage.setItem('letzteMail', mail); }catch(_){}
   }
   const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
   if(aal&&aal.currentLevel==="aal1"&&aal.nextLevel==="aal2"){
@@ -1929,7 +1948,13 @@ async function ytPrio(){const sw=dlgRow?dlgRow.name:"";const sid=dlgRow&&(dlgRow
     // "An Claude uebergeben" las sich nach API-Kosten, "In Claude Max auslesen" nach Automatik.
     // Jetzt sagt jeder Knopf, was er tut: der eine kopiert Befehle, der andere startet die Automatik.
     const f=$("#aFoot");if(f)f.innerHTML=`<button class="tb" onclick="ytCopyRankSel()" title="Kopiert /watch-Befehle zum Selbsteinfügen – nur nötig, wenn du es von Hand machen willst"><i class="ti ti-copy"></i> /watch-Befehle kopieren</button> <button class="tb primary" onclick="ytUebergabe('${sid}')" title="Läuft über dein Claude-Max-Abo – keine API-Kosten. Du musst nichts offen lassen."><i class="ti ti-player-play"></i> Automatisch auswerten (<span id="ytUebN">${offen}</span>) · kostenlos</button>`;
-  }catch(e){const out=$("#prioOut");if(out)out.innerHTML="Priorisierung fehlgeschlagen: "+esc(String(e.message||e));}
+  }catch(e){
+    // 05.08.2026: Hier stand nur der nackte Statuscode. Ein 401 bedeutet aber nicht
+    // "Priorisierung kaputt", sondern "Sitzung abgelaufen" — das gehoert gesagt.
+    if(await istNichtEingeloggt(e)){ sitzungAbgelaufen('Deine Sitzung ist abgelaufen.'); return; }
+    const out=$("#prioOut");
+    if(out)out.innerHTML="Priorisierung fehlgeschlagen: "+esc(String(e.message||e));
+  }
 }
 function ytRankToggle(id,on){if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);var n=$("#ytUebN");if(n)n.textContent=window._ytRankSel.size;var all=$("#ytRankAll");if(all){var cbs=document.querySelectorAll(".ytRankCb");all.checked=cbs.length>0&&[].every.call(cbs,function(c){return c.checked;});}}
 function ytRankAllToggle(on){document.querySelectorAll(".ytRankCb").forEach(function(c){c.checked=on;var id=c.getAttribute("data-vid");if(!window._ytRankSel)window._ytRankSel=new Set();on?window._ytRankSel.add(id):window._ytRankSel.delete(id);});var n=$("#ytUebN");if(n)n.textContent=(window._ytRankSel?window._ytRankSel.size:0);}
@@ -2253,9 +2278,43 @@ function openCols(anchor){const v=VIEWS[CUR];const pop=$("#fpop");pop.innerHTML=
 
 // CRUD
 function selectedIdx(){const tr=document.querySelector("#tbody tr.sel");return tr?+tr.dataset.i:-1;}
+// 05.08.2026: Bei abgelaufener Sitzung antworten Edge Functions mit 401. Statt den nackten
+// Statuscode zu zeigen, wird die Anmeldemaske eingeblendet - der Nutzer weiss dann, was zu tun ist.
+function sitzungAbgelaufen(grund){
+  try{
+    const g=document.getElementById('loginGate');
+    if(!g || g.style.display==='grid') return;   // schon sichtbar
+    g.style.display='grid';
+    const e=document.getElementById('lgErr');
+    if(e){ e.style.display='block';
+           e.textContent=(grund||'Die Sitzung ist abgelaufen.')+' Bitte melde dich erneut an — danach funktionieren die Knöpfe wieder.'; }
+    const m=document.getElementById('lgMail');
+    if(m && !m.value){ try{ m.value=localStorage.getItem('letzteMail')||''; }catch(_){} }
+  }catch(e){}
+}
+// Erkennt einen 401 in dem, was Supabase zurueckgibt (Meldung ODER Antwortkoerper)
+async function istNichtEingeloggt(error){
+  try{
+    if(!error) return false;
+    if(error.status===401 || /401/.test(String(error.message||''))) return true;
+    // Den Antwortkoerper lesen, ohne ihn zu verbrauchen: clone() wenn vorhanden, sonst direkt.
+    const ctx=error.context;
+    if(ctx){
+      const quelle = (typeof ctx.clone==='function') ? ctx.clone() : ctx;
+      if(quelle && typeof quelle.json==='function'){
+        const b=await Promise.resolve(quelle.json()).catch(()=>null);
+        if(b && /nicht eingeloggt|not authenticated|invalid jwt|jwt expired/i.test(String(b.error||b.message||''))) return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
 async function dbW(action,collection,id,data,pk){
   const {data:res,error}=await sb.functions.invoke("db-write",{body:{action,collection,id,data,pk}});
-  if(error){let m=error.message;try{const b=await error.context.json();if(b&&b.error)m=b.detail?b.error+" – "+b.detail:b.error;}catch(_){}throw new Error(m);}
+  if(error){
+    if(await istNichtEingeloggt(error)){ sitzungAbgelaufen('Deine Sitzung ist abgelaufen.'); throw new Error('Sitzung abgelaufen — bitte neu anmelden.'); }
+    let m=error.message;try{const b=await error.context.json();if(b&&b.error)m=b.detail?b.error+" – "+b.detail:b.error;}catch(_){}throw new Error(m);
+  }
   if(res&&res.error)throw new Error(res.error);
   return res&&res.result;
 }
