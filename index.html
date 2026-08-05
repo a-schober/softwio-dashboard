@@ -11,19 +11,49 @@
 <style>
   :root{--bg:#e9ecf2;--panel:#fff;--panel2:#f6f7fa;--line:#d7dce4;--line2:#e7eaf0;--ink:#1f2733;--muted:#6b7280;--faint:#9aa3b0;--accent:#4f46e5;--accent-soft:#eef2ff;--accent-ink:#3730a3;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--head:#eef1f6;--zebra:#fafbfc;--sel:#eef2ff;}
   body.dark{--bg:#0f141b;--panel:#161c25;--panel2:#1b222d;--line:#2a323e;--line2:#222a35;--ink:#e6eaf0;--muted:#9aa6b6;--faint:#6b7785;--accent:#8b86f5;--accent-soft:#232046;--accent-ink:#c7c4fb;--head:#1b222d;--zebra:#141a22;--sel:#232046;}
-  /* 05.08.2026 — 18 Regeln im Blatt tragen einen fest hellen Hintergrund (#eef2ff, #fef3c7 …),
-     während der Text darauf aus einer Variablen kommt. Im Dunkelmodus ergab das hellen Text auf
-     hellem Grund: Der Softwarename im Balken "Weiterarbeiten" war schlicht nicht lesbar.
-     Auf hellen Flächen bleibt der Text daher immer dunkel — unabhängig vom Modus. */
-  body.dark .kat-ic.on,body.dark .pws-step.current .pws-st-n,body.dark .pws-c-ic.no,
+  /* ===== Dunkelmodus: heller Text auf hellem Grund (05.08.2026) =====
+     Das Problem trat an drei verschiedenen Stellen auf und hat drei verschiedene Ursachen.
+     Toni fand es dreimal hintereinander an anderer Stelle — deshalb hier alle drei zusammen.
+
+     (1) Knoepfe OHNE eigene Hintergrundfarbe. Browser zeichnen <button> von Haus aus hell,
+         auch im Dunkelmodus. Betraf .mini2 in der Video-Warteschlange ("Erneut auswerten",
+         "Entfernen"): heller Knopf, heller Text. */
+  body.dark button:not([style*="background"]):not(.tb):not(.theme-btn):not(#jobLeisteZu){
+    background:var(--panel2);color:var(--ink);border-color:var(--line)}
+  body.dark .mini,body.dark .mini2{background:var(--panel2);color:var(--accent-ink);border-color:var(--line)}
+  body.dark .mini:hover,body.dark .mini2:hover{background:var(--sel)}
+
+  /* (2) 21 Regeln im Blatt tragen einen fest hellen Hintergrund (#eef2ff, #fef3c7 …),
+         der Text darauf kommt aber aus einer Variablen. */
+  body.dark .kat-ic.on,body.dark .pws-step.done .pws-st-n,body.dark .pws-step.current .pws-st-n,
+  body.dark .pws-c-ic.ok,body.dark .pws-c-ic.no,body.dark .pws-hint.ok,
   body.dark .pws-fehlt.alles-gut,body.dark .pws-fehlt-liste li.klickbar:hover,
   body.dark .pws-fehlt-liste li.bereit,body.dark .pws-dtab:hover,body.dark .pws-dz.null,
   body.dark .pws-subtab.on,body.dark .pk-b.todo,body.dark .pk-b.info,body.dark .ltd-b,
   body.dark .wbg-h,body.dark .wb-ai,body.dark .wb-ai-k.hi,body.dark .wb-ai-dup,
   body.dark .badge-st,body.dark .catr.ok{color:#1f2733}
+
+  /* (3) Rund 30 Stellen setzen die Farbe direkt im style-Attribut. Die erreicht keine
+         Klassenregel — wohl aber ein Attribut-Selektor auf genau diesen Wert. */
+  body.dark [style*="background:#fef3c7"],body.dark [style*="background:#fef2f2"],
+  body.dark [style*="background:#fffbeb"],body.dark [style*="background:#f0fdf4"],
+  body.dark [style*="background:#eef2ff"],body.dark [style*="background:#ecfdf5"],
+  body.dark [style*="background:#fee2e2"],body.dark [style*="background:#fdecea"],
+  body.dark [style*="background:#e7f6ec"],body.dark [style*="background:#f5f7ff"],
+  body.dark [style*="background:#e0e7ff"],body.dark [style*="background:#dcfce7"],
+  body.dark [style*="background:#f5f3ff"],body.dark [style*="background:#fff"],
+  body.dark [style*="background:#f8fafc"],body.dark [style*="background:#f1f5f9"]{color:#1f2733}
+
+  /* Kindelemente erben die dunkle Schrift, sonst schlaegt eine Variable wieder durch. */
   body.dark .kat-ic.on *,body.dark .pws-fehlt.alles-gut *,body.dark .pws-fehlt-liste li.bereit *,
   body.dark .pws-dz.null *,body.dark .pk-b.todo *,body.dark .pk-b.info *,body.dark .ltd-b *,
-  body.dark .wbg-h *,body.dark .wb-ai *,body.dark .badge-st *,body.dark .catr.ok *{color:inherit}
+  body.dark .wbg-h *,body.dark .wb-ai *,body.dark .badge-st *,body.dark .catr.ok *,
+  body.dark .pws-hint.ok *,body.dark .pws-c-ic.ok *,body.dark .pws-c-ic.no *,
+  body.dark [style*="background:#fef3c7"] *,body.dark [style*="background:#fef2f2"] *,
+  body.dark [style*="background:#fffbeb"] *,body.dark [style*="background:#f0fdf4"] *,
+  body.dark [style*="background:#eef2ff"] *,body.dark [style*="background:#ecfdf5"] *,
+  body.dark [style*="background:#fee2e2"] *,body.dark [style*="background:#fdecea"] *,
+  body.dark [style*="background:#e7f6ec"] *{color:inherit}
   *{box-sizing:border-box}html,body{margin:0;height:100%}
   body{font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--ink);background:var(--bg)}
   .app{display:flex;flex-direction:column;height:100vh}
@@ -232,6 +262,17 @@
     /* Auf schmalen Geraeten mehr Luft unter dem Inhalt - dort ist die Leiste zweizeilig. */
     body.hat-jobleiste{padding-bottom:var(--jobleiste-h,88px)}
     #jobLeiste{max-height:38vh;overflow-y:auto}
+
+    /* 05.08.2026: Die Listen in den Overlays haben feste Hoehen in vh (62vh, 64vh, 88vh).
+       Safari auf dem iPhone rechnet die ein- und ausblendende Adressleiste in vh mit —
+       der Bereich wird dadurch zu kurz und schneidet den letzten Eintrag ab (Video-
+       Warteschlange bei WISO Steuer). dvh folgt der tatsaechlich sichtbaren Hoehe. */
+    [style*="max-height:62vh"],[style*="max-height:64vh"],[style*="max-height: 62vh"],
+    [style*="max-height:66vh"],[style*="max-height:70vh"]{max-height:calc(100dvh - 220px)!important}
+    .edlg{max-height:calc(100dvh - 40px)}
+    .pws-rail{max-height:calc(100dvh - 90px)}
+    /* Overlay-Rahmen selbst: nie hoeher als der sichtbare Bereich */
+    #aov>div,#eov>div{max-height:calc(100dvh - 24px);display:flex;flex-direction:column}
     .toolbar{flex-wrap:wrap;gap:5px}
     .toolbar .tb,.toolbar .sep{flex:none}
     .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;z-index:200;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 18px rgba(0,0,0,.28)}
