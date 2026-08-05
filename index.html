@@ -222,6 +222,16 @@
     #ov.overlay{padding:0}
     .dlg{width:100%!important;max-width:100%!important;height:100%!important;border-radius:0}
     .dlg-body{flex-direction:column;min-height:0}
+    /* 05.08.2026: Die Seite selbst scrollte nicht mehr seitlich, der DIALOG aber schon —
+       er hat einen eigenen Scrollbereich. Jeder Flex-Container darin muss umbrechen
+       dürfen, sonst zwingt ein einziger langer Kasten den ganzen Inhalt in die Breite
+       (Toni auf dem iPhone 13 Pro: Hinweiszeile über der Video-Auswertung). */
+    .dlg,.dlg-body,.dlg-form,.dlg-form>*{max-width:100%;min-width:0}
+    .dlg-form{overflow-x:hidden}
+    .dlg-form div[style*="display:flex"],.dlg-form .fld,.dlg-form .fgrid{flex-wrap:wrap;min-width:0}
+    .dlg-form table{display:block;overflow-x:auto;max-width:100%}
+    .dlg-form pre,.dlg-form code{overflow-x:auto;max-width:100%}
+    .dlg-form img{max-width:100%;height:auto}
     .dlg-nav{width:100%!important;flex-direction:row;overflow-x:auto;white-space:nowrap;border-right:none;border-bottom:1px solid var(--line);padding:4px 6px}
     .dlg-nav .dn{display:inline-flex!important;flex:none}
     .dlg-foot{overflow-x:auto;white-space:nowrap}
@@ -416,7 +426,9 @@
   .mini2{height:21px;padding:0 7px;border:1px solid var(--line);border-radius:5px;font-size:11px;color:var(--accent-ink);cursor:pointer;display:inline-block;line-height:19px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}.chip{font-size:11.5px;padding:3px 10px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
   .chgrp{font-size:11px;font-weight:600;color:var(--faint);margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em}
-  .tabhint{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent-ink);margin:0 0 12px;padding:8px 11px;background:var(--accent-soft);border-radius:8px}.tabhint i{font-size:16px}
+  /* 05.08.2026: display:flex ohne flex-wrap hielt den Hinweistext in EINER Zeile - auf dem
+     iPhone lief er rechts aus dem Dialog und erzwang seitliches Wischen. */
+  .tabhint{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--accent-ink);margin:0 0 12px;padding:8px 11px;background:var(--accent-soft);border-radius:8px;overflow-wrap:anywhere}.tabhint i{font-size:16px;flex:none}
   .empty-tab{text-align:center;color:var(--faint);padding:44px 20px}.empty-tab i{font-size:34px;display:block;margin-bottom:10px;color:var(--line)}.empty-tab b{display:block;color:var(--muted);font-weight:500;margin-bottom:5px;font-size:14px}.empty-tab .d{max-width:430px;margin:0 auto;font-size:12.5px;line-height:1.5}
   .kpi{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}.kpi .b{flex:1;min-width:110px;background:var(--panel2);border-radius:8px;padding:10px 12px}.kpi .b .n{font-size:18px;font-weight:600}.kpi .b .l{font-size:11px;color:var(--muted)}
   .proc{padding:4px 2px}.pstep{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:8px;margin-bottom:6px;background:var(--panel2)}
