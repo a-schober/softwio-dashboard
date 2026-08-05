@@ -165,11 +165,42 @@
   .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel)}
   .mob-burger{display:none;cursor:pointer;font-size:21px;color:var(--ink);padding:0 2px;flex:none}
   #sideBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150}
+  /* 05.08.2026 — Umschalter Hell/Dunkel: kompakt, IMMER sichtbar (auch mobil, wo .right
+     ausgeblendet wird), Wahl bleibt über localStorage erhalten. */
+  .menubar{position:relative}
+  /* Fest in der ersten Zeile oben rechts - sonst rutscht der Knopf beim Umbruch auf schmalen
+     Geraeten in die zweite Zeile (iPhone 13 Pro, 390 px). */
+  .theme-btn{position:absolute;top:6px;right:10px;z-index:5;flex:none;width:34px;height:34px;
+    border-radius:9px;border:1px solid var(--line);background:var(--panel);font-size:17px;line-height:1;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;
+    transition:background .15s,border-color .15s}
+  .theme-btn:hover{background:var(--panel2);border-color:var(--accent)}
+  .theme-btn:active{transform:scale(.94)}
+
+  /* Kein waagerechtes Schieben mehr: nichts darf breiter werden als der Bildschirm.
+     Toni auf dem iPhone 13 Pro (390 px): "muss noch immer nach links und rechts scrollen". */
+  html,body{max-width:100%;overflow-x:hidden}
+  .grid,.dlg-form,.pws-body,.slim-body{min-width:0}
+  table{max-width:100%}
+  pre,code{overflow-x:auto;max-width:100%}
+
+  /* Die Auftragsleiste liegt fest am unteren Rand und verdeckte Knöpfe darunter.
+     Der Ausgleich haelt den Seiteninhalt frei; die Leiste laesst sich zudem einklappen. */
+  body.hat-jobleiste{padding-bottom:var(--jobleiste-h,64px)}
+  #jobLeiste.zu{transform:translateY(calc(100% - 30px))}
+  #jobLeiste{transition:transform .2s ease}
+  #jobLeisteZu{flex:none;margin-left:auto;background:transparent;border:0;color:#fff;cursor:pointer;
+    font-size:16px;padding:2px 8px;line-height:1;opacity:.85}
+  #jobLeisteZu:hover{opacity:1}
+
   @media(max-width:820px){
     .mob-burger{display:inline-flex;align-items:center}
     .menubar{gap:6px 14px;flex-wrap:wrap;padding:8px 12px}
     .menubar .brand{font-size:13px;flex:none}
     .menubar .right{display:none}
+    /* Auf schmalen Geraeten mehr Luft unter dem Inhalt - dort ist die Leiste zweizeilig. */
+    body.hat-jobleiste{padding-bottom:var(--jobleiste-h,88px)}
+    #jobLeiste{max-height:38vh;overflow-y:auto}
     .toolbar{flex-wrap:wrap;gap:5px}
     .toolbar .tb,.toolbar .sep{flex:none}
     .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;z-index:200;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 18px rgba(0,0,0,.28)}
@@ -499,7 +530,8 @@
   <div class="menubar">
     <span class="mob-burger" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></span><span class="brand" onclick="route('software')" style="cursor:pointer" title="Zur Startseite (Produkte)"><span class="brand-stack"><span class="brand-logo">softwi<svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="12.5" cy="13.5" r="9.6" fill="none" stroke="currentColor" stroke-width="3.2"></circle><path d="M6.8 13.8 11 18 21 5.4" fill="none" stroke="#2f80ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="brand-claim">Software, die passt.</span></span><span class="brand-sub">Cockpit</span></span>
     <span class="m" onclick="openMenu('Datei',this)">Datei</span><span class="m" onclick="openMenu('Pipeline',this)">Pipeline</span><span class="m" onclick="openMenu('Portal',this)">Portal</span><span class="m" onclick="openMenu('Ansicht',this)">Ansicht</span><span class="m" onclick="openMenu('Extras',this)">Extras</span><span class="m" onclick="openMenu('Hilfe',this)">Hilfe</span>
-    <span class="right"><span class="tg" onclick="document.body.classList.toggle('dark')"><i class="ti ti-contrast-2"></i> Hell/Dunkel</span><span>Markt: DE</span><span>Admin</span></span>
+    <span class="right"><span>Markt: DE</span><span>Admin</span></span>
+    <button id="themeBtn" class="theme-btn" onclick="themeUmschalten()" title="Hell oder dunkel" aria-label="Darstellung wechseln">🌙</button>
   </div>
   <div class="toolbar">
     <span class="tb primary" id="tbNew" onclick="onNew()"><i class="ti ti-plus"></i> <span id="tbNewL">Neu anlegen</span></span>
@@ -586,6 +618,30 @@
 const SB_URL="https://xoyjsjenitjppxpcheza.supabase.co";
 const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhveWpzamVuaXRqcHB4cGNoZXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjE3NTQsImV4cCI6MjA5NDkzNzc1NH0.SSsfDBxyDRKZQVYxJAt9FEu2g-84clka4_b82N5DfVw";
 const sb=window.supabase.createClient(SB_URL,SB_ANON);
+
+// ===== Darstellung hell/dunkel (05.08.2026) =====
+// Vorher hing die Umschaltung in .right - dort, wo Mobilgeraete die Leiste ausblenden.
+// Auf dem Handy war sie also gar nicht erreichbar, und die Wahl ging bei jedem Laden verloren.
+// Das Symbol zeigt, was ein Tippen BEWIRKT: 🌙 = "tippen für dunkel", ☀️ = "tippen für hell".
+function themeSetzen(dunkel, merken){
+  document.body.classList.toggle('dark', !!dunkel);
+  const b=document.getElementById('themeBtn');
+  if(b){ b.textContent = dunkel ? '☀️' : '🌙';
+         b.title = dunkel ? 'Zur hellen Darstellung wechseln' : 'Zur dunklen Darstellung wechseln'; }
+  if(merken){ try{ localStorage.setItem('theme', dunkel?'dark':'light'); }catch(e){} }
+}
+function themeUmschalten(){ themeSetzen(!document.body.classList.contains('dark'), true); }
+(function themeStart(){
+  let w=null;
+  try{ w=localStorage.getItem('theme'); }catch(e){}
+  // Ohne eigene Wahl der Systemeinstellung folgen
+  if(w!=='dark' && w!=='light'){
+    try{ w = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }catch(e){ w='light'; }
+    themeSetzen(w==='dark', false);
+  } else { themeSetzen(w==='dark', false); }
+  document.addEventListener('DOMContentLoaded', function(){ themeSetzen(document.body.classList.contains('dark'), false); });
+})();
+
 let _appGestartet=false;
 let _recovery=false;
 const _$=(id)=>document.getElementById(id);
@@ -4246,16 +4302,36 @@ async function jobLeisteLaden(){
     jobLeisteZeichnen(q.data||[]);
   }catch(e){ jobLeisteZeichnen(null, String(e&&e.message||e)); }
 }
+// 05.08.2026: Die Leiste lag fest ueber dem Inhalt und verdeckte Knoepfe - auf dem iPhone
+// war der Knopf zur Video-Uebernahme nicht erreichbar. Jetzt bekommt der Seiteninhalt
+// unten genau so viel Platz, wie die Leiste hoch ist, und sie laesst sich einklappen.
+function jobLeisteHoehe(el){
+  try{
+    const h = el && el.offsetHeight ? el.offsetHeight : 0;
+    document.documentElement.style.setProperty('--jobleiste-h', (h+10)+'px');
+  }catch(e){}
+}
+function jobLeisteZu(){
+  const el=document.getElementById('jobLeiste'); if(!el) return;
+  const zu = el.classList.toggle('zu');
+  try{ localStorage.setItem('jobleisteZu', zu?'1':'0'); }catch(e){}
+  const b=document.getElementById('jobLeisteZu'); if(b) b.textContent = zu ? '▲' : '▼';
+  document.body.style.paddingBottom = zu ? '34px' : '';
+}
 function jobLeisteZeichnen(jobs, fehler){
   let el=document.getElementById('jobLeiste');
   if(!el){ el=document.createElement('div'); el.id='jobLeiste';
     el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:70;background:#0f172a;color:#fff;'
       +'font-size:12.5px;padding:8px 14px;display:none;box-shadow:0 -4px 16px rgba(0,0,0,.25);'
-      +'display:flex;gap:14px;align-items:center;flex-wrap:wrap';
+      +'display:flex;gap:14px;align-items:center;flex-wrap:wrap;'
+      +'padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))';
     document.body.appendChild(el); }
-  if(fehler){ el.style.display='flex';
-    el.innerHTML='<span style="color:#fca5a5">Job-Status nicht lesbar: '+esc(fehler)+'</span>'; return; }
-  if(!jobs||!jobs.length){ el.style.display='none'; return; }
+  if(fehler){ el.style.display='flex'; document.body.classList.add('hat-jobleiste');
+    el.innerHTML='<span style="color:#fca5a5">Job-Status nicht lesbar: '+esc(fehler)+'</span>';
+    jobLeisteHoehe(el); return; }
+  if(!jobs||!jobs.length){ el.style.display='none';
+    document.body.classList.remove('hat-jobleiste'); document.body.style.paddingBottom='';
+    return; }
   const nm=(id)=>{ try{ const r=(VIEWS.software.rows||[]).find(x=>String(x.id)===String(id)); return r?r.name:''; }catch(e){ return ''; } };
   const min=(t)=> t? Math.round((Date.now()-new Date(t).getTime())/60000) : null;
   el.style.display='flex';
@@ -4271,7 +4347,18 @@ function jobLeisteZeichnen(jobs, fehler){
           +esc(JOB_LABEL[j.skill]||j.skill)+(nm(j.software_id)?' · '+esc(nm(j.software_id)):'')
           +' <span style="opacity:.75">'+(laeuft?(dauer+' Min'):'wartet')+'</span>'
           +(stumm?' <span title="seit '+still+' Min kein Lebenszeichen">⚠</span>':'')+'</span>';
-      }).join('');
+      }).join('')
+    + '<button id="jobLeisteZu" onclick="jobLeisteZu()" title="Leiste ein- oder ausklappen">▼</button>';
+  document.body.classList.add('hat-jobleiste');
+  // Zustand von vorher wiederherstellen, sonst klappt die Leiste bei jedem Zeichnen wieder auf
+  try{
+    if(localStorage.getItem('jobleisteZu')==='1'){
+      el.classList.add('zu');
+      const b=document.getElementById('jobLeisteZu'); if(b) b.textContent='▲';
+      document.body.style.paddingBottom='34px';
+    } else { document.body.style.paddingBottom=''; }
+  }catch(e){}
+  jobLeisteHoehe(el);
 }
 
 // ===== Rechte-Selbsttest (21.07.2026) =====
