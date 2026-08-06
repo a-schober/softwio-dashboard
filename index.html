@@ -1768,7 +1768,12 @@ function ytBild(t){return (t&&((t.medium&&t.medium.url)||(t.high&&t.high.url)||(
 function ytIsoDauer(iso){if(!iso)return"";const m=iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);if(!m)return"";const h=+(m[1]||0),mi=+(m[2]||0),s=+(m[3]||0),p2=n=>String(n).padStart(2,"0");return h?h+":"+p2(mi)+":"+p2(s):mi+":"+p2(s);}
 function ytZahl(n){if(!n)return"";if(n>=1e6)return (n/1e6).toFixed(1).replace(".",",").replace(",0","")+" Mio.";if(n>=1e3)return Math.round(n/1e3)+" Tsd.";return String(n);}
 function ytAlter(d){if(!d)return"";const tage=Math.floor((Date.now()-new Date(d).getTime())/86400000);if(tage<1)return"heute";if(tage<31)return"vor "+tage+" Tg.";const mon=Math.floor(tage/30);if(mon<12)return"vor "+mon+" Mon.";return"vor "+Math.floor(tage/365)+" J.";}
-function videoIdAusUrl(u){const m=String(u||"").match(/[?&]v=([^&]+)/);return m?m[1]:null;}
+// 07.08.2026: Erkennt zusaetzlich Shorts-, youtu.be- und /embed/-Adressen. Vorher matchte nur
+// "?v=" — ein Shorts-Link (https://www.youtube.com/shorts/<id>) lieferte null und waere beim
+// Entdoppeln der Videozahl unter den Tisch gefallen. Betrifft aktuell 1 von 71 Eintraegen.
+function videoIdAusUrl(u){const s=String(u||"");
+  const m=s.match(/[?&]v=([^&]+)/)||s.match(/\/shorts\/([\w-]{11})/)||s.match(/youtu\.be\/([\w-]{11})/)||s.match(/\/embed\/([\w-]{11})/);
+  return m?m[1]:null;}
 function ytLoadGsi(){if(window.google&&window.google.accounts&&window.google.accounts.oauth2){ytBereit=true;ytRestore();return;}const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.defer=true;s.onload=function(){ytBereit=true;ytRestore();};s.onerror=function(){toast("Google-Login-Script konnte nicht geladen werden");};document.body.appendChild(s);}
 function ytEnsure(){if(!ytClient&&window.google&&window.google.accounts&&window.google.accounts.oauth2){ytClient=window.google.accounts.oauth2.initTokenClient({client_id:YT_CLIENT_ID,scope:YT_SCOPE,callback:function(r){if(r.access_token){ytSave(r.access_token,r.expires_in);ytLadeAbosUndFeed();}},error_callback:function(){}});}return ytClient;}
 function ytSave(tk,exp){ytToken=tk;try{localStorage.setItem(YT_TOKEN_KEY,JSON.stringify({tk:tk,exp:Date.now()+(exp||3000)*1000}));}catch(e){}}
@@ -1800,7 +1805,13 @@ async function ytLadeAbosUndFeed(){ytAbos=[];try{await ytLadeDone();}catch(e){}y
 async function ytLadeFeed(){ytTitel="Neueste aus deinen Abos";const ids=ytAbos.slice(0,40).map(a=>a.id);if(!ids.length){ytListe=[];return;}try{const uploads=[];for(let i=0;i<ids.length;i+=50){const ch=await ytApi("channels",{part:"contentDetails",id:ids.slice(i,i+50).join(",")});(ch.items||[]).forEach(c=>{const pl=c.contentDetails&&c.contentDetails.relatedPlaylists&&c.contentDetails.relatedPlaylists.uploads;if(pl)uploads.push({pl:pl,titel:(ytAbos.find(a=>a.id===c.id)||{}).titel});});}const alle=[];await Promise.all(uploads.map(async u=>{try{const pl=await ytApi("playlistItems",{part:"snippet",playlistId:u.pl,maxResults:"3"});(pl.items||[]).forEach(it=>alle.push({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||u.titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt}));}catch(e){}}));alle.sort((a,b)=>(a.datum<b.datum?1:-1));ytListe=await ytReichere(alle.slice(0,48));}catch(e){toast(String(e.message||e));}}
 async function ytSucheStart(){const q=($("#ytQ")?$("#ytQ").value:"").trim();if(!q){toast("Suchbegriff eingeben");return;}if(!ytToken){ytLogin();return;}ytBusy=true;ytRenderAll();try{const j=await ytApi("search",{part:"snippet",q:q,type:ytTyp,maxResults:"40",order:ytSort});ytTitel="Treffer zu „"+q+"“";const tr=(j.items||[]).map(i=>({art:(i.id.kind||"").includes("channel")?"kanal":"video",id:i.id.videoId||i.id.channelId,t:i.snippet.title,k:i.snippet.channelTitle,bild:ytBild(i.snippet.thumbnails),datum:i.snippet.publishedAt}));ytListe=await ytReichere(tr);}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
 async function ytKanal(id){if(!ytToken){ytLogin();return;}const titel=((ytAbos.find(a=>a.id===id)||{}).titel)||"Kanal";ytBusy=true;ytRenderAll();try{const ch=await ytApi("channels",{part:"contentDetails",id:id});const up=ch.items&&ch.items[0]&&ch.items[0].contentDetails&&ch.items[0].contentDetails.relatedPlaylists&&ch.items[0].contentDetails.relatedPlaylists.uploads;if(!up)throw new Error("Kanal hat keine abrufbaren Uploads.");const pl=await ytApi("playlistItems",{part:"snippet",playlistId:up,maxResults:"50"});ytTitel="Kanal: "+titel;ytListe=await ytReichere((pl.items||[]).map(it=>({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt})));}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
-function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){ytRenderAll();ckStatus();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
+// 07.08.2026 FEHLER BEHOBEN: Die Warteschlange wurde NUR nach erfolgreicher YouTube-Anmeldung
+// geladen — ytLadeDone() haengt an ytRestore(), und das laeuft nur bei gueltigem Token. War es
+// abgelaufen, meldete der Reiter "Noch keine Videos fuer diese SSoT", obwohl 16 Videos in der
+// Datenbank lagen. Das ist eine Falschaussage: video_warteschlange kommt aus Supabase und hat
+// mit der YouTube-Anmeldung nichts zu tun; die braucht man nur zum SUCHEN neuer Videos.
+// Jetzt wird der vorhandene Bestand IMMER geladen, unabhaengig vom Token.
+function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(async function(){try{await ytLadeDone();}catch(e){}ytRenderAll();ckStatus();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
   <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:#1e3a5f"><b>Videos liegen bei dir.</b> Festlegung vom 07.08.2026: In <b>Durchgang 1</b> (Neuanlage) fasst Claude Videos nicht an — keine Suche, kein Einreihen, keine Auswertung. Du wählst hier selbst aus; Claude wertet die Transkripte in <b>Durchgang 2</b> aus, wenn der Artikel entsteht.</div>
   <div class="tabhint"><i class="ti ti-brand-youtube"></i> Videos für <b>${esc(r.name||"")}</b> auswerten — <b style="color:#16a34a">grün</b> = ausgewertet, <b style="color:#d97706">orange</b> = in Warteschlange, <b style="color:#64748b">grau</b> = kein Transkript vorhanden (nicht auswertbar).</div>
   <div id="ckBox" style="margin-bottom:10px"></div>
@@ -2423,7 +2434,9 @@ async function openDlg(i){DLGFORM="dForm";window.TAB_EDIT={};window.STAMM_EDIT=f
     _setz('dnPreis', _p?(_p.preise||[]).length:'');
     _setz('dnInteg', _p?(_p.integ||[]).length:'');
     _setz('dnFaelle',_p?(_p.faelle||[]).length:'');
-    _setz('dnVideo', _p?((_p.videoN||0)+(_p.videoAusgewertet||0)):'');
+    // 07.08.2026: war die Summe aus eingebetteten und Warteschlangen-Videos und zaehlte dieselben
+    // Videos doppelt. Jetzt die Zahl der verschiedenen Videos.
+    _setz('dnVideo', _p?(_p.videoGesamt||0):'');
   }catch(e){}
   r._d=neu?{full:{},funk:[],preise:[],integ:[],faelle:[],lade:false}:{lade:true,funk:[],preise:[],integ:[],faelle:[],full:{}};
   setTab("stammdaten");$("#ov").classList.add("show");
@@ -2987,7 +3000,27 @@ async function pwsOpen(id){
     PWS.bilderN=0;PWS.videoN=0;
     try{const _b=await sb.from('software_bilder').select('id').eq('software_id',id);PWS.bilderN=(_b.data||[]).length;}catch(e){}
     try{const _v=await sb.from('hersteller_videos').select('id').eq('software_id',id);PWS.videoN=(_v.data||[]).length;}catch(e){}
-    PWS.videoAusgewertet=0;try{const _va=await sb.from('video_warteschlange').select('id',{count:'exact',head:true}).eq('software_id',id).eq('status','fertig');PWS.videoAusgewertet=_va.count||0;}catch(e){}
+    // 07.08.2026: Zwei Fehler in dieser einen Zahl behoben.
+    // (1) "fertig" allein hiess nicht ausgewertet — der Laeufer setzt es auch, wenn Supadata gar
+    //     kein Transkript hatte (Log: "kein Transkript"). Bei Sticky Password galten so 12 von 16
+    //     Videos als ausgewertet, obwohl dahinter nichts stand. Jetzt wird das Log mitgelesen.
+    // (2) Die Gesamtzahl im Reiter war die SUMME aus hersteller_videos und Warteschlange — obwohl
+    //     die eingebetteten Videos dieselben sind, die auch in der Warteschlange stehen. Sticky
+    //     Password las sich als "Videos 20" bei tatsaechlich 16 verschiedenen Videos.
+    //     videoGesamt zaehlt jetzt die VERSCHIEDENEN Video-IDs aus beiden Tabellen.
+    PWS.videoAusgewertet=0;PWS.videoOhneTranskript=0;PWS.videoGesamt=0;
+    try{
+      const _va=await sb.from('video_warteschlange').select('video_id,status,log').eq('software_id',id);
+      const ws=(_va.data||[]);
+      const ohne=function(r){return /kein transkript/i.test((r&&r.log)||"");};
+      PWS.videoAusgewertet=ws.filter(function(r){return r.status==='fertig'&&!ohne(r);}).length;
+      PWS.videoOhneTranskript=ws.filter(function(r){return r.status==='fertig'&&ohne(r);}).length;
+      const ids=new Set();
+      ws.forEach(function(r){if(r.video_id)ids.add(String(r.video_id));});
+      try{const _hv=await sb.from('hersteller_videos').select('url').eq('software_id',id);
+        (_hv.data||[]).forEach(function(r){const v=videoIdAusUrl(r.url);if(v)ids.add(String(v));});}catch(e){}
+      PWS.videoGesamt=ids.size;
+    }catch(e){}
     // 23.07.2026: Die Datenleiste zeigte "Videos 0", obwohl 11 ausgewertet waren — sie zaehlte nur
     // hersteller_videos. Die ausgewerteten Videos leben in video_warteschlange.
     // 02.08.2026: Hier stand `if(videoN===0)videoN=videoAusgewertet` — das schrieb die
@@ -3262,9 +3295,11 @@ function pwsDatenLeiste(P){
     {t:'bilder',       i:'ti-photo',         l:'Bilder',     n:(P.bilderN||0)},
     // 02.08.2026: Hier stand `videoAusgewertet || videoN` — ein ODER, das je nach Produkt
     // mal die eine, mal die andere Zahl zeigte, ohne dass erkennbar war welche.
-    // Die Reiter-Zahl ist jetzt die Summe beider Bestaende; die Aufschluesselung
-    // steht in der Medien-Zeile und im Videos-Reiter selbst.
-    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:((P.videoN||0)+(P.videoAusgewertet||0))},
+    // 07.08.2026: Danach stand hier die SUMME beider Bestaende — auch falsch, denn die
+    // eingebetteten Videos sind dieselben, die in der Warteschlange stehen. Sticky Password
+    // las sich als "Videos 20" bei 16 verschiedenen Videos. Jetzt: die Zahl der VERSCHIEDENEN
+    // Videos (videoGesamt). Wie viele davon wirklich ausgewertet sind, steht im Reiter selbst.
+    {t:'videos',       i:'ti-brand-youtube', l:'Videos',     n:(P.videoGesamt||0)},
     {t:'content',      i:'ti-file-text',     l:'Artikel',    n:(P.artikel?1:0)}
   ];
   return '<div class="pws-daten">'+eintraege.map(function(e){
@@ -3441,7 +3476,7 @@ async function ladeJobStatus(sid,liveOK){
 function pwsBody(P,st){
   const f=P.full||{};const k=st.key;
   if(k==='anlegen')return '';
-  if(k==='medien')return pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')+pwsRow((P.videoN||0)>0,(P.videoN||0)+' Videos hinterlegt')+((P.videoAusgewertet||0)>0?pwsRow(true,(P.videoAusgewertet||0)+' Videos ausgewertet (Claude-Max)'):'');
+  if(k==='medien')return pwsRow((P.bilderN||0)>0,(P.bilderN||0)+' Bilder hochgeladen')+pwsRow((P.videoGesamt||0)>0,(P.videoGesamt||0)+' Videos hinterlegt')+((P.videoAusgewertet||0)>0?pwsRow(true,(P.videoAusgewertet||0)+' Videos inhaltlich ausgewertet'):'')+((P.videoOhneTranskript||0)>0?pwsRow(false,(P.videoOhneTranskript||0)+' Videos ohne Transkript – nicht auswertbar'):'');
   if(k==='sammeln')return pwsRow((P.funk||[]).length>0,(P.funk||[]).length+' Roh-Funktionen erfasst')+pwsRow((P.preise||[]).length>0,(P.preise||[]).length+' Tarife erfasst')+'<div class="pws-acts">'+pwsBtn('Crawl-Status öffnen','route(\'crawl\')','ti-spider',1)+'</div>';
   if(k==='ordnen')return pwsRow(st.offeneFunk===0&&(P.funk||[]).length>0,'Funktionen zugeordnet – '+st.offeneFunk+' offen','Was tun: jeden Roh-Begriff einem Canonical zuordnen. Ziel: 0 offene Funktionen.')+pwsRow((P.preise||[]).length>0,'Tarife erfasst')+pwsRow(false,'Limits je Tarif (empfohlen, optional)','Optional: Kontingente je Tarif. Blockiert „Weiter" nicht – nicht jedes Tool veröffentlicht Limits.');
   if(k==='belegen')return pwsRow((P.quellen||[]).length>0,(P.quellen||[]).length+' Quellen')+pwsRow(P.synthese,'Bewertungs-Synthese vorhanden')+pwsRow(!!f.logo_pfad,'Logo gesetzt','',pwsBtn('Logos verwalten','route(\'logos\')','ti-photo'))+pwsRow(!!f.appsumo_geprueft_am,'AppSumo geprüft')+'<div class="pws-acts">'+pwsBtn('Externe Bewertungen holen (G2/Capterra/Trustpilot)','pwsBewExtern(this)','ti-star',1)+'</div>';
