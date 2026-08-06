@@ -1779,20 +1779,30 @@ function ytLogout(){ytClearTok();ytAbos=[];ytListe=[];ytSel=new Set();ytTitel=""
 async function ytApi(pfad,params){const url=new URL("https://www.googleapis.com/youtube/v3/"+pfad);Object.keys(params).forEach(k=>url.searchParams.set(k,params[k]));const r=await fetch(url.toString(),{headers:{Authorization:"Bearer "+ytToken}});const j=await r.json().catch(()=>({}));if(r.status===401){ytClearTok();throw new Error("Sitzung abgelaufen – bitte neu anmelden.");}if(!r.ok)throw new Error((j.error&&j.error.message)||"YouTube-Fehler");return j;}
 async function ytReichere(items){const ids=items.filter(e=>e.art==="video"&&(!e.d||e.v==null)).map(e=>e.id);if(!ids.length)return items;const map={};for(let i=0;i<ids.length;i+=50){try{const j=await ytApi("videos",{part:"contentDetails,snippet,statistics",id:ids.slice(i,i+50).join(",")});(j.items||[]).forEach(v=>{map[v.id]={d:ytIsoDauer(v.contentDetails&&v.contentDetails.duration),datum:v.snippet&&v.snippet.publishedAt,v:ytZahl(+((v.statistics&&v.statistics.viewCount)||0))};});}catch(e){}}return items.map(e=>map[e.id]?Object.assign({},e,map[e.id]):e);}
 let ytQueue={};
-async function ytLadeDone(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));ytDone=new Set();ytQueue={};if(!sid)return;try{const res=await Promise.all([sb.from("quellen").select("url").eq("software_id",sid).eq("quellentyp","youtube"),sb.from("video_warteschlange").select("video_id,status,video_titel,rang,begonnen_am").eq("software_id",sid)]);((res[0]&&res[0].data)||[]).forEach(r=>{const id=videoIdAusUrl(r.url);if(id)ytDone.add(id);});window._ytQInfo=(res[1]&&res[1].data)||[];window._ytQInfo.forEach(r=>{if(r.video_id)ytQueue[r.video_id]=r.status||"offen";
+async function ytLadeDone(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));ytDone=new Set();ytQueue={};if(!sid)return;try{const res=await Promise.all([sb.from("quellen").select("url").eq("software_id",sid).eq("quellentyp","youtube"),sb.from("video_warteschlange").select("video_id,status,video_titel,rang,begonnen_am,log").eq("software_id",sid)]);((res[0]&&res[0].data)||[]).forEach(r=>{const id=videoIdAusUrl(r.url);if(id)ytDone.add(id);});window._ytQInfo=(res[1]&&res[1].data)||[];window._ytQInfo.forEach(r=>{if(r.video_id)ytQueue[r.video_id]=r.status||"offen";
     // 23.07.2026: Ein Video mit Warteschlangen-Status 'fertig' IST ausgewertet — auch wenn es
     // (noch) keine Zeile in `quellen` erzeugt hat. Der /videoauswertung-Skill schreibt seine Fakten
     // nach funktionen.herkunft='claude_watch', nicht zwingend nach quellen. Ohne das blieben 11
     // ausgewertete Videos dauerhaft orange "in Warteschlange" — und Toni fragte zu Recht, ob je
     // eine Fertigmeldung kommt.
-    if(r.video_id&&r.status==='fertig')ytDone.add(r.video_id);
+    // 07.08.2026 KORREKTUR: 'fertig' allein reicht NICHT. Der Laeufer setzt auch dann 'fertig',
+    // wenn Supadata gar kein Transkript hatte — damit das Video nicht endlos wiederholt wird.
+    // Solche Videos wurden bis heute als "ausgewertet" mitgezaehlt und loesten die gruene Meldung
+    // "Alle N Videos ausgewertet" aus, obwohl dahinter NICHTS lag. Bei Sticky Password betraf das
+    // 12 von 16 Videos. Ohne Transkript ist keine inhaltliche Auswertung moeglich — deshalb
+    // zaehlen diese Videos jetzt getrennt (Kategorie "ohne Transkript" in ytRenderStat).
+    if(r.video_id&&r.status==='fertig'&&!ytOhneTranskript(r))ytDone.add(r.video_id);
   });}catch(e){}}
+// Erkennt Videos, die der Laeufer abgeschlossen hat, OHNE dass ein Transkript vorlag.
+// Kriterium ist der Log-Eintrag des Laeufers — er schreibt dort woertlich "kein Transkript".
+function ytOhneTranskript(r){return /kein transkript/i.test((r&&r.log)||"");}
 async function ytLadeAbosUndFeed(){ytAbos=[];try{await ytLadeDone();}catch(e){}ytRenderAll();const q=($("#ytQ")?$("#ytQ").value:"").trim();if(q)ytSucheStart();}
 async function ytLadeFeed(){ytTitel="Neueste aus deinen Abos";const ids=ytAbos.slice(0,40).map(a=>a.id);if(!ids.length){ytListe=[];return;}try{const uploads=[];for(let i=0;i<ids.length;i+=50){const ch=await ytApi("channels",{part:"contentDetails",id:ids.slice(i,i+50).join(",")});(ch.items||[]).forEach(c=>{const pl=c.contentDetails&&c.contentDetails.relatedPlaylists&&c.contentDetails.relatedPlaylists.uploads;if(pl)uploads.push({pl:pl,titel:(ytAbos.find(a=>a.id===c.id)||{}).titel});});}const alle=[];await Promise.all(uploads.map(async u=>{try{const pl=await ytApi("playlistItems",{part:"snippet",playlistId:u.pl,maxResults:"3"});(pl.items||[]).forEach(it=>alle.push({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||u.titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt}));}catch(e){}}));alle.sort((a,b)=>(a.datum<b.datum?1:-1));ytListe=await ytReichere(alle.slice(0,48));}catch(e){toast(String(e.message||e));}}
 async function ytSucheStart(){const q=($("#ytQ")?$("#ytQ").value:"").trim();if(!q){toast("Suchbegriff eingeben");return;}if(!ytToken){ytLogin();return;}ytBusy=true;ytRenderAll();try{const j=await ytApi("search",{part:"snippet",q:q,type:ytTyp,maxResults:"40",order:ytSort});ytTitel="Treffer zu „"+q+"“";const tr=(j.items||[]).map(i=>({art:(i.id.kind||"").includes("channel")?"kanal":"video",id:i.id.videoId||i.id.channelId,t:i.snippet.title,k:i.snippet.channelTitle,bild:ytBild(i.snippet.thumbnails),datum:i.snippet.publishedAt}));ytListe=await ytReichere(tr);}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
 async function ytKanal(id){if(!ytToken){ytLogin();return;}const titel=((ytAbos.find(a=>a.id===id)||{}).titel)||"Kanal";ytBusy=true;ytRenderAll();try{const ch=await ytApi("channels",{part:"contentDetails",id:id});const up=ch.items&&ch.items[0]&&ch.items[0].contentDetails&&ch.items[0].contentDetails.relatedPlaylists&&ch.items[0].contentDetails.relatedPlaylists.uploads;if(!up)throw new Error("Kanal hat keine abrufbaren Uploads.");const pl=await ytApi("playlistItems",{part:"snippet",playlistId:up,maxResults:"50"});ytTitel="Kanal: "+titel;ytListe=await ytReichere((pl.items||[]).map(it=>({art:"video",id:it.snippet.resourceId.videoId,t:it.snippet.title,k:it.snippet.videoOwnerChannelTitle||titel,bild:ytBild(it.snippet.thumbnails),datum:it.snippet.publishedAt})));}catch(e){toast(String(e.message||e));}finally{ytBusy=false;ytRenderAll();}}
 function ytTool(r){ytSel=new Set();ytListe=[];ytTitel="";setTimeout(function(){ytRenderAll();ckStatus();if(window.google&&window.google.accounts&&window.google.accounts.oauth2)ytRestore();else ytLoadGsi();},0);return `
-  <div class="tabhint"><i class="ti ti-brand-youtube"></i> Videos für <b>${esc(r.name||"")}</b> auswerten — <b style="color:#16a34a">grün</b> = ausgewertet, <b style="color:#d97706">orange</b> = in Warteschlange.</div>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:#1e3a5f"><b>Videos liegen bei dir.</b> Festlegung vom 07.08.2026: In <b>Durchgang 1</b> (Neuanlage) fasst Claude Videos nicht an — keine Suche, kein Einreihen, keine Auswertung. Du wählst hier selbst aus; Claude wertet die Transkripte in <b>Durchgang 2</b> aus, wenn der Artikel entsteht.</div>
+  <div class="tabhint"><i class="ti ti-brand-youtube"></i> Videos für <b>${esc(r.name||"")}</b> auswerten — <b style="color:#16a34a">grün</b> = ausgewertet, <b style="color:#d97706">orange</b> = in Warteschlange, <b style="color:#64748b">grau</b> = kein Transkript vorhanden (nicht auswertbar).</div>
   <div id="ckBox" style="margin-bottom:10px"></div>
   <div class="yt-flow">
     <div class="yt-step"><span class="n">1</span><div><b>Finden</b><span class="d">YouTube nach Software durchsuchen</span></div></div>
@@ -1826,6 +1836,10 @@ function ytRenderAll(){ytRenderStatus();ytRenderStat();ytRenderChips();ytGrid();
 function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)return;const aus=ytDone.size;const inf=window._ytQInfo||[];
   const cnt=function(s){return inf.filter(function(x){return x.status===s;}).length;};
   const offen=cnt("offen"),arb=cnt("in_arbeit"),crawl=cnt("wartet_auf_crawl"),frei=cnt("zur_freigabe"),feh=cnt("fehler"),heim=cnt("wartet_auf_heimrechner");
+  // 07.08.2026: Videos, die der Laeufer abgeschlossen hat, ohne dass ein Transkript vorlag.
+  // Sie zaehlen NICHT als ausgewertet und muessen sichtbar bleiben — sonst meldet das Cockpit
+  // gruen "alles ausgewertet", waehrend hinter der Haelfte nichts steht.
+  const ohneTr=inf.filter(function(x){return x.status==="fertig"&&ytOhneTranskript(x);}).length;
   if(!aus&&!inf.length){b.innerHTML='<i class="ti ti-info-circle"></i> Noch keine Videos für diese SSoT. Starte mit <b>Schritt 1+2</b>: unten ein Video markieren und „priorisieren“ – der Rest läuft automatisch.';return;}
   var pill=function(cls,txt){return '<span class="'+cls+'" style="font-size:11px;white-space:nowrap">'+txt+'</span>';};
   var parts=['<a href="#" onclick="event.preventDefault();ytDoneShow()" class="pg" style="font-size:11px;white-space:nowrap;cursor:pointer;text-decoration:none" title="Liste der ausgewerteten Videos anzeigen">✓ '+aus+' ausgewertet ▸</a>'];
@@ -1837,15 +1851,25 @@ function ytRenderStat(){const b=document.getElementById("ytStatBox");if(!b)retur
   if(crawl)parts.push(pill("pa","⏸ "+crawl+" wartet auf Crawl"));
   if(frei)parts.push('<a href="#" onclick="event.preventDefault();gotoFreigaben()" class="pa" style="font-size:11px;cursor:pointer;text-decoration:none">📋 '+frei+' zur Freigabe →</a>');
   if(feh)parts.push(pill("pr","⚠ "+feh+" Fehler"));
+  if(ohneTr)parts.push('<span class="pa" style="font-size:11px;white-space:nowrap;background:rgba(100,116,139,.14);color:#475569;font-weight:600" title="Für diese Videos hat Supadata kein Transkript gefunden — meist ältere Tutorials ohne Untertitel. Ohne Transkript ist keine inhaltliche Auswertung möglich; sie zählen deshalb NICHT als ausgewertet.">🚫 '+ohneTr+' ohne Transkript</span>');
   var html='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+parts.join("")+(inf.length?' <a href="#" onclick="event.preventDefault();ytQueueShow()" style="color:var(--accent-ink);font-weight:500;font-size:12px">Warteschlange →</a>':"")+' <button class="mini2" onclick="ytRefresh()" style="margin-left:auto"><i class="ti ti-refresh"></i> Aktualisieren</button></div>';
   var arbItem=inf.filter(function(x){return x.status==="in_arbeit";})[0];
   if(arbItem)html+='<div style="margin-top:8px;font-size:12px;color:#d97706;display:flex;align-items:center;gap:7px"><span style="display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ytspin .7s linear infinite"></span> Wird gerade per /watch ausgewertet: <b>'+esc(arbItem.video_titel||arbItem.video_id)+'</b><span id="ytEta" data-start="'+(arbItem.begonnen_am||"")+'" style="font-weight:400;color:var(--muted)"></span></div>';
-  else if(aus&&!offen&&!arb&&!crawl&&!heim&&!feh)html+='<div style="margin-top:8px;font-size:12.5px;color:#065f46;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 11px;display:flex;align-items:center;gap:8px"><i class="ti ti-circle-check" style="color:#059669;font-size:15px"></i> <span><b>Alle '+aus+' Videos ausgewertet.</b> Belegte Fakten stehen in <a href="#" onclick="event.preventDefault();pwsEditor&&pwsEditor(\'funktionen\')" style="color:#065f46;font-weight:600">Funktionen</a>; Widersprüche liegen als Freigabe vor. Die Video-Auswertung ist abgeschlossen.</span></div>';
+  // 07.08.2026: Die Meldung sagt jetzt "N von M", nicht mehr "Alle N". Liegen Videos ohne
+  // Transkript vor, ist die Auswertung NICHT abgeschlossen — dann steht das ausdruecklich da,
+  // statt dass eine gruene Erfolgsmeldung darueber hinweggeht.
+  else if(aus&&!offen&&!arb&&!crawl&&!heim&&!feh){
+    var ges=aus+ohneTr;
+    html+='<div style="margin-top:8px;font-size:12.5px;color:'+(ohneTr?'#78350f':'#065f46')+';background:'+(ohneTr?'#fffbeb':'#f0fdf4')+';border:1px solid '+(ohneTr?'#fde68a':'#bbf7d0')+';border-radius:8px;padding:8px 11px;display:flex;align-items:flex-start;gap:8px"><i class="ti ti-'+(ohneTr?'alert-triangle':'circle-check')+'" style="color:'+(ohneTr?'#d97706':'#059669')+';font-size:15px;margin-top:1px"></i> <span><b>'+aus+' von '+ges+' Videos inhaltlich ausgewertet.</b> Belegte Fakten stehen in <a href="#" onclick="event.preventDefault();pwsEditor&&pwsEditor(\'funktionen\')" style="color:inherit;font-weight:600">Funktionen</a>; Widersprüche liegen als Freigabe vor.'
+      +(ohneTr?' <b>'+ohneTr+' Video'+(ohneTr>1?'s haben':' hat')+' kein Transkript</b> — meist ältere Tutorials ohne Untertitel. Ohne Transkript ist keine inhaltliche Auswertung möglich; hinter diesen Videos steht nichts. Wer sie braucht, muss sie über <b>/watch</b> ansehen lassen.':' Die Video-Auswertung ist abgeschlossen.')+'</span></div>';
+  }
   else if(offen||crawl)html+='<div style="margin-top:8px;font-size:12px;color:var(--muted)"><i class="ti ti-clock"></i> Wartet auf den Runner – die Auswertung startet automatisch (Prüfung alle 60 Sek.).</div>';
   b.innerHTML=html;ytEtaTick();ytPollStart();
 }
 async function ytRefresh(){await ytLadeDone();ytRenderAll();}
-function ytStatLabel(s){return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"Altbestand – am Server nachholbar":s==="fehler"?"Fehler":"wartet";}
+// 07.08.2026: zweites Argument `row` — damit "fertig ohne Transkript" nicht als ausgewertet
+// beschriftet wird. Ohne row bleibt das Verhalten wie bisher (Aufrufer ohne Zeile).
+function ytStatLabel(s,row){if(s==="fertig"&&row&&ytOhneTranskript(row))return "kein Transkript – nicht ausgewertet";return s==="fertig"?"✓ ausgewertet":s==="zur_freigabe"?"✓ ausgewertet · Freigabe offen":s==="in_arbeit"?"wird ausgewertet …":s==="wartet_auf_crawl"?"wartet auf Crawl":s==="wartet_auf_heimrechner"?"Altbestand – am Server nachholbar":s==="fehler"?"Fehler":"wartet";}
 function gotoFreigaben(){try{closeAov();}catch(e){}try{closeDlg();}catch(e){}
   /* Kommt der Sprung aus einem Produkt-Workflow, zeigt die Liste NUR dieses Produkt.
      Ohne das standen Tonis 4 Papierkram-Befunde zwischen 20 fremden Zeilen (22.07.2026). */
@@ -1877,15 +1901,16 @@ async function ytDoneShow(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.
 async function ytQueueShow(){const sid=dlgRow&&(dlgRow.id||(dlgRow._d&&dlgRow._d.full&&dlgRow._d.full.id));if(!sid)return;
   const addBar='<div style="display:flex;gap:6px;padding:6px 6px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><input id="ytQAddInp" placeholder="YouTube-URL oder Video-ID hinzufügen …" style="flex:1;height:30px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:12px" onkeydown="if(event.key===\'Enter\')ytQueueAdd(\''+sid+'\')"><button class="tb primary" onclick="ytQueueAdd(\''+sid+'\')"><i class="ti ti-plus"></i> Hinzufügen</button></div>';
   aov("Video-Warteschlange",(dlgRow&&dlgRow.name)||"","<div>"+addBar+'<div id="ytQOut" style="padding:18px;color:var(--muted)">Lade …</div></div>','<span class="tb" onclick="closeAov()">Schließen</span>');
-  try{const res=await sb.from('video_warteschlange').select('id,video_id,video_titel,rang,relevanz,status').eq('software_id',sid).order('rang',{ascending:true,nullsFirst:false});const rows=res.data||[];const o=document.getElementById("ytQOut");
+  try{const res=await sb.from('video_warteschlange').select('id,video_id,video_titel,rang,relevanz,status,log').eq('software_id',sid).order('rang',{ascending:true,nullsFirst:false});const rows=res.data||[];const o=document.getElementById("ytQOut");
     if(!rows.length){if(o)o.innerHTML='<div style="padding:8px;color:var(--muted)">Noch keine Videos in der Warteschlange. Oben eine YouTube-URL hinzufügen oder im Grid Videos markieren und „priorisieren".</div>';return;}
-    var stCl=function(s){return s==="fertig"?"pg":s==="fehler"?"pr":"pa";};
+    // 07.08.2026: "fertig ohne Transkript" darf nicht gruen sein — es ist kein Erfolg.
+    var stCl=function(s,row){if(s==="fertig"&&row&&ytOhneTranskript(row))return "pa";return s==="fertig"?"pg":s==="fehler"?"pr":"pa";};
     if(o)o.outerHTML='<div style="padding:2px 6px;max-height:56vh;overflow:auto">'+rows.map(function(x){return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 6px;border-bottom:1px solid var(--line2)">'
       +'<div style="font-weight:700;color:var(--muted);min-width:18px;text-align:center">'+(x.rang!=null?x.rang:"–")+'</div>'
       +'<div style="flex:1;min-width:0">'
         +'<div style="font-size:13px;line-height:1.35">'+esc(x.video_titel||x.video_id)+'</div>'
         +'<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-          +'<span class="'+stCl(x.status)+'" style="font-size:11px">'+ytStatLabel(x.status||"offen")+'</span>'
+          +'<span class="'+stCl(x.status,x)+'" style="font-size:11px">'+ytStatLabel(x.status||"offen",x)+'</span>'
           +(x.relevanz!=null?'<span style="font-size:11px;color:var(--muted)">Relevanz '+x.relevanz+'/10</span>':"")
           +(x.status==='zur_freigabe'?'<button class="mini2" style="background:#16a34a;color:#fff;border-color:#16a34a" onclick="gotoFreigaben()"><i class="ti ti-rosette-discount-check"></i> Erkenntnisse freigeben →</button>':'')
           +((x.status==='offen'||x.status==='in_arbeit'||x.status==='wartet_auf_crawl')?'<button class="mini2" onclick="ytCopy(\''+x.video_id+'\')">/watch kopieren</button>':'')
@@ -2115,18 +2140,19 @@ async function ckSpeichern(){
 // ---- Bewertungen-Tool (Kontext = offene Software) ----
 let bwBilder=[];
 function bwTool(r){const name=r.name||"";const sid=r.id||(r._d&&r._d.full&&r._d.full.id);const zielN=(r._d&&r._d.full&&r._d.full.bewertungen_ziel_anzahl)||30;bwBilder=[];setTimeout(function(){ladeBwSyn(sid);bwJobPoll(sid);},0);return `<div class="bw-box">
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#1e3a5f"><b>Bewertungen liegen bei dir.</b> Festlegung vom 07.08.2026: In <b>Durchgang 1</b> (Neuanlage) fasst Claude Bewertungen nicht an — weder Ernte noch Synthese noch Note. Du bestückst sie hier selbst; Claude wertet sie in <b>Durchgang 2</b> aus, wenn der Artikel entsteht.</div>
   <div class="bw-grund">⚖ Bewertungen für <b>${esc(name)}</b> – ausgewertet wird ausschließlich der <b>Inhalt</b> (keine Zitate/Namen/Datum). Rohtext &amp; Screenshots werden <b>nicht</b> gespeichert. Doppelte Bewertungen (gleicher Inhalt) werden automatisch erkannt und übersprungen.</div>
   <div id="bwSynBox" style="margin-bottom:14px"><div style="color:var(--muted);font-size:12.5px">Lade gespeicherte Synthese …</div></div>
   <div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px">
-    <div style="font-size:12px;font-weight:700;margin-bottom:8px"><i class="ti ti-plug-connected"></i> Plattformen – was Claude Max selbst holt, was du einfügst</div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px"><i class="ti ti-plug-connected"></i> Plattformen – was <b>/bewertungen</b> auf deinen Knopfdruck holt, was du einfügst</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Trustpilot · automatisch</span>
-      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Play Store · automatisch</span>
+      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Trustpilot · per /bewertungen</span>
+      <span style="background:rgba(5,150,105,.12);color:#059669;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✅ Play Store · per /bewertungen</span>
       <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ G2 · Copy&Paste</span>
       <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ Capterra · Copy&Paste</span>
       <span style="background:rgba(245,158,11,.14);color:#b45309;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px">✋ Reddit/Foren · Copy&Paste</span>
     </div>
-    <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px"><b>Grün</b> holt <b>/bewertungen</b> selbst vom Server (bis zur eingestellten Anzahl). <b>Rot</b> ist bot-geschützt (403/Login) → dort die Suche öffnen, kopieren und unten einfügen.</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px"><b>Grün</b> holt <b>/bewertungen</b> vom Server, wenn <b>du</b> den Skill startest — die Neuanlage tut das seit 07.08.2026 nicht mehr von selbst. <b>Rot</b> ist bot-geschützt (403/Login) → dort die Suche öffnen, kopieren und unten einfügen.</div>
     <div class="bw-row" style="align-items:center;gap:8px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--muted)"><i class="ti ti-hash"></i> Anzahl je Auto-Plattform:</label>
       <input id="bwN" type="number" min="5" max="200" value="${zielN}" style="width:78px;height:30px" onchange="bwSetN('${sid}',this.value)">

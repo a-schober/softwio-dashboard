@@ -1,3 +1,6 @@
 # temporäre Patch-/Build-Hilfsdateien
 _*
 *.tmp
+
+# lokale Vorschau-Konfiguration (Claude Code), gehoert nicht ins Image
+.claude/
