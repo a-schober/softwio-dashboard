@@ -267,6 +267,9 @@ async function lageZeigen(){
         r.status==="crawl_laeuft"?"Nach 45 Minuten ohne Ergebnis gilt er als gescheitert.":"Beim nächsten Schritt startet der Crawl.",
         `<button class="kn" type="button" data-weiter style="padding:11px 13px;font-size:14px;margin-top:8px">Nächsten Schritt ausführen</button>`]);
     }
+    else if(sw.data&&sw.data.daten_reifegrad==="crawl_laeuft"&&sw.data.crawl_freigabe_status==="freigegeben"){
+      verfolgen(await zahlen(), 0); return;    /* läuft gerade — gleich mitverfolgen */
+    }
     else if(r&&r.status==="pruefen")
       z.push(["wa","Änderungen gefunden", r.zusammenfassung||"Ein neuer Artikel-Entwurf wurde angefordert.",""]);
     if(j) z.push(["wa",`Auftrag „${E(j.skill)}“ ${j.status==="offen"?"steht in der Schlange":"läuft"}`,
@@ -421,15 +424,74 @@ async function urlFreigabe(){
       if(u.error) throw new Error(u.error.message);
       const r=await sb.functions.invoke("crawl-starten",{body:{software_id:sel.id}});
       if(r.error) throw new Error(await fehlertext(r.error));
-      melde("ok", `<b>${urls.length} Seiten freigegeben, der Crawl läuft.</b>
-        <ul><li>Er liest die Seiten und trägt Preise, Funktionen und Firmendaten nach.</li>
-        <li>Das dauert einige Minuten. Danach „Daten neu prüfen“ noch einmal drücken.</li></ul>`,
-        "crawl-starten · "+new Date().toLocaleTimeString("de-DE"));
+      verfolgen(await zahlen(), urls.length);
     }catch(e){
       melde("ba", `<b>Freigabe fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
     }
     sperre(false);
   };
+}
+
+/* Zählt, was zu diesem Artikel in der Datenbank steht. Vorher/nachher zeigt,
+   was ein Crawl tatsächlich gebracht hat — das ist das Ergebnis, nach dem man
+   sonst raten müsste. */
+async function zahlen(){
+  const id=sel.id;
+  const [sw,ta,an,fn,cr]=await Promise.all([
+    sb.from("software").select("daten_reifegrad").eq("id",id).single(),
+    sb.from("preise").select("id",{count:"exact",head:true}).eq("software_id",id),
+    sb.from("tarif_angebote").select("id",{count:"exact",head:true}).eq("software_id",id),
+    sb.from("funktionen").select("id",{count:"exact",head:true}).eq("software_id",id),
+    sb.from("crawl_rohdaten").select("id",{count:"exact",head:true}).eq("software_id",id),
+  ]);
+  return {reife:sw.data&&sw.data.daten_reifegrad, tarife:ta.count||0, angebote:an.count||0,
+    funktionen:fn.count||0, seiten:cr.count||0};
+}
+const CRAWL_FERTIG=["claude_validiert","bewertungen_synthetisiert","bereit_fuer_publikation","veroeffentlicht"];
+const REIFE_TEXT={crawl_laeuft:"liest die Seiten", erfasst:"Seiten gelesen, wertet aus",
+  extrahiert:"wertet die Seiten aus", validiert:"prüft die Ergebnisse",
+  claude_validiert:"fertig geprüft", crawl_fehler:"abgebrochen"};
+let verfolgerId=0;
+function verfolgen(vorher, seitenZahl){
+  const id=sel.id, lauf=++verfolgerId, start=Date.now();
+  (async function sehen(){
+    if(lauf!==verfolgerId || !sel || sel.id!==id) return;   /* Artikel gewechselt */
+    const min=Math.floor((Date.now()-start)/60000), sek=Math.floor((Date.now()-start)/1000)%60;
+    let n; try{ n=await zahlen(); }catch(e){ setTimeout(sehen,15000); return; }
+    if(lauf!==verfolgerId || !sel || sel.id!==id) return;
+    const dauer=`${min}:${String(sek).padStart(2,"0")}`;
+    const delta=(a,b,w)=>b>a?`<li><b>+${b-a}</b> ${w} dazugekommen (${a} → ${b})</li>`:"";
+    const gewachsen=delta(vorher.seiten,n.seiten,"Seiten gespeichert")
+      +delta(vorher.tarife,n.tarife,"Tarife")+delta(vorher.angebote,n.angebote,"Angebote")
+      +delta(vorher.funktionen,n.funktionen,"Funktionen");
+
+    if(n.reife==="crawl_fehler"){
+      melde("ba", `<b>Der Crawl ist abgebrochen.</b> Nach ${dauer} Minuten.
+        ${gewachsen?`<ul>${gewachsen}</ul>`:"Es wurde nichts übernommen."}`,
+        "software.daten_reifegrad · "+new Date().toLocaleTimeString("de-DE"));
+      await laden(); return;
+    }
+    if(CRAWL_FERTIG.includes(n.reife)){
+      melde("ok", `<b>Crawl fertig nach ${dauer} Minuten.</b>
+        ${gewachsen?`<ul>${gewachsen}</ul>`
+          :"<p style='margin:6px 0 0'>Die Zahlen sind unverändert — die Seiten brachten nichts Neues.</p>"}
+        <p style="margin:9px 0 0">Jetzt lohnt sich <b>„Mit der Herstellerseite abgleichen“</b>,
+        um den Artikel gegen den neuen Stand zu halten.</p>`,
+        "gezählt in der Datenbank · "+new Date().toLocaleTimeString("de-DE"));
+      await laden(); return;
+    }
+    melde("", `<span class="dreh"></span><b>Crawl läuft seit ${dauer}.</b>
+      ${E(REIFE_TEXT[n.reife]||n.reife||"")}${seitenZahl?` · ${seitenZahl} Seiten freigegeben`:""}
+      ${gewachsen?`<ul>${gewachsen}</ul>`:""}
+      <p style="margin:8px 0 0;color:var(--mu)">Du kannst die Seite zumachen —
+      der Lauf hört nicht auf. Beim nächsten Aufruf steht hier der Stand.</p>`,
+      "sieht alle 15 Sekunden nach");
+    if(Date.now()-start>45*60000){
+      melde("wa", `<b>Nach 45 Minuten kein Ergebnis.</b> So lange sollte kein Crawl brauchen —
+        im großen Cockpit steht, woran er hängt.`); return;
+    }
+    setTimeout(sehen,15000);
+  })();
 }
 
 /* 3 — Mit der Herstellerseite abgleichen.
