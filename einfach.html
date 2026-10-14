@@ -222,7 +222,7 @@ const AKT=[
  {k:"pruef",sy:"↻", t:"Daten neu prüfen",
   u:"Liest die Herstellerseite noch einmal und meldet, was sich geändert hat."},
  {k:"match",sy:"⇄", t:"Mit der Herstellerseite abgleichen",
-  u:"Vergleicht den fertigen Artikel Zeile für Zeile mit dem, was heute auf der Anbieterseite steht."},
+  u:"Holt die Seite frisch und hält die fertige Produktseite dagegen. Dauert einige Minuten."},
  {k:"pub",  sy:"▲", t:"Veröffentlichen",
   u:"Prüft die Sperren und baut das Portal neu."}
 ];
@@ -378,25 +378,66 @@ async function urlFreigabe(){
   };
 }
 
-/* 3 — Mit der Herstellerseite abgleichen */
+/* 3 — Mit der Herstellerseite abgleichen.
+   ACHTUNG, hier lag mein Fehler: ssot-diff liest die Herstellerseite NICHT.
+   Es vergleicht den letzten ssot_snapshots-Eintrag gegen den heutigen Stand
+   der eigenen Datenbank — zwei Abfragen, in einer Sekunde durch, und es sagt
+   nichts darüber, was beim Anbieter steht.
+   Der echte Abgleich ist der Skill `schlussabgleich`: er holt die fertige
+   Produktseite UND die frische Herstellerseite und hält sie gegeneinander.
+   Das läuft im Runner und dauert Minuten, nicht Sekunden. */
 async function tuAbgleich(){
-  laeuft("Vergleicht den Artikel mit "+(sel.hersteller_url||"der Anbieterseite")+" …");
-  const r=await sb.functions.invoke("ssot-diff",{body:{software_id:sel.id}});
-  if(r.error) throw new Error(await fehlertext(r.error));
-  const d=r.data||{};
-  const ab=d.abweichungen||d.diffs||d.befunde||[];
-  if(!ab.length){
-    melde("ok", `<b>Keine Abweichung gefunden.</b>
-      Der Artikel deckt sich mit dem, was heute auf der Anbieterseite steht.`,
-      "ssot-diff · "+new Date().toLocaleTimeString("de-DE"));
-  } else {
-    melde("wa", `<b>${ab.length} Abweichung${ab.length>1?"en":""} gefunden.</b>
-      <ul>${ab.slice(0,12).map(x=>`<li>${E(x.feld||x.was||x.titel||"")}${
-        x.alt!==undefined?`: <b>${E(x.alt)}</b> → <b>${E(x.neu)}</b>`:
-        x.text?": "+E(x.text):""}</li>`).join("")}</ul>
-      ${ab.length>12?`<p style="margin:7px 0 0;color:var(--mu)">… und ${ab.length-12} weitere.</p>`:""}`,
-      "ssot-diff · "+new Date().toLocaleTimeString("de-DE"));
+  laeuft("Legt den Abgleich an …");
+  const off=await sb.from("skill_jobs").select("id,status,erstellt_am")
+    .eq("software_id",sel.id).eq("skill","schlussabgleich")
+    .in("status",["offen","in_arbeit"]).limit(1);
+  if(off.data&&off.data.length){
+    melde("wa", `<b>Ein Abgleich läuft bereits.</b>
+      Angelegt um ${new Date(off.data[0].erstellt_am).toLocaleTimeString("de-DE")},
+      Stand: ${E(off.data[0].status)}. Das Ergebnis erscheint hier, sobald der Lauf durch ist.`,
+      "skill_jobs · schlussabgleich");
+    return;
   }
+  const ein=await sb.from("skill_jobs").insert(
+    {software_id:sel.id, skill:"schlussabgleich", args:"gegen_herstellerseite", status:"offen"})
+    .select("id").single();
+  if(ein.error) throw new Error(ein.error.message);
+  melde("ok", `<b>Abgleich angelegt.</b> Der Runner holt die Herstellerseite frisch und
+    hält die fertige Produktseite dagegen — Preise, Funktionen, Vollständigkeit.
+    <ul><li>Das dauert einige Minuten, nicht Sekunden.</li>
+    <li>Harte Abweichungen erscheinen danach als Freigabe im großen Cockpit.</li></ul>
+    <p style="margin:9px 0 0"><button class="kn" type="button" data-nachsehen
+      style="padding:11px 13px;font-size:14px">Nachsehen, ob er durch ist</button></p>`,
+    "skill_jobs · angelegt "+new Date().toLocaleTimeString("de-DE"));
+  const n=document.querySelector("[data-nachsehen]");
+  if(n) n.onclick=()=>{ sperre(true); abgleichStand(ein.data.id).finally(()=>sperre(false)); };
+}
+async function abgleichStand(jobId){
+  laeuft("Sieht nach …");
+  const {data,error}=await sb.from("skill_jobs")
+    .select("status,phase,log,begonnen_am,fertig_am").eq("id",jobId).single();
+  if(error) throw new Error(error.message);
+  const j=data||{};
+  if(j.status==="offen"){
+    melde("wa", `<b>Noch nicht begonnen.</b> Der Auftrag steht in der Schlange —
+      der Runner holt ihn sich beim nächsten Durchlauf.
+      <p style="margin:9px 0 0"><button class="kn" type="button" data-nachsehen
+        style="padding:11px 13px;font-size:14px">Noch einmal nachsehen</button></p>`,
+      "skill_jobs · Stand "+new Date().toLocaleTimeString("de-DE"));
+  } else if(j.status==="in_arbeit"){
+    const min=j.begonnen_am?Math.round((Date.now()-new Date(j.begonnen_am))/60000):0;
+    melde("wa", `<b>Läuft seit ${min} Minuten.</b> ${E(j.phase||"")}
+      <p style="margin:9px 0 0"><button class="kn" type="button" data-nachsehen
+        style="padding:11px 13px;font-size:14px">Noch einmal nachsehen</button></p>`,
+      "skill_jobs · Stand "+new Date().toLocaleTimeString("de-DE"));
+  } else {
+    const gut=j.status==="fertig";
+    melde(gut?"ok":"ba", `<b>Abgleich ${E(j.status)}.</b>
+      ${j.log?`<div style="margin-top:7px;white-space:pre-wrap;font-size:12.5px">${E(String(j.log).slice(0,900))}</div>`:""}`,
+      "skill_jobs · "+(j.fertig_am?new Date(j.fertig_am).toLocaleTimeString("de-DE"):""));
+  }
+  const n=document.querySelector("[data-nachsehen]");
+  if(n) n.onclick=()=>{ sperre(true); abgleichStand(jobId).finally(()=>sperre(false)); };
 }
 
 /* 4 — Veröffentlichen: erst die Sperren, dann der Bau */
