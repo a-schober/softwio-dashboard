@@ -266,7 +266,7 @@ const REFRESH_TEXT={
   faellig:          ["wa","Als fällig vorgemerkt","Beim nächsten Schritt wird der Crawl gestartet."],
   crawl_laeuft:     ["wa","Crawl läuft","Die Anbieterseite wird neu gelesen. Das dauert einige Minuten."],
   pruefen:          ["wa","Änderungen gefunden","Ein neuer Artikel-Entwurf wurde angefordert."],
-  freigabe_noetig:  ["ba","Wartet auf deine URL-Freigabe","Der Crawl kommt nicht weiter, bis du im großen Cockpit entscheidest, welche Seiten gelesen werden."],
+  freigabe_noetig:  ["ba","Wartet auf deine URL-Freigabe","Der Crawl liest erst, wenn du sagst, welche Seiten er nehmen darf."],
   unveraendert:     ["ok","Nichts geändert","Der Artikel ist bestätigt aktuell."],
   fehler:           ["ba","Fehlgeschlagen",""]
 };
@@ -289,10 +289,15 @@ function standZeigen(r, kopf){
          Nach 45 Minuten ohne Ergebnis gilt er als gescheitert.</p>`:""}
     ${["faellig","crawl_laeuft"].includes(r.status)
       ? `<p style="margin:10px 0 0"><button class="kn" type="button" data-weiter
-           style="padding:11px 13px;font-size:14px">Nächsten Schritt ausführen</button></p>`:""}`,
+           style="padding:11px 13px;font-size:14px">Nächsten Schritt ausführen</button></p>`:""}
+    ${r.status==="freigabe_noetig"
+      ? `<p style="margin:10px 0 0"><button class="kn" type="button" data-frei
+           style="padding:11px 13px;font-size:14px">Seiten auswählen und freigeben</button></p>`:""}`,
     "content_refresh · Stand "+new Date(r.geaendert_am).toLocaleTimeString("de-DE"));
   const w=document.querySelector("[data-weiter]");
   if(w) w.onclick=()=>{ sperre(true); tuPruefen().finally(()=>sperre(false)); };
+  const fr=document.querySelector("[data-frei]");
+  if(fr) fr.onclick=()=>{ sperre(true); urlFreigabe().finally(()=>sperre(false)); };
 }
 async function tuPruefen(){
   laeuft("Stößt den nächsten Schritt an …");
@@ -310,6 +315,69 @@ async function tuPruefen(){
   standZeigen(await standLesen(), kopf);
   await laden();
 }
+/* Der Weg aus der Sperre: die vorgeschlagenen Seiten zeigen, auswählen,
+   freigeben, Crawl starten. Lieber zu viele Seiten als zu wenige — aus einer
+   zu knappen Auswahl wird eine dünne Datenlage. */
+async function urlFreigabe(){
+  laeuft("Holt die Seitenvorschläge …");
+  const {data,error}=await sb.from("software")
+    .select("crawl_kandidaten,hersteller_url").eq("id",sel.id).single();
+  if(error) throw new Error(error.message);
+  let K=data&&data.crawl_kandidaten;
+  if(typeof K==="string"){ try{ K=JSON.parse(K); }catch(e){ K=[]; } }
+  if(!Array.isArray(K)||!K.length){
+    melde("wa", `<b>Keine Seitenvorschläge hinterlegt.</b>
+      Der Crawl hat für ${E(sel.name)} nichts zu lesen vorgeschlagen.
+      Das muss im großen Cockpit nachgeholt werden.`);
+    return;
+  }
+  const vor=K.filter(x=>x.vorschlag).length;
+  melde("", `<b>${K.length} Seiten gefunden, ${vor} davon vorgeschlagen.</b>
+    <p style="margin:6px 0 0;color:var(--mu)">Nimm im Zweifel mehr als weniger —
+    aus einer knappen Auswahl wird eine dünne Datenlage.</p>
+    <div style="margin:10px 0 0;display:flex;gap:7px;flex-wrap:wrap">
+      <button class="kn" type="button" data-wahl="vor" style="flex:1;min-width:150px;padding:10px 12px;font-size:14px">Die ${vor} Vorschläge</button>
+      <button class="kn" type="button" data-wahl="alle" style="flex:1;min-width:150px;padding:10px 12px;font-size:14px">Alle ${K.length} Seiten</button>
+    </div>
+    <div style="margin:10px 0 0;max-height:34vh;overflow:auto;border:1px solid var(--li);border-radius:6px">
+      ${K.map((x,i)=>`<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--li);font-size:13px;cursor:pointer">
+        <input type="checkbox" data-u="${i}" ${x.vorschlag?"checked":""} style="margin-top:2px;width:18px;height:18px;flex:none">
+        <span style="min-width:0;overflow-wrap:anywhere">${E(x.url)}
+          <span style="display:block;color:var(--fa);font-size:11px">${E(x.herkunft||"")}</span></span></label>`).join("")}
+    </div>
+    <div style="margin:10px 0 0"><button class="kn" type="button" data-freiok
+      style="padding:12px 13px;font-size:15px;background:var(--ac-s);border-color:var(--ac)">
+      <b>Freigeben und crawlen</b></button></div>`,
+    "software.crawl_kandidaten · "+K.length+" Einträge");
+
+  const boxen=()=>[...document.querySelectorAll("[data-u]")];
+  document.querySelectorAll("[data-wahl]").forEach(b=>b.onclick=()=>{
+    const alle=b.dataset.wahl==="alle";
+    boxen().forEach((c,i)=>{ c.checked = alle || !!K[i].vorschlag; });
+  });
+  const ok=document.querySelector("[data-freiok]");
+  if(ok) ok.onclick=async()=>{
+    const urls=boxen().filter(c=>c.checked).map(c=>K[+c.dataset.u].url);
+    if(!urls.length){ alert("Mindestens eine Seite auswählen."); return; }
+    sperre(true);
+    try{
+      laeuft(`Gibt ${urls.length} Seiten frei und startet den Crawl …`);
+      const u=await sb.from("software").update(
+        {crawl_url_liste:urls.join(String.fromCharCode(10)), crawl_freigabe_status:"freigegeben"}).eq("id",sel.id);
+      if(u.error) throw new Error(u.error.message);
+      const r=await sb.functions.invoke("crawl-starten",{body:{software_id:sel.id}});
+      if(r.error) throw new Error(await fehlertext(r.error));
+      melde("ok", `<b>${urls.length} Seiten freigegeben, der Crawl läuft.</b>
+        <ul><li>Er liest die Seiten und trägt Preise, Funktionen und Firmendaten nach.</li>
+        <li>Das dauert einige Minuten. Danach „Daten neu prüfen“ noch einmal drücken.</li></ul>`,
+        "crawl-starten · "+new Date().toLocaleTimeString("de-DE"));
+    }catch(e){
+      melde("ba", `<b>Freigabe fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
+    }
+    sperre(false);
+  };
+}
+
 /* 3 — Mit der Herstellerseite abgleichen */
 async function tuAbgleich(){
   laeuft("Vergleicht den Artikel mit "+(sel.hersteller_url||"der Anbieterseite")+" …");
