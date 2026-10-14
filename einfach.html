@@ -237,60 +237,103 @@ function knoepfe(){
   $("#vier").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>fuehre(b.dataset.a));
 }
 
-/* Was ist bei diesem Artikel gerade los? Steht sofort da, nicht erst nach
-   einem Klick auf „Daten neu prüfen". Wer eine Sperre meldet, muss im selben
-   Atemzug den Weg heraus anbieten. */
+/* Was ist bei diesem Artikel gerade los?
+
+   WICHTIG, das war meine Fehlerquelle: `daten_reifegrad` ist KEIN verlässlicher
+   Fortschrittsanzeiger. Bei Billbee stand dort stundenlang „crawl_fehler",
+   während der Crawl 55 Seiten geliefert und der Cleanup sauber durchgelaufen
+   war. Wer den String liest, meldet Unsinn.
+
+   Deshalb zählt diese Anzeige nur noch Tatsachen: gelesene Seiten, Tarife,
+   Angebote, Aufträge, Datum. Zahlen lügen nicht. Der Reifegrad steht dabei,
+   aber nur als Randnotiz. */
 async function lageZeigen(){
   const id=sel.id;
-  melde("", `<span class="dreh"></span>sieht nach, was bei ${E(sel.name)} ansteht …`);
+  melde("", `<span class="dreh"></span>zählt zusammen, was zu ${E(sel.name)} vorliegt …`);
   try{
-    const [sw, ref, job, frei] = await Promise.all([
-      sb.from("software").select("crawl_freigabe_status,daten_reifegrad").eq("id",id).single(),
-      sb.from("content_refresh").select("status,notiz,crawl_gestartet_am,zusammenfassung,geaendert_am")
-        .eq("software_id",id).order("geaendert_am",{ascending:false}).limit(1),
-      sb.from("skill_jobs").select("id,skill,status,begonnen_am").eq("software_id",id)
-        .in("status",["offen","in_arbeit"]).order("erstellt_am",{ascending:false}).limit(1),
+    const [sw, roh, ta, an, fn, job, frei, art] = await Promise.all([
+      sb.from("software").select("daten_reifegrad,crawl_freigabe_status").eq("id",id).single(),
+      sb.from("crawl_rohdaten").select("anzahl_seiten,gesamt_zeichen,gecrawlt_am")
+        .eq("software_id",id).order("gecrawlt_am",{ascending:false}).limit(1),
+      sb.from("preise").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("tarif_angebote").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("funktionen").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("skill_jobs").select("skill,status,erstellt_am,fertig_am,log")
+        .eq("software_id",id).order("erstellt_am",{ascending:false}).limit(1),
       sb.from("freigaben").select("id",{count:"exact",head:true}).eq("software_id",id).eq("status","offen"),
+      sb.from("inhalts_artikel").select("inhalts_status,letztes_update_am").eq("software_id",id).limit(1),
     ]);
-    if(!sel||sel.id!==id) return;            /* inzwischen umgewählt */
-    const r=ref.data&&ref.data[0], j=job.data&&job.data[0];
-    const offeneFrei=frei.count||0;
-    const z=[];
+    if(!sel||sel.id!==id) return;
+    const c=roh.data&&roh.data[0], j=job.data&&job.data[0], a=art.data&&art.data[0];
+    const wartet=sw.data&&sw.data.crawl_freigabe_status==="warte_freigabe";
+    const laeuft=j&&["offen","in_arbeit"].includes(j.status);
 
-    if(sw.data&&sw.data.crawl_freigabe_status==="warte_freigabe")
-      z.push(["ba","Der Crawl wartet auf deine URL-Freigabe",
-        "Er liest erst, wenn du sagst, welche Seiten er nehmen darf.",
-        `<button class="kn" type="button" data-frei style="padding:11px 13px;font-size:14px;margin-top:8px">Seiten auswählen und freigeben</button>`]);
-    else if(r&&["faellig","crawl_laeuft"].includes(r.status)){
-      const min=r.crawl_gestartet_am?Math.round((Date.now()-new Date(r.crawl_gestartet_am))/60000):null;
-      z.push(["wa", r.status==="crawl_laeuft"?`Crawl läuft${min!==null?` seit ${min} Minuten`:""}`:"Als fällig vorgemerkt",
-        r.status==="crawl_laeuft"?"Nach 45 Minuten ohne Ergebnis gilt er als gescheitert.":"Beim nächsten Schritt startet der Crawl.",
-        `<button class="kn" type="button" data-weiter style="padding:11px 13px;font-size:14px;margin-top:8px">Nächsten Schritt ausführen</button>`]);
-    }
-    else if(sw.data&&sw.data.daten_reifegrad==="crawl_laeuft"&&sw.data.crawl_freigabe_status==="freigegeben"){
-      verfolgen(await zahlen(), 0, r&&r.crawl_gestartet_am); return;   /* läuft — mitverfolgen */
-    }
-    else if(r&&r.status==="pruefen")
-      z.push(["wa","Änderungen gefunden", r.zusammenfassung||"Ein neuer Artikel-Entwurf wurde angefordert.",""]);
-    if(j) z.push(["wa",`Auftrag „${E(j.skill)}“ ${j.status==="offen"?"steht in der Schlange":"läuft"}`,
-      j.begonnen_am?`seit ${Math.round((Date.now()-new Date(j.begonnen_am))/60000)} Minuten`:"",""]);
-    if(offeneFrei) z.push(["wa",`${offeneFrei} offene Entscheidung${offeneFrei>1?"en":""}`,
-      "Sie stehen im großen Cockpit unter Freigaben.",""]);
+    /* Die Zeilen sind immer dieselben — das macht die Anzeige vorhersagbar. */
+    const z=[
+      ["Zuletzt gelesen", c
+        ? `<b>${c.anzahl_seiten||0} Seiten</b> am ${dt(c.gecrawlt_am)} · ${((c.gesamt_zeichen||0)/1000).toFixed(0)}.000 Zeichen`
+        : `<b>noch nie</b> — es liegt kein Seitenabzug vor`, c?"ok":"wa"],
+      ["Preise", `<b>${ta.count||0}</b> Tarife · <b>${an.count||0}</b> Angebote mit Laufzeit`,
+        (an.count||0)?"ok":"wa"],
+      ["Funktionen", `<b>${fn.count||0}</b> erfasst`, (fn.count||0)?"ok":"wa"],
+      ["Artikel", a ? `<b>${E(a.inhalts_status)}</b>, Stand ${dt(a.letztes_update_am)}` : "<b>keiner</b>", a?"ok":"wa"],
+      ["Letzter Auftrag", j
+        ? `<b>${E(j.skill)}</b> — ${E(j.status)}${j.fertig_am?` um ${new Date(j.fertig_am).toLocaleTimeString("de-DE")}`
+            :` seit ${Math.round((Date.now()-new Date(j.erstellt_am))/60000)} Min`}`
+        : "<b>keiner</b>", laeuft?"wa":"ok"],
+    ];
+    if(frei.count) z.push(["Offene Entscheidungen", `<b>${frei.count}</b> im großen Cockpit`, "wa"]);
 
-    if(!z.length){
-      melde("ok", `<b>Nichts hängt.</b> Kein Crawl, kein Auftrag, keine offene Entscheidung —
-        du kannst direkt einen der vier Knöpfe nehmen.`);
-      return;
+    /* Genau EINE Empfehlung, abgeleitet aus den Zahlen — nicht aus einem String. */
+    let rat="", knopf="";
+    if(wartet){
+      rat="Der Crawl wartet auf deine URL-Freigabe. Ohne sie liest er nichts.";
+      knopf=`<button class="kn" type="button" data-frei style="padding:11px 13px;font-size:14px;margin-top:9px">Seiten auswählen und freigeben</button>`;
+    } else if(laeuft){
+      rat=`Ein Auftrag läuft. Sobald er durch ist, lohnt sich der nächste Schritt.`;
+    } else if(c && !(an.count||0)){
+      rat=`${c.anzahl_seiten} Seiten liegen gelesen vor, aber es steht noch <b>kein einziges Angebot</b> in der Datenbank — die Auswertung des Rohtexts fehlt.`;
+      knopf=`<button class="kn" type="button" data-auswerten style="padding:11px 13px;font-size:14px;margin-top:9px">Jetzt auswerten</button>`;
+    } else if(!c){
+      rat="Es liegt kein Seitenabzug vor. „Daten neu prüfen“ holt einen.";
+    } else {
+      rat="Nichts hängt. Du kannst direkt einen der vier Knöpfe nehmen.";
     }
-    melde(z[0][0], z.map(x=>`<div style="margin-bottom:9px"><b>${E(x[1])}.</b> ${E(x[2])}${x[3]||""}</div>`).join(""),
-      "Stand "+new Date().toLocaleTimeString("de-DE"));
+
+    melde(wartet||laeuft||!(an.count||0) ? "wa" : "ok",
+      `<div style="display:grid;gap:5px;margin-bottom:10px">${z.map(x=>
+        `<div style="display:flex;gap:8px;align-items:baseline;font-size:13.5px">
+           <span style="color:var(--mu);min-width:112px;flex:none">${E(x[0])}</span>
+           <span>${x[1]}</span></div>`).join("")}</div>
+       <div>${rat}</div>${knopf}`,
+      `gezählt um ${new Date().toLocaleTimeString("de-DE")}`
+      + (sw.data&&sw.data.daten_reifegrad?` · Reifegrad „${sw.data.daten_reifegrad}" (nicht verlässlich)`:""));
+
     const fr=document.querySelector("[data-frei]");
     if(fr) fr.onclick=()=>{ sperre(true); urlFreigabe().finally(()=>sperre(false)); };
-    const w=document.querySelector("[data-weiter]");
-    if(w) w.onclick=()=>{ sperre(true); tuPruefen().finally(()=>sperre(false)); };
+    const aw=document.querySelector("[data-auswerten]");
+    if(aw) aw.onclick=()=>{ sperre(true); auswerten().finally(()=>sperre(false)); };
   }catch(e){
     melde("ba", `<b>Stand nicht lesbar.</b> ${E(e&&e.message?e.message:e)}`);
   }
+}
+
+/* Den gelesenen Rohtext auswerten lassen: daraus entstehen Preise und Funktionen. */
+async function auswerten(){
+  laeuft("Legt die Auswertung an …");
+  const off=await sb.from("skill_jobs").select("id,status")
+    .eq("software_id",sel.id).eq("skill","extraktion").in("status",["offen","in_arbeit"]).limit(1);
+  if(off.data&&off.data.length){
+    melde("wa", `<b>Eine Auswertung läuft schon.</b> Stand: ${E(off.data[0].status)}.`); return;
+  }
+  const ein=await sb.from("skill_jobs")
+    .insert({software_id:sel.id, skill:"extraktion", status:"offen"}).select("id").single();
+  if(ein.error) throw new Error(ein.error.message);
+  melde("ok", `<b>Auswertung angelegt.</b> Der Runner liest den Rohtext und trägt Tarife,
+    Angebote und Funktionen ein — mit Beleg für jede Zahl.
+    <p style="margin:8px 0 0">Das dauert einige Minuten. Tippe den Artikel danach noch einmal an,
+    dann stehen die neuen Zahlen oben.</p>`,
+    "skill_jobs · extraktion · "+new Date().toLocaleTimeString("de-DE"));
 }
 
 function melde(klasse, html, quelle){
