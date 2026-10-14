@@ -268,7 +268,7 @@ async function lageZeigen(){
         `<button class="kn" type="button" data-weiter style="padding:11px 13px;font-size:14px;margin-top:8px">Nächsten Schritt ausführen</button>`]);
     }
     else if(sw.data&&sw.data.daten_reifegrad==="crawl_laeuft"&&sw.data.crawl_freigabe_status==="freigegeben"){
-      verfolgen(await zahlen(), 0); return;    /* läuft gerade — gleich mitverfolgen */
+      verfolgen(await zahlen(), 0, r&&r.crawl_gestartet_am); return;   /* läuft — mitverfolgen */
     }
     else if(r&&r.status==="pruefen")
       z.push(["wa","Änderungen gefunden", r.zusammenfassung||"Ein neuer Artikel-Entwurf wurde angefordert.",""]);
@@ -442,33 +442,51 @@ async function zahlen(){
     sb.from("preise").select("id",{count:"exact",head:true}).eq("software_id",id),
     sb.from("tarif_angebote").select("id",{count:"exact",head:true}).eq("software_id",id),
     sb.from("funktionen").select("id",{count:"exact",head:true}).eq("software_id",id),
-    sb.from("crawl_rohdaten").select("id",{count:"exact",head:true}).eq("software_id",id),
+    sb.from("crawl_rohdaten").select("anzahl_seiten,gesamt_zeichen,gecrawlt_am")
+      .eq("software_id",id).order("gecrawlt_am",{ascending:false}).limit(1),
   ]);
+  /* crawl_rohdaten hat EINE Zeile je Lauf — die Seitenzahl steht IN der Zeile.
+     Zeilen zu zählen ergäbe immer 1, egal ob 3 oder 300 Seiten gelesen wurden. */
+  const c=cr.data&&cr.data[0];
   return {reife:sw.data&&sw.data.daten_reifegrad, tarife:ta.count||0, angebote:an.count||0,
-    funktionen:fn.count||0, seiten:cr.count||0};
+    funktionen:fn.count||0, seiten:c?(c.anzahl_seiten||0):0,
+    zeichen:c?(c.gesamt_zeichen||0):0, gecrawlt:c?c.gecrawlt_am:null};
 }
 const CRAWL_FERTIG=["claude_validiert","bewertungen_synthetisiert","bereit_fuer_publikation","veroeffentlicht"];
 const REIFE_TEXT={crawl_laeuft:"liest die Seiten", erfasst:"Seiten gelesen, wertet aus",
   extrahiert:"wertet die Seiten aus", validiert:"prüft die Ergebnisse",
   claude_validiert:"fertig geprüft", crawl_fehler:"abgebrochen"};
 let verfolgerId=0;
-function verfolgen(vorher, seitenZahl){
-  const id=sel.id, lauf=++verfolgerId, start=Date.now();
+function verfolgen(vorher, seitenZahl, startAb){
+  /* Die Laufzeit zählt ab dem echten Crawl-Start, nicht ab dem Antippen —
+     sonst steht nach einer Stunde immer noch „seit 0:00". */
+  const id=sel.id, lauf=++verfolgerId, start=startAb?new Date(startAb).getTime():Date.now();
   (async function sehen(){
     if(lauf!==verfolgerId || !sel || sel.id!==id) return;   /* Artikel gewechselt */
     const min=Math.floor((Date.now()-start)/60000), sek=Math.floor((Date.now()-start)/1000)%60;
     let n; try{ n=await zahlen(); }catch(e){ setTimeout(sehen,15000); return; }
     if(lauf!==verfolgerId || !sel || sel.id!==id) return;
     const dauer=`${min}:${String(sek).padStart(2,"0")}`;
-    const delta=(a,b,w)=>b>a?`<li><b>+${b-a}</b> ${w} dazugekommen (${a} → ${b})</li>`:"";
-    const gewachsen=delta(vorher.seiten,n.seiten,"Seiten gespeichert")
+    const delta=(a,b,w)=>b>a?`<li><b>+${b-a}</b> ${w} (${a} → ${b})</li>`:"";
+    const gewachsen=(n.seiten>vorher.seiten
+        ? `<li><b>${n.seiten} Seiten</b> gelesen, ${(n.zeichen/1000).toFixed(0)}.000 Zeichen</li>`:"")
       +delta(vorher.tarife,n.tarife,"Tarife")+delta(vorher.angebote,n.angebote,"Angebote")
       +delta(vorher.funktionen,n.funktionen,"Funktionen");
 
     if(n.reife==="crawl_fehler"){
-      melde("ba", `<b>Der Crawl ist abgebrochen.</b> Nach ${dauer} Minuten.
-        ${gewachsen?`<ul>${gewachsen}</ul>`:"Es wurde nichts übernommen."}`,
-        "software.daten_reifegrad · "+new Date().toLocaleTimeString("de-DE"));
+      /* „crawl_fehler" heißt nicht immer, dass nichts ankam: oft hat der Crawl
+         geliefert und erst die Weiterverarbeitung ist gestolpert. Beides sagen. */
+      const job=await sb.from("skill_jobs").select("skill,status,erstellt_am")
+        .eq("software_id",id).in("status",["offen","in_arbeit"])
+        .order("erstellt_am",{ascending:false}).limit(1);
+      const j=job.data&&job.data[0];
+      melde("ba", `<b>Die Verarbeitung ist gestolpert.</b>
+        ${n.seiten?`Der Crawl selbst hat geliefert:<ul>${gewachsen}</ul>`
+          :"Es kam nichts an."}
+        ${j?`<p style="margin:8px 0 0">Ein Auftrag „${E(j.skill)}“ ist seit
+           ${Math.round((Date.now()-new Date(j.erstellt_am))/60000)} Minuten ${E(j.status)}.</p>`:""}
+        <p style="margin:8px 0 0">Was genau schiefging, steht im großen Cockpit unter Aufträgen.</p>`,
+        "software.daten_reifegrad = crawl_fehler · "+new Date().toLocaleTimeString("de-DE"));
       await laden(); return;
     }
     if(CRAWL_FERTIG.includes(n.reife)){
