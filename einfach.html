@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>softwio — einfach</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Vier Dinge, sonst nichts: anlegen, prüfen, abgleichen, veröffentlichen.
+   Alles andere bleibt im großen Cockpit unter / . */
+:root{
+  --bg:#f2f4f7; --pa:#fff; --li:#d5dbe3; --fg:#141a22; --mu:#5a6675; --fa:#8793a3;
+  --ac:#1f5fd0; --ac-s:#e3ecfc;
+  --ok:#14703f; --ok-s:#dcefe4; --wa:#8a5000; --wa-s:#fbead2; --ba:#a51f16; --ba-s:#fadedb;
+  --mo:ui-monospace,"SF Mono",Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10141a; --pa:#181d25; --li:#2d3744; --fg:#e4e9f1; --mu:#9bA7b7; --fa:#6f7b8c;
+  --ac:#6b9bf0; --ac-s:#17263f;
+  --ok:#49bb7c; --ok-s:#102619; --wa:#d49a44; --wa-s:#2a2012; --ba:#e8706a; --ba-s:#2c1614;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#10141a; --pa:#181d25; --li:#2d3744; --fg:#e4e9f1; --mu:#9bA7b7; --fa:#6f7b8c;
+  --ac:#6b9bf0; --ac-s:#17263f;
+  --ok:#49bb7c; --ok-s:#102619; --wa:#d49a44; --wa-s:#2a2012; --ba:#e8706a; --ba-s:#2c1614;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,0)}
+header{background:#17345e;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;
+  padding-top:calc(10px + env(safe-area-inset-top,0))}
+header b{font-size:18px;letter-spacing:-.02em}
+header b u{text-decoration:none;color:#7fb0ff}
+header a{margin-left:auto;color:#cfe0ff;font-size:13px;text-decoration:none}
+main{max-width:720px;margin:0 auto;padding:14px 16px 40px}
+h2{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:22px 0 8px}
+h2:first-child{margin-top:4px}
+
+/* Artikel suchen und wählen */
+.suche{display:flex;gap:8px;margin-bottom:10px}
+.suche input{flex:1;min-width:0;border:1px solid var(--li);background:var(--pa);color:var(--fg);
+  padding:12px 13px;font:inherit;font-size:16px;border-radius:6px}
+.suche input:focus{outline:2px solid var(--ac);outline-offset:-1px;border-color:var(--ac)}
+.liste{background:var(--pa);border:1px solid var(--li);border-radius:8px;overflow:hidden;
+  max-height:46vh;overflow-y:auto}
+.art{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
+  border-bottom:1px solid var(--li);padding:12px 13px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.art:last-child{border-bottom:0}
+.art:hover{background:var(--ac-s)}
+.art[aria-selected="true"]{background:var(--ac-s);box-shadow:inset 3px 0 0 var(--ac)}
+.art .nm{font-weight:600;flex:1;min-width:0}
+.art .nm small{display:block;font-weight:400;color:var(--fa);font-size:12px;margin-top:1px}
+.art .zu{font-size:11.5px;padding:2px 8px;border-radius:99px;white-space:nowrap;border:1px solid}
+.zu.live{color:var(--ok);background:var(--ok-s);border-color:var(--ok)}
+.zu.entwurf{color:var(--mu);background:var(--bg);border-color:var(--li)}
+.zu.alt{color:var(--wa);background:var(--wa-s);border-color:var(--wa)}
+
+/* Die vier Knöpfe */
+.vier{display:grid;gap:9px}
+.kn{display:flex;align-items:center;gap:13px;width:100%;background:var(--pa);
+  border:1px solid var(--li);border-radius:8px;padding:15px 14px;cursor:pointer;
+  text-align:left;color:inherit;font:inherit}
+.kn:hover:not(:disabled){border-color:var(--ac);background:var(--ac-s)}
+.kn:disabled{opacity:.45;cursor:not-allowed}
+.kn .sy{width:36px;height:36px;border-radius:8px;flex:none;display:grid;place-items:center;
+  font-size:19px;background:var(--ac-s);color:var(--ac)}
+.kn b{display:block;font-size:16px;font-weight:600}
+.kn span{display:block;color:var(--mu);font-size:13px;margin-top:2px}
+.kn.tut .sy{background:var(--wa-s);color:var(--wa)}
+
+/* Rückmeldung */
+.erg{margin-top:10px;border:1px solid var(--li);border-left:4px solid var(--ac);
+  border-radius:8px;background:var(--pa);padding:13px 14px;font-size:14px;line-height:1.55}
+.erg.ok{border-left-color:var(--ok);background:var(--ok-s)}
+.erg.wa{border-left-color:var(--wa);background:var(--wa-s)}
+.erg.ba{border-left-color:var(--ba);background:var(--ba-s)}
+.erg b{font-weight:600}
+.erg ul{margin:7px 0 0;padding-left:20px}
+.erg li{margin-bottom:3px}
+.erg .q{font-family:var(--mo);font-size:11.5px;color:var(--mu);margin-top:8px;
+  padding-top:7px;border-top:1px solid var(--li)}
+.dreh{display:inline-block;width:13px;height:13px;border:2px solid var(--li);
+  border-top-color:var(--ac);border-radius:50%;animation:d .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes d{to{transform:rotate(360deg)}}
+.leer{color:var(--mu);font-size:14px;padding:16px;text-align:center}
+dialog{border:0;border-radius:10px;padding:0;max-width:min(94vw,420px);width:100%;
+  background:var(--pa);color:var(--fg)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .in{padding:16px}
+dialog h3{margin:0 0 4px;font-size:17px}
+dialog p{margin:0 0 12px;color:var(--mu);font-size:13.5px}
+dialog label{display:block;font-size:12.5px;color:var(--mu);margin:10px 0 4px}
+dialog input{width:100%;border:1px solid var(--li);background:var(--bg);color:var(--fg);
+  padding:11px 12px;font:inherit;font-size:16px;border-radius:6px}
+dialog .zeile{display:flex;gap:8px;margin-top:16px}
+dialog button{flex:1;padding:12px;font:inherit;font-size:15px;font-weight:600;
+  border-radius:6px;cursor:pointer;border:1px solid var(--li);background:var(--bg);color:var(--fg)}
+dialog button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+dialog button:disabled{opacity:.5;cursor:not-allowed}
+footer{color:var(--fa);font-size:12px;text-align:center;padding:18px 16px 6px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <b>softwi<u>o</u></b>
+  <a href="/">alles andere →</a>
+</header>
+<main>
+  <div id="anmeldung" hidden>
+    <h2>Anmeldung</h2>
+    <div class="erg">Die Daten sind geschützt — <b>anon darf nichts lesen</b>.
+      Melde dich an wie im großen Cockpit; die Sitzung gilt dann für beide Seiten.</div>
+    <form id="login" style="background:var(--pa);border:1px solid var(--li);border-radius:8px;padding:14px;margin-top:10px">
+      <label for="mail" style="display:block;font-size:12.5px;color:var(--mu);margin-bottom:4px">E-Mail</label>
+      <input id="mail" type="email" autocomplete="username" inputmode="email"
+        style="width:100%;border:1px solid var(--li);background:var(--bg);color:var(--fg);padding:11px 12px;font:inherit;font-size:16px;border-radius:6px">
+      <label for="pw" style="display:block;font-size:12.5px;color:var(--mu);margin:10px 0 4px">Passwort</label>
+      <input id="pw" type="password" autocomplete="current-password"
+        style="width:100%;border:1px solid var(--li);background:var(--bg);color:var(--fg);padding:11px 12px;font:inherit;font-size:16px;border-radius:6px">
+      <button type="submit" id="anm"
+        style="width:100%;margin-top:14px;padding:13px;font:inherit;font-size:16px;font-weight:600;border:0;border-radius:6px;background:var(--ac);color:#fff;cursor:pointer">Anmelden</button>
+      <div id="anmfehler" style="color:var(--ba);font-size:13px;margin-top:10px"></div>
+    </form>
+  </div>
+  <div id="arbeit" hidden>
+  <h2>Artikel</h2>
+  <div class="suche">
+    <input id="q" type="search" placeholder="Artikel suchen …" autocomplete="off" aria-label="Artikel suchen">
+  </div>
+  <div class="liste" id="liste"><div class="leer">lädt …</div></div>
+
+  <h2 id="h2vier">Was soll geschehen?</h2>
+  <div class="vier" id="vier"></div>
+  <div id="erg"></div>
+  </div>
+</main>
+<footer>
+  Dieselbe Datenbank wie das große Cockpit. Jeder Knopf löst wirklich etwas aus.
+</footer>
+
+<dialog id="neu"><div class="in">
+  <h3>Neuen Artikel anlegen</h3>
+  <p>Der Crawl liest die Herstellerseite und legt die Daten an. Das dauert einige Minuten.</p>
+  <label for="nname">Name</label>
+  <input id="nname" placeholder="z. B. Pipedrive" autocomplete="off">
+  <label for="nurl">Hersteller-Seite</label>
+  <input id="nurl" type="url" placeholder="https://www.pipedrive.com/de" autocomplete="off" inputmode="url">
+  <div class="zeile">
+    <button type="button" id="nab">Abbrechen</button>
+    <button type="button" class="pri" id="nok">Anlegen und crawlen</button>
+  </div>
+</div></dialog>
+
+<script>
+const SB_URL="https://xoyjsjenitjppxpcheza.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhveWpzamVuaXRqcHB4cGNoZXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjE3NTQsImV4cCI6MjA5NDkzNzc1NH0.SSsfDBxyDRKZQVYxJAt9FEu2g-84clka4_b82N5DfVw";
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+const $=s=>document.querySelector(s);
+const E=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const dt=d=>d?new Date(d).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"}):"—";
+const tage=d=>d?Math.floor((Date.now()-new Date(d))/864e5):null;
+
+let ALLE=[], sel=null, filter="";
+
+/* ---------- Artikel laden ---------- */
+async function laden(){
+  const {data,error}=await sb.from("software")
+    .select("id,name,hersteller,hersteller_url,kategorie,letzte_pruefung_am,inhalts_artikel(inhalts_status)")
+    .order("name");
+  if(error){
+    $("#liste").innerHTML=`<div class="leer">Laden fehlgeschlagen: ${E(error.message)}</div>`;
+    knoepfe();            // die Seite bleibt bedienbar, auch wenn die Liste fehlt
+    return;
+  }
+  ALLE=data||[];
+  zeichne();
+}
+/* „live" steht in inhalts_artikel, nicht in software — ein Produkt kann
+   angelegt sein, ohne dass je ein Artikel dazu veröffentlicht wurde. */
+function istLive(a){
+  const A=a.inhalts_artikel;
+  if(!A) return false;
+  return Array.isArray(A) ? A.some(x=>x.inhalts_status==="live") : A.inhalts_status==="live";
+}
+function zustand(a){
+  const t=tage(a.letzte_pruefung_am);
+  if(!istLive(a)) return ["entwurf","Entwurf"];
+  if(t===null)    return ["alt","nie geprüft"];
+  if(t>90)        return ["alt", t+" Tage alt"];
+  return ["live","live"];
+}
+function zeichne(){
+  const f=filter.trim().toLowerCase();
+  const L=f?ALLE.filter(a=>(a.name+" "+(a.hersteller||"")).toLowerCase().includes(f)):ALLE;
+  $("#liste").innerHTML = L.length
+    ? L.map(a=>{const [k,t]=zustand(a);
+        return `<button class="art" type="button" data-id="${a.id}" aria-selected="${sel&&sel.id===a.id}">
+          <span class="nm">${E(a.name)}<small>${E(a.kategorie||"ohne Kategorie")}</small></span>
+          <span class="zu ${k}">${E(t)}</span></button>`;}).join("")
+    : `<div class="leer">Nichts gefunden.</div>`;
+  $("#liste").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
+    sel=ALLE.find(x=>x.id===b.dataset.id)||null; $("#erg").innerHTML=""; zeichne(); knoepfe();
+  });
+  knoepfe();
+}
+
+/* ---------- Die vier Knöpfe ---------- */
+const AKT=[
+ {k:"neu",  sy:"＋", t:"Neuen Artikel anlegen",
+  u:"Name und Hersteller-Seite eingeben, der Crawl erledigt den Rest.", immer:1},
+ {k:"pruef",sy:"↻", t:"Daten neu prüfen",
+  u:"Liest die Herstellerseite noch einmal und meldet, was sich geändert hat."},
+ {k:"match",sy:"⇄", t:"Mit der Herstellerseite abgleichen",
+  u:"Vergleicht den fertigen Artikel Zeile für Zeile mit dem, was heute auf der Anbieterseite steht."},
+ {k:"pub",  sy:"▲", t:"Veröffentlichen",
+  u:"Prüft die Sperren und baut das Portal neu."}
+];
+function knoepfe(){
+  $("#h2vier").textContent = sel ? "Was soll mit „"+sel.name+"“ geschehen?" : "Was soll geschehen?";
+  $("#vier").innerHTML=AKT.map(a=>`<button class="kn" type="button" data-a="${a.k}"
+      ${!a.immer&&!sel?"disabled":""}>
+    <span class="sy">${a.sy}</span>
+    <span><b>${E(a.t)}</b><span>${E(a.u)}</span></span></button>`).join("")
+    + (!sel?`<div class="leer" style="padding:8px">Für die unteren drei zuerst oben einen Artikel wählen.</div>`:"");
+  $("#vier").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>fuehre(b.dataset.a));
+}
+
+function melde(klasse, html, quelle){
+  $("#erg").innerHTML=`<div class="erg ${klasse}">${html}${quelle?`<div class="q">${E(quelle)}</div>`:""}</div>`;
+  $("#erg").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function laeuft(text){ melde("", `<span class="dreh"></span>${E(text)}`); }
+function sperre(an){ $("#vier").querySelectorAll("button").forEach(b=>b.disabled=an||(!sel&&b.dataset.a!=="neu")); }
+
+async function fuehre(was){
+  if(was==="neu"){ $("#nname").value=""; $("#nurl").value=""; $("#neu").showModal(); return; }
+  if(!sel) return;
+  sperre(true);
+  try{
+    if(was==="pruef")  await tuPruefen();
+    if(was==="match")  await tuAbgleich();
+    if(was==="pub")    await tuVeroeffentlichen();
+  }catch(e){
+    melde("ba", `<b>Fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
+  }
+  sperre(false);
+}
+
+/* 2 — Daten neu prüfen */
+async function tuPruefen(){
+  laeuft("Liest "+(sel.hersteller_url||sel.name)+" …");
+  const r=await sb.functions.invoke("refresh-orchestrator",
+    {body:{software_id:sel.id, min_tage:0, max_crawls:1}});
+  if(r.error) throw new Error(await fehlertext(r.error));
+  const d=r.data||{};
+  melde("ok", `<b>Prüfung angestoßen.</b> ${E(d.meldung||d.message||"Der Lauf arbeitet im Hintergrund weiter.")}
+    <ul><li>Was dabei herauskommt, steht danach unter „Mit der Herstellerseite abgleichen“.</li>
+    <li>Preisabweichungen landen als Freigabe im großen Cockpit.</li></ul>`,
+    "refresh-orchestrator · "+new Date().toLocaleTimeString("de-DE"));
+  await laden();
+}
+
+/* 3 — Mit der Herstellerseite abgleichen */
+async function tuAbgleich(){
+  laeuft("Vergleicht den Artikel mit "+(sel.hersteller_url||"der Anbieterseite")+" …");
+  const r=await sb.functions.invoke("ssot-diff",{body:{software_id:sel.id}});
+  if(r.error) throw new Error(await fehlertext(r.error));
+  const d=r.data||{};
+  const ab=d.abweichungen||d.diffs||d.befunde||[];
+  if(!ab.length){
+    melde("ok", `<b>Keine Abweichung gefunden.</b>
+      Der Artikel deckt sich mit dem, was heute auf der Anbieterseite steht.`,
+      "ssot-diff · "+new Date().toLocaleTimeString("de-DE"));
+  } else {
+    melde("wa", `<b>${ab.length} Abweichung${ab.length>1?"en":""} gefunden.</b>
+      <ul>${ab.slice(0,12).map(x=>`<li>${E(x.feld||x.was||x.titel||"")}${
+        x.alt!==undefined?`: <b>${E(x.alt)}</b> → <b>${E(x.neu)}</b>`:
+        x.text?": "+E(x.text):""}</li>`).join("")}</ul>
+      ${ab.length>12?`<p style="margin:7px 0 0;color:var(--mu)">… und ${ab.length-12} weitere.</p>`:""}`,
+      "ssot-diff · "+new Date().toLocaleTimeString("de-DE"));
+  }
+}
+
+/* 4 — Veröffentlichen: erst die Sperren, dann der Bau */
+async function tuVeroeffentlichen(){
+  laeuft("Prüft die Sperren …");
+  const g=await sb.functions.invoke("pre-publish-validator",{body:{software_id:sel.id, markt_id:"de"}});
+  if(g.error) throw new Error(await fehlertext(g.error));
+  const gd=g.data||{};
+  const hart=(gd.blocker||gd.fehler||[]).filter(Boolean);
+  if(hart.length){
+    melde("ba", `<b>Nicht veröffentlicht — ${hart.length} Sperre${hart.length>1?"n":""}.</b>
+      <ul>${hart.slice(0,10).map(x=>`<li>${E(x.text||x.meldung||x)}</li>`).join("")}</ul>
+      <p style="margin:8px 0 0">Erst beheben, dann noch einmal.</p>`,
+      "pre-publish-validator · "+new Date().toLocaleTimeString("de-DE"));
+    return;
+  }
+  laeuft("Sperren frei. Baut das Portal — das dauert 8 bis 12 Minuten …");
+  const b=await sb.functions.invoke("portal-build-ausloesen",{body:{markt_id:"de"}});
+  if(b.error) throw new Error(await fehlertext(b.error));
+  const bid=b.data&&b.data.build_id;
+  melde("ok", `<b>Bau läuft.</b> Das Portal wird neu gebaut, üblicherweise in 8 bis 12 Minuten.
+    ${bid?"Ich melde mich, sobald er fertig ist.":""}`,
+    "portal-build-ausloesen · "+new Date().toLocaleTimeString("de-DE"));
+  if(bid) warteAufBau(bid);
+}
+function warteAufBau(bid){
+  const start=Date.now();
+  (async function poll(){
+    const sek=Math.round((Date.now()-start)/1000);
+    try{
+      const q=await sb.from("cockpit_portal_builds").select("status,artikel_anzahl,notiz").eq("id",bid).single();
+      const r=q.data;
+      if(r&&r.status&&r.status!=="läuft"){
+        melde(r.status==="fertig"?"ok":"ba",
+          `<b>Bau ${E(r.status)}.</b> ${r.artikel_anzahl?E(r.artikel_anzahl)+" Artikel gebaut.":""}
+           ${r.notiz?"<br>"+E(r.notiz):""}`,
+          "cockpit_portal_builds · nach "+Math.round(sek/60)+" Min");
+        return;
+      }
+    }catch(e){}
+    if(sek>1200){ melde("wa",`<b>Der Bau läuft noch.</b> Nach 20 Minuten höre ich auf zu warten —
+      im großen Cockpit steht, wie er ausgegangen ist.`); return; }
+    melde("", `<span class="dreh"></span>Baut das Portal … ${Math.floor(sek/60)}:${String(sek%60).padStart(2,"0")}`);
+    setTimeout(poll, 5000);
+  })();
+}
+
+/* 1 — Neuen Artikel anlegen */
+$("#nab").onclick=()=>$("#neu").close();
+$("#nok").onclick=async()=>{
+  const name=$("#nname").value.trim(), url=$("#nurl").value.trim();
+  if(!name||!url){ alert("Name und Hersteller-Seite werden beide gebraucht."); return; }
+  if(!/^https?:\/\//i.test(url)){ alert("Die Adresse muss mit http:// oder https:// beginnen."); return; }
+  $("#nok").disabled=true; $("#nok").textContent="legt an …";
+  try{
+    const {data,error}=await sb.from("software")
+      .insert({name:name, hersteller:name, hersteller_url:url}).select("id,name").single();
+    if(error) throw new Error(error.message);
+    $("#neu").close();
+    laeuft("Angelegt. Startet den Crawl von "+url+" …");
+    const r=await sb.functions.invoke("crawl-starten",{body:{software_id:data.id}});
+    if(r.error) throw new Error(await fehlertext(r.error));
+    melde("ok", `<b>${E(name)} angelegt, der Crawl läuft.</b>
+      <ul><li>Er liest die Anbieterseite und legt Preise, Funktionen und Firmendaten an.</li>
+      <li>Das dauert einige Minuten. Danach „Mit der Herstellerseite abgleichen“ drücken.</li>
+      <li>Videos und Bewertungen pflegst du selbst — die rührt der Crawl nicht an.</li></ul>`,
+      "crawl-starten · "+new Date().toLocaleTimeString("de-DE"));
+    await laden();
+    sel=ALLE.find(x=>x.id===data.id)||null; zeichne();
+  }catch(e){
+    melde("ba", `<b>Anlegen fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
+  }
+  $("#nok").disabled=false; $("#nok").textContent="Anlegen und crawlen";
+};
+
+async function fehlertext(err){
+  let m=err.message||"Fehler";
+  try{ const b=await err.context.json(); if(b&&b.error) m=b.error; }catch(e){}
+  return m;
+}
+
+$("#q").oninput=e=>{ filter=e.target.value; zeichne(); };
+
+/* Die Sitzung liegt im selben Speicher wie beim großen Cockpit: wer dort
+   angemeldet ist, kommt hier ohne zweite Anmeldung durch. */
+async function start(){
+  const {data}=await sb.auth.getSession();
+  const an=!!(data&&data.session);
+  $("#anmeldung").hidden=an;
+  $("#arbeit").hidden=!an;
+  knoepfe();                 // nie ein leerer Arbeitsbereich, auch ohne Liste
+  if(an) await laden();
+}
+$("#login").onsubmit=async e=>{
+  e.preventDefault();
+  const b=$("#anm"); b.disabled=true; b.textContent="meldet an …"; $("#anmfehler").textContent="";
+  const {error}=await sb.auth.signInWithPassword({email:$("#mail").value.trim(), password:$("#pw").value});
+  b.disabled=false; b.textContent="Anmelden";
+  if(error){ $("#anmfehler").textContent=error.message; return; }
+  $("#pw").value="";
+  await start();
+};
+sb.auth.onAuthStateChange(()=>start());
+start();
+</script>
+</body>
+</html>
