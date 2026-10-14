@@ -362,43 +362,6 @@ async function fuehre(was){
    fällig -> Crawl starten -> warten bis der Crawl durch ist -> Diff.
    Deshalb nach jedem Aufruf den echten Stand aus content_refresh lesen und
    zeigen, statt blind „angestoßen" zu melden. */
-const REFRESH_TEXT={
-  faellig:          ["wa","Als fällig vorgemerkt","Beim nächsten Schritt wird der Crawl gestartet."],
-  crawl_laeuft:     ["wa","Crawl läuft","Die Anbieterseite wird neu gelesen. Das dauert einige Minuten."],
-  pruefen:          ["wa","Änderungen gefunden","Ein neuer Artikel-Entwurf wurde angefordert."],
-  freigabe_noetig:  ["ba","Wartet auf deine URL-Freigabe","Der Crawl liest erst, wenn du sagst, welche Seiten er nehmen darf."],
-  unveraendert:     ["ok","Nichts geändert","Der Artikel ist bestätigt aktuell."],
-  fehler:           ["ba","Fehlgeschlagen",""]
-};
-async function standLesen(){
-  const {data}=await sb.from("content_refresh")
-    .select("status,notiz,crawl_gestartet_am,zusammenfassung,geaendert_am")
-    .eq("software_id",sel.id).order("geaendert_am",{ascending:false}).limit(1);
-  return data&&data[0] ? data[0] : null;
-}
-function standZeigen(r, kopf){
-  if(!r){ melde("wa", `${kopf}<b>Kein Lauf eingetragen.</b>
-    Der Aufruf ging durch, hat für diesen Artikel aber nichts zu tun gefunden.`); return; }
-  const [kl,titel,erkl]=REFRESH_TEXT[r.status]||["wa",r.status,""];
-  const min=r.crawl_gestartet_am
-    ? Math.round((Date.now()-new Date(r.crawl_gestartet_am))/60000) : null;
-  melde(kl, `${kopf}<b>${E(titel)}.</b> ${E(r.notiz||erkl)}
-    ${r.zusammenfassung?`<ul><li>${E(r.zusammenfassung)}</li></ul>`:""}
-    ${min!==null&&r.status==="crawl_laeuft"
-      ? `<p style="margin:8px 0 0">Crawl läuft seit <b>${min} Minuten</b>.
-         Nach 45 Minuten ohne Ergebnis gilt er als gescheitert.</p>`:""}
-    ${["faellig","crawl_laeuft"].includes(r.status)
-      ? `<p style="margin:10px 0 0"><button class="kn" type="button" data-weiter
-           style="padding:11px 13px;font-size:14px">Nächsten Schritt ausführen</button></p>`:""}
-    ${r.status==="freigabe_noetig"
-      ? `<p style="margin:10px 0 0"><button class="kn" type="button" data-frei
-           style="padding:11px 13px;font-size:14px">Seiten auswählen und freigeben</button></p>`:""}`,
-    "content_refresh · Stand "+new Date(r.geaendert_am).toLocaleTimeString("de-DE"));
-  const w=document.querySelector("[data-weiter]");
-  if(w) w.onclick=()=>{ sperre(true); tuPruefen().finally(()=>sperre(false)); };
-  const fr=document.querySelector("[data-frei]");
-  if(fr) fr.onclick=()=>{ sperre(true); urlFreigabe().finally(()=>sperre(false)); };
-}
 async function tuPruefen(){
   laeuft("Stößt den nächsten Schritt an …");
   const r=await sb.functions.invoke("refresh-orchestrator",
@@ -406,73 +369,18 @@ async function tuPruefen(){
   if(r.error) throw new Error(await fehlertext(r.error));
   const d=r.data||{};
   if(d.error) throw new Error(d.error);
-  /* Die Antwort nennt die Aktionen beim Namen — das ist die Wahrheit, nicht „angestoßen". */
   const akt=(d.plan||[]).map(p=>p.aktion);
-  const kopf=akt.length
-    ? `<div style="color:var(--mu);font-size:12.5px;margin-bottom:6px">Schritt: ${E(akt.join(", "))}</div>`
-    : `<div style="color:var(--mu);font-size:12.5px;margin-bottom:6px">Dieser Aufruf hatte nichts zu tun.</div>`;
-  await new Promise(f=>setTimeout(f,600));
-  standZeigen(await standLesen(), kopf);
-  await laden();
-}
-/* Der Weg aus der Sperre: die vorgeschlagenen Seiten zeigen, auswählen,
-   freigeben, Crawl starten. Lieber zu viele Seiten als zu wenige — aus einer
-   zu knappen Auswahl wird eine dünne Datenlage. */
-async function urlFreigabe(){
-  laeuft("Holt die Seitenvorschläge …");
-  const {data,error}=await sb.from("software")
-    .select("crawl_kandidaten,hersteller_url").eq("id",sel.id).single();
-  if(error) throw new Error(error.message);
-  let K=data&&data.crawl_kandidaten;
-  if(typeof K==="string"){ try{ K=JSON.parse(K); }catch(e){ K=[]; } }
-  if(!Array.isArray(K)||!K.length){
-    melde("wa", `<b>Keine Seitenvorschläge hinterlegt.</b>
-      Der Crawl hat für ${E(sel.name)} nichts zu lesen vorgeschlagen.
-      Das muss im großen Cockpit nachgeholt werden.`);
-    return;
+  /* Danach IMMER dieselbe Übersicht wie beim Antippen — eine Anzeige, nicht zwei.
+     Die alte Fassung deutete hier content_refresh und widersprach sich dadurch
+     selbst, sobald die beiden Tabellen auseinanderliefen. */
+  await new Promise(f=>setTimeout(f,700));
+  await lageZeigen();
+  if(akt.length){
+    const e=$("#erg").querySelector(".erg");
+    if(e) e.insertAdjacentHTML("afterbegin",
+      `<div style="color:var(--mu);font-size:12.5px;margin-bottom:8px">Ausgeführt: ${E(akt.join(", "))}</div>`);
   }
-  const vor=K.filter(x=>x.vorschlag).length;
-  melde("", `<b>${K.length} Seiten gefunden, ${vor} davon vorgeschlagen.</b>
-    <p style="margin:6px 0 0;color:var(--mu)">Nimm im Zweifel mehr als weniger —
-    aus einer knappen Auswahl wird eine dünne Datenlage.</p>
-    <div style="margin:10px 0 0;display:flex;gap:7px;flex-wrap:wrap">
-      <button class="kn" type="button" data-wahl="vor" style="flex:1;min-width:150px;padding:10px 12px;font-size:14px">Die ${vor} Vorschläge</button>
-      <button class="kn" type="button" data-wahl="alle" style="flex:1;min-width:150px;padding:10px 12px;font-size:14px">Alle ${K.length} Seiten</button>
-    </div>
-    <div style="margin:10px 0 0;max-height:34vh;overflow:auto;border:1px solid var(--li);border-radius:6px">
-      ${K.map((x,i)=>`<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--li);font-size:13px;cursor:pointer">
-        <input type="checkbox" data-u="${i}" ${x.vorschlag?"checked":""} style="margin-top:2px;width:18px;height:18px;flex:none">
-        <span style="min-width:0;overflow-wrap:anywhere">${E(x.url)}
-          <span style="display:block;color:var(--fa);font-size:11px">${E(x.herkunft||"")}</span></span></label>`).join("")}
-    </div>
-    <div style="margin:10px 0 0"><button class="kn" type="button" data-freiok
-      style="padding:12px 13px;font-size:15px;background:var(--ac-s);border-color:var(--ac)">
-      <b>Freigeben und crawlen</b></button></div>`,
-    "software.crawl_kandidaten · "+K.length+" Einträge");
-
-  const boxen=()=>[...document.querySelectorAll("[data-u]")];
-  document.querySelectorAll("[data-wahl]").forEach(b=>b.onclick=()=>{
-    const alle=b.dataset.wahl==="alle";
-    boxen().forEach((c,i)=>{ c.checked = alle || !!K[i].vorschlag; });
-  });
-  const ok=document.querySelector("[data-freiok]");
-  if(ok) ok.onclick=async()=>{
-    const urls=boxen().filter(c=>c.checked).map(c=>K[+c.dataset.u].url);
-    if(!urls.length){ alert("Mindestens eine Seite auswählen."); return; }
-    sperre(true);
-    try{
-      laeuft(`Gibt ${urls.length} Seiten frei und startet den Crawl …`);
-      const u=await sb.from("software").update(
-        {crawl_url_liste:urls.join(String.fromCharCode(10)), crawl_freigabe_status:"freigegeben"}).eq("id",sel.id);
-      if(u.error) throw new Error(u.error.message);
-      const r=await sb.functions.invoke("crawl-starten",{body:{software_id:sel.id}});
-      if(r.error) throw new Error(await fehlertext(r.error));
-      verfolgen(await zahlen(), urls.length);
-    }catch(e){
-      melde("ba", `<b>Freigabe fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
-    }
-    sperre(false);
-  };
+  await laden();
 }
 
 /* Zählt, was zu diesem Artikel in der Datenbank steht. Vorher/nachher zeigt,
