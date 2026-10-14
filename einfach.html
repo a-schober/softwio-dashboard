@@ -211,6 +211,7 @@ function zeichne(){
     : `<div class="leer">Nichts gefunden.</div>`;
   $("#liste").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
     sel=ALLE.find(x=>x.id===b.dataset.id)||null; $("#erg").innerHTML=""; zeichne(); knoepfe();
+    if(sel) lageZeigen();     /* was ansteht, ohne dass man erst klicken muss */
   });
   knoepfe();
 }
@@ -234,6 +235,59 @@ function knoepfe(){
     <span><b>${E(a.t)}</b><span>${E(a.u)}</span></span></button>`).join("")
     + (!sel?`<div class="leer" style="padding:8px">Für die unteren drei zuerst oben einen Artikel wählen.</div>`:"");
   $("#vier").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>fuehre(b.dataset.a));
+}
+
+/* Was ist bei diesem Artikel gerade los? Steht sofort da, nicht erst nach
+   einem Klick auf „Daten neu prüfen". Wer eine Sperre meldet, muss im selben
+   Atemzug den Weg heraus anbieten. */
+async function lageZeigen(){
+  const id=sel.id;
+  melde("", `<span class="dreh"></span>sieht nach, was bei ${E(sel.name)} ansteht …`);
+  try{
+    const [sw, ref, job, frei] = await Promise.all([
+      sb.from("software").select("crawl_freigabe_status,daten_reifegrad").eq("id",id).single(),
+      sb.from("content_refresh").select("status,notiz,crawl_gestartet_am,zusammenfassung,geaendert_am")
+        .eq("software_id",id).order("geaendert_am",{ascending:false}).limit(1),
+      sb.from("skill_jobs").select("id,skill,status,begonnen_am").eq("software_id",id)
+        .in("status",["offen","in_arbeit"]).order("erstellt_am",{ascending:false}).limit(1),
+      sb.from("freigaben").select("id",{count:"exact",head:true}).eq("software_id",id).eq("status","offen"),
+    ]);
+    if(!sel||sel.id!==id) return;            /* inzwischen umgewählt */
+    const r=ref.data&&ref.data[0], j=job.data&&job.data[0];
+    const offeneFrei=frei.count||0;
+    const z=[];
+
+    if(sw.data&&sw.data.crawl_freigabe_status==="warte_freigabe")
+      z.push(["ba","Der Crawl wartet auf deine URL-Freigabe",
+        "Er liest erst, wenn du sagst, welche Seiten er nehmen darf.",
+        `<button class="kn" type="button" data-frei style="padding:11px 13px;font-size:14px;margin-top:8px">Seiten auswählen und freigeben</button>`]);
+    else if(r&&["faellig","crawl_laeuft"].includes(r.status)){
+      const min=r.crawl_gestartet_am?Math.round((Date.now()-new Date(r.crawl_gestartet_am))/60000):null;
+      z.push(["wa", r.status==="crawl_laeuft"?`Crawl läuft${min!==null?` seit ${min} Minuten`:""}`:"Als fällig vorgemerkt",
+        r.status==="crawl_laeuft"?"Nach 45 Minuten ohne Ergebnis gilt er als gescheitert.":"Beim nächsten Schritt startet der Crawl.",
+        `<button class="kn" type="button" data-weiter style="padding:11px 13px;font-size:14px;margin-top:8px">Nächsten Schritt ausführen</button>`]);
+    }
+    else if(r&&r.status==="pruefen")
+      z.push(["wa","Änderungen gefunden", r.zusammenfassung||"Ein neuer Artikel-Entwurf wurde angefordert.",""]);
+    if(j) z.push(["wa",`Auftrag „${E(j.skill)}“ ${j.status==="offen"?"steht in der Schlange":"läuft"}`,
+      j.begonnen_am?`seit ${Math.round((Date.now()-new Date(j.begonnen_am))/60000)} Minuten`:"",""]);
+    if(offeneFrei) z.push(["wa",`${offeneFrei} offene Entscheidung${offeneFrei>1?"en":""}`,
+      "Sie stehen im großen Cockpit unter Freigaben.",""]);
+
+    if(!z.length){
+      melde("ok", `<b>Nichts hängt.</b> Kein Crawl, kein Auftrag, keine offene Entscheidung —
+        du kannst direkt einen der vier Knöpfe nehmen.`);
+      return;
+    }
+    melde(z[0][0], z.map(x=>`<div style="margin-bottom:9px"><b>${E(x[1])}.</b> ${E(x[2])}${x[3]||""}</div>`).join(""),
+      "Stand "+new Date().toLocaleTimeString("de-DE"));
+    const fr=document.querySelector("[data-frei]");
+    if(fr) fr.onclick=()=>{ sperre(true); urlFreigabe().finally(()=>sperre(false)); };
+    const w=document.querySelector("[data-weiter]");
+    if(w) w.onclick=()=>{ sperre(true); tuPruefen().finally(()=>sperre(false)); };
+  }catch(e){
+    melde("ba", `<b>Stand nicht lesbar.</b> ${E(e&&e.message?e.message:e)}`);
+  }
 }
 
 function melde(klasse, html, quelle){
