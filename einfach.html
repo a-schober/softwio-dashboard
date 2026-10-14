@@ -211,7 +211,7 @@ function zeichne(){
     : `<div class="leer">Nichts gefunden.</div>`;
   $("#liste").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
     sel=ALLE.find(x=>x.id===b.dataset.id)||null; $("#erg").innerHTML=""; zeichne(); knoepfe();
-    if(sel) lageZeigen();     /* was ansteht, ohne dass man erst klicken muss */
+    if(sel) unterFrist(lageZeigen(), "Der Stand");   /* ohne Klick, aber nicht ohne Frist */
   });
   knoepfe();
 }
@@ -336,6 +336,13 @@ async function auswerten(){
     "skill_jobs · extraktion · "+new Date().toLocaleTimeString("de-DE"));
 }
 
+/* Derselbe Schutz für Knöpfe, die mitten in einer Meldung stehen. */
+async function unterFrist(p, was){
+  sperre(true);
+  try{ await mitFrist(p, was, 25000); }
+  catch(e){ melde("ba", `<b>${E(was)} ist nicht durchgekommen.</b> ${E(e&&e.message?e.message:e)}`); }
+  finally{ sperre(false); }
+}
 function melde(klasse, html, quelle){
   $("#erg").innerHTML=`<div class="erg ${klasse}">${html}${quelle?`<div class="q">${E(quelle)}</div>`:""}</div>`;
   $("#erg").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -343,18 +350,27 @@ function melde(klasse, html, quelle){
 function laeuft(text){ melde("", `<span class="dreh"></span>${E(text)}`); }
 function sperre(an){ $("#vier").querySelectorAll("button").forEach(b=>b.disabled=an||(!sel&&b.dataset.a!=="neu")); }
 
+/* Jede Aktion läuft unter einer Frist und endet garantiert in einem Zustand.
+   Eine Laufanzeige, die stehenbleibt, ist der schlimmste Fall: man weiß nicht,
+   ob gearbeitet wird oder ob etwas kaputt ist. Lieber nach 25 Sekunden sagen
+   „keine Antwort" als ewig drehen. */
+const AKTION={
+  pruef: ["Die Prüfung",        () => tuPruefen()],
+  match: ["Der Abgleich",       () => tuAbgleich()],
+  pub:   ["Das Veröffentlichen",() => tuVeroeffentlichen()],
+};
 async function fuehre(was){
   if(was==="neu"){ $("#nname").value=""; $("#nurl").value=""; $("#neu").showModal(); return; }
   if(!sel) return;
+  const A=AKTION[was]; if(!A) return;
   sperre(true);
   try{
-    if(was==="pruef")  await tuPruefen();
-    if(was==="match")  await tuAbgleich();
-    if(was==="pub")    await tuVeroeffentlichen();
+    await mitFrist(A[1](), A[0], 25000);
   }catch(e){
-    melde("ba", `<b>Fehlgeschlagen.</b> ${E(e&&e.message?e.message:e)}`);
+    melde("ba", `<b>${E(A[0])} ist nicht durchgekommen.</b> ${E(e&&e.message?e.message:e)}`);
+  }finally{
+    sperre(false);
   }
-  sperre(false);
 }
 
 /* 2 — Daten neu prüfen.
@@ -634,9 +650,11 @@ async function start(){
    stehen bleibt, sagt dem Benutzer nichts; lieber eine ehrliche Meldung,
    dass keine Antwort kam. */
 const FRIST=12000;
-function mitFrist(p, was){
+function mitFrist(p, was, ms){
+  const f=ms||FRIST;
   return Promise.race([p, new Promise((_,ab)=>setTimeout(
-    ()=>ab(new Error(was+": keine Antwort nach 12 Sekunden. Verbindung prüfen und noch einmal.")), FRIST))]);
+    ()=>ab(new Error(`Keine Antwort nach ${Math.round(f/1000)} Sekunden. Nichts ist verloren —
+      der Lauf kann im Hintergrund weitergehen. Tippe den Artikel noch einmal an, dann steht der Stand oben.`)), f))]);
 }
 let meldetAn=false;      /* solange true, hält sich onAuthStateChange heraus */
 
