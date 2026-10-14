@@ -121,6 +121,8 @@ footer{color:var(--fa);font-size:12px;text-align:center;padding:18px 16px 6px;li
       <label for="pw" style="display:block;font-size:12.5px;color:var(--mu);margin:10px 0 4px">Passwort</label>
       <input id="pw" type="password" autocomplete="current-password"
         style="width:100%;border:1px solid var(--li);background:var(--bg);color:var(--fg);padding:11px 12px;font:inherit;font-size:16px;border-radius:6px">
+      <label for="code" id="codeL" style="display:none;font-size:12.5px;color:var(--mu);margin:10px 0 4px">6-stelliger Code aus der Authenticator-App</label>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="display:none;width:100%;border:1px solid var(--li);background:var(--bg);color:var(--fg);padding:11px 12px;font:inherit;font-size:18px;letter-spacing:.3em;text-align:center;border-radius:6px">
       <button type="submit" id="anm"
         style="width:100%;margin-top:14px;padding:13px;font:inherit;font-size:16px;font-weight:600;border:0;border-radius:6px;background:var(--ac);color:#fff;cursor:pointer">Anmelden</button>
       <div id="anmfehler" style="color:var(--ba);font-size:13px;margin-top:10px"></div>
@@ -376,14 +378,47 @@ async function start(){
   knoepfe();                 // nie ein leerer Arbeitsbereich, auch ohne Liste
   if(an) await laden();
 }
+/* Auf dem Konto liegt ein zweiter Faktor. Ohne ihn bleibt die Sitzung auf aal1
+   und die Tabellen bleiben zu — das Passwort allein genügt also nicht. */
 $("#login").onsubmit=async e=>{
   e.preventDefault();
-  const b=$("#anm"); b.disabled=true; b.textContent="meldet an …"; $("#anmfehler").textContent="";
-  const {error}=await sb.auth.signInWithPassword({email:$("#mail").value.trim(), password:$("#pw").value});
-  b.disabled=false; b.textContent="Anmelden";
-  if(error){ $("#anmfehler").textContent=error.message; return; }
-  $("#pw").value="";
-  await start();
+  const b=$("#anm"), f=$("#anmfehler");
+  b.disabled=true; b.textContent="meldet an …"; f.textContent="";
+  try{
+    const code=$("#code").value.trim();
+    if(!code){                                   // Schritt 1: Passwort
+      const {error}=await sb.auth.signInWithPassword(
+        {email:$("#mail").value.trim(), password:$("#pw").value});
+      if(error) throw error;
+      $("#pw").value="";
+    }
+    // Schritt 2: zweiter Faktor, falls die Sitzung ihn verlangt
+    const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aal&&aal.currentLevel==="aal1"&&aal.nextLevel==="aal2"){
+      if(!code){
+        $("#codeL").style.display="block"; $("#code").style.display="block"; $("#code").focus();
+        b.textContent="Code bestätigen"; b.disabled=false;
+        f.style.color="var(--mu)";
+        f.textContent="Passwort stimmt. Jetzt den 6-stelligen Code aus deiner Authenticator-App.";
+        return;
+      }
+      const {data:fl}=await sb.auth.mfa.listFactors();
+      const fac=fl&&fl.totp&&(fl.totp.find(x=>x.status==="verified")||fl.totp[0]);
+      if(!fac) throw new Error("Kein zweiter Faktor auf dem Konto gefunden.");
+      const {data:ch,error:e1}=await sb.auth.mfa.challenge({factorId:fac.id});
+      if(e1) throw e1;
+      const {error:e2}=await sb.auth.mfa.verify({factorId:fac.id, challengeId:ch.id, code});
+      if(e2) throw new Error("Code ungültig oder abgelaufen — hol dir einen neuen aus der App.");
+      $("#code").value=""; $("#code").style.display="none"; $("#codeL").style.display="none";
+    }
+    f.textContent="";
+    await start();
+  }catch(err){
+    f.style.color="var(--ba)";
+    f.textContent=(err&&err.message)?err.message:String(err);
+  }
+  b.disabled=false;
+  if(!$("#code").value && $("#code").style.display==="none") b.textContent="Anmelden";
 };
 sb.auth.onAuthStateChange(()=>start());
 start();
