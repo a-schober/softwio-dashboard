@@ -36,6 +36,7 @@ header{background:#17345e;color:#fff;padding:10px 16px;display:flex;align-items:
 header b{font-size:18px;letter-spacing:-.02em}
 header b u{text-decoration:none;color:#7fb0ff}
 header a{margin-left:auto;color:#cfe0ff;font-size:13px;text-decoration:none}
+header button:not([hidden])~a{margin-left:10px}
 main{max-width:720px;margin:0 auto;padding:14px 16px 40px}
 h2{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:22px 0 8px}
 h2:first-child{margin-top:4px}
@@ -107,7 +108,8 @@ footer{color:var(--fa);font-size:12px;text-align:center;padding:18px 16px 6px;li
 <body>
 <header>
   <b>softwi<u>o</u></b>
-  <a href="/">alles andere →</a>
+  <button type="button" id="ab" hidden style="margin-left:auto;background:none;border:1px solid rgba(255,255,255,.3);color:#cfe0ff;font:inherit;font-size:12.5px;padding:5px 10px;border-radius:5px;cursor:pointer">abmelden</button>
+  <a href="/" id="zurueck">alles andere →</a>
 </header>
 <main>
   <div id="anmeldung" hidden>
@@ -174,7 +176,10 @@ async function laden(){
     .select("id,name,hersteller,hersteller_url,kategorie,letzte_pruefung_am,inhalts_artikel(inhalts_status)")
     .order("name");
   if(error){
-    $("#liste").innerHTML=`<div class="leer">Laden fehlgeschlagen: ${E(error.message)}</div>`;
+    const zu=/permission denied|JWT|row-level/i.test(error.message||"");
+    $("#liste").innerHTML=`<div class="leer">${zu
+      ? "Angemeldet, aber die Tabellen bleiben zu.<br>Meist fehlt der zweite Faktor — einmal abmelden und neu anmelden."
+      : "Laden fehlgeschlagen: "+E(error.message)}</div>`;
     knoepfe();            // die Seite bleibt bedienbar, auch wenn die Liste fehlt
     return;
   }
@@ -367,60 +372,97 @@ async function fehlertext(err){
 }
 
 $("#q").oninput=e=>{ filter=e.target.value; zeichne(); };
+/* Herauskommen aus einer Sitzung, die nicht weit genug reicht. */
+$("#ab").onclick=async()=>{
+  $("#ab").disabled=true;
+  try{ await sb.auth.signOut(); }catch(e){}
+  sel=null; ALLE=[]; filter=""; $("#q").value=""; $("#erg").innerHTML="";
+  $("#code").value=""; $("#code").style.display="none"; $("#codeL").style.display="none";
+  $("#anm").textContent="Anmelden"; $("#anmfehler").textContent="";
+  $("#ab").disabled=false;
+  await start();
+};
 
 /* Die Sitzung liegt im selben Speicher wie beim großen Cockpit: wer dort
    angemeldet ist, kommt hier ohne zweite Anmeldung durch. */
 async function start(){
-  const {data}=await sb.auth.getSession();
+  const {data}=await mitFrist(sb.auth.getSession(), "Sitzungsabfrage");
   const an=!!(data&&data.session);
   $("#anmeldung").hidden=an;
   $("#arbeit").hidden=!an;
+  $("#ab").hidden=!an;
   knoepfe();                 // nie ein leerer Arbeitsbereich, auch ohne Liste
   if(an) await laden();
 }
 /* Auf dem Konto liegt ein zweiter Faktor. Ohne ihn bleibt die Sitzung auf aal1
-   und die Tabellen bleiben zu — das Passwort allein genügt also nicht. */
+   und die Tabellen bleiben zu — das Passwort allein genügt also nicht.
+
+   Jeder Schritt bekommt eine Frist. Ein Knopf, der stumm auf „meldet an …"
+   stehen bleibt, sagt dem Benutzer nichts; lieber eine ehrliche Meldung,
+   dass keine Antwort kam. */
+const FRIST=12000;
+function mitFrist(p, was){
+  return Promise.race([p, new Promise((_,ab)=>setTimeout(
+    ()=>ab(new Error(was+": keine Antwort nach 12 Sekunden. Verbindung prüfen und noch einmal.")), FRIST))]);
+}
+let meldetAn=false;      /* solange true, hält sich onAuthStateChange heraus */
+
+function schritt(text){
+  const f=$("#anmfehler"); f.style.color="var(--mu)";
+  f.innerHTML=`<span class="dreh"></span>${E(text)}`;
+}
 $("#login").onsubmit=async e=>{
   e.preventDefault();
   const b=$("#anm"), f=$("#anmfehler");
-  b.disabled=true; b.textContent="meldet an …"; f.textContent="";
+  meldetAn=true; b.disabled=true; b.textContent="meldet an …";
   try{
     const code=$("#code").value.trim();
-    if(!code){                                   // Schritt 1: Passwort
-      const {error}=await sb.auth.signInWithPassword(
-        {email:$("#mail").value.trim(), password:$("#pw").value});
+    if(!code){
+      schritt("prüft das Passwort …");
+      const {error}=await mitFrist(sb.auth.signInWithPassword(
+        {email:$("#mail").value.trim(), password:$("#pw").value}), "Anmeldung");
       if(error) throw error;
       $("#pw").value="";
     }
-    // Schritt 2: zweiter Faktor, falls die Sitzung ihn verlangt
-    const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    schritt("prüft, ob ein zweiter Faktor verlangt wird …");
+    let aal=null;
+    try{ const r=await mitFrist(sb.auth.mfa.getAuthenticatorAssuranceLevel(), "Faktor-Abfrage");
+         aal=r&&r.data; }
+    catch(e){ aal=null; }          /* keine Auskunft -> Schritt 2 überspringen */
     if(aal&&aal.currentLevel==="aal1"&&aal.nextLevel==="aal2"){
       if(!code){
-        $("#codeL").style.display="block"; $("#code").style.display="block"; $("#code").focus();
-        b.textContent="Code bestätigen"; b.disabled=false;
+        $("#codeL").style.display="block"; $("#code").style.display="block";
+        b.textContent="Code bestätigen"; b.disabled=false; meldetAn=false;
         f.style.color="var(--mu)";
-        f.textContent="Passwort stimmt. Jetzt den 6-stelligen Code aus deiner Authenticator-App.";
+        f.textContent="Passwort stimmt. Jetzt der 6-stellige Code aus deiner Authenticator-App.";
+        try{ $("#code").focus(); }catch(_e){}
         return;
       }
-      const {data:fl}=await sb.auth.mfa.listFactors();
+      schritt("prüft den Code …");
+      const {data:fl}=await mitFrist(sb.auth.mfa.listFactors(), "Faktor-Liste");
       const fac=fl&&fl.totp&&(fl.totp.find(x=>x.status==="verified")||fl.totp[0]);
-      if(!fac) throw new Error("Kein zweiter Faktor auf dem Konto gefunden.");
-      const {data:ch,error:e1}=await sb.auth.mfa.challenge({factorId:fac.id});
+      if(!fac) throw new Error("Auf dem Konto ist kein zweiter Faktor hinterlegt.");
+      const {data:ch,error:e1}=await mitFrist(sb.auth.mfa.challenge({factorId:fac.id}), "Code-Anforderung");
       if(e1) throw e1;
-      const {error:e2}=await sb.auth.mfa.verify({factorId:fac.id, challengeId:ch.id, code});
+      const {error:e2}=await mitFrist(
+        sb.auth.mfa.verify({factorId:fac.id, challengeId:ch.id, code}), "Code-Prüfung");
       if(e2) throw new Error("Code ungültig oder abgelaufen — hol dir einen neuen aus der App.");
       $("#code").value=""; $("#code").style.display="none"; $("#codeL").style.display="none";
     }
-    f.textContent="";
+    schritt("lädt die Artikel …");
+    meldetAn=false;
     await start();
+    f.textContent="";
   }catch(err){
     f.style.color="var(--ba)";
     f.textContent=(err&&err.message)?err.message:String(err);
   }
+  meldetAn=false;
   b.disabled=false;
-  if(!$("#code").value && $("#code").style.display==="none") b.textContent="Anmelden";
+  if($("#code").style.display==="none") b.textContent="Anmelden";
+  else b.textContent="Code bestätigen";
 };
-sb.auth.onAuthStateChange(()=>start());
+sb.auth.onAuthStateChange(()=>{ if(!meldetAn) start(); });
 start();
 </script>
 </body>
