@@ -247,9 +247,10 @@ function knoepfe(){
    Deshalb zählt diese Anzeige nur noch Tatsachen: gelesene Seiten, Tarife,
    Angebote, Aufträge, Datum. Zahlen lügen nicht. Der Reifegrad steht dabei,
    aber nur als Randnotiz. */
-async function lageZeigen(){
-  const id=sel.id;
-  melde("", `<span class="dreh"></span>zählt zusammen, was zu ${E(sel.name)} vorliegt …`);
+let lageLauf=0;
+async function lageZeigen(stillUndLeise){
+  const id=sel.id, lauf=++lageLauf;
+  if(!stillUndLeise) melde("", `<span class="dreh"></span>zählt zusammen, was zu ${E(sel.name)} vorliegt …`);
   try{
     const [sw, roh, ta, an, fn, job, frei, art] = await Promise.all([
       sb.from("software").select("daten_reifegrad,crawl_freigabe_status").eq("id",id).single(),
@@ -258,7 +259,7 @@ async function lageZeigen(){
       sb.from("preise").select("id",{count:"exact",head:true}).eq("software_id",id),
       sb.from("tarif_angebote").select("id",{count:"exact",head:true}).eq("software_id",id),
       sb.from("funktionen").select("id",{count:"exact",head:true}).eq("software_id",id),
-      sb.from("skill_jobs").select("skill,status,erstellt_am,fertig_am,log")
+      sb.from("skill_jobs").select("id,skill,status,erstellt_am,fertig_am,log")
         .eq("software_id",id).order("erstellt_am",{ascending:false}).limit(1),
       sb.from("freigaben").select("id",{count:"exact",head:true}).eq("software_id",id).eq("status","offen"),
       sb.from("inhalts_artikel").select("inhalts_status,letztes_update_am").eq("software_id",id).limit(1),
@@ -310,12 +311,74 @@ async function lageZeigen(){
       + (sw.data&&sw.data.daten_reifegrad?` · Reifegrad „${sw.data.daten_reifegrad}" (nicht verlässlich)`:""));
 
     const fr=document.querySelector("[data-frei]");
-    if(fr) fr.onclick=()=>{ sperre(true); urlFreigabe().finally(()=>sperre(false)); };
+    if(fr) fr.onclick=()=>unterFrist(urlFreigabe(), "Die Freigabe");
     const aw=document.querySelector("[data-auswerten]");
-    if(aw) aw.onclick=()=>{ sperre(true); auswerten().finally(()=>sperre(false)); };
+    if(aw) aw.onclick=()=>unterFrist(auswerten(), "Die Auswertung");
+
+    /* Solange ein Auftrag läuft, zählt die Seite alle 15 Sekunden von selbst
+       nach und meldet sich, sobald er durch ist. Ohne das wäre „Ein Auftrag
+       läuft" ein Standbild, und man müsste raten, wann man wieder hinsieht. */
+    if(laeuft) merkeUndWarte(id, lauf, j,
+      {ta:ta.count||0, an:an.count||0, fn:fn.count||0, se:c?(c.anzahl_seiten||0):0}, 0);
   }catch(e){
     melde("ba", `<b>Stand nicht lesbar.</b> ${E(e&&e.message?e.message:e)}`);
   }
+}
+
+/* Zählt nach, bis der laufende Auftrag durch ist, und meldet dann die Bilanz. */
+async function merkeUndWarte(id, lauf, jobVorher, zahlenVorher, fehlversuche){
+  await new Promise(f=>setTimeout(f,15000));
+  if(lauf!==lageLauf || !sel || sel.id!==id) return;    /* Artikel gewechselt */
+  let jetzt;
+  try{
+    const [job,ta,an,fn,roh]=await Promise.all([
+      sb.from("skill_jobs").select("id,skill,status,fertig_am,log")
+        .eq("software_id",id).order("erstellt_am",{ascending:false}).limit(1),
+      sb.from("preise").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("tarif_angebote").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("funktionen").select("id",{count:"exact",head:true}).eq("software_id",id),
+      sb.from("crawl_rohdaten").select("anzahl_seiten").eq("software_id",id)
+        .order("gecrawlt_am",{ascending:false}).limit(1),
+    ]);
+    jetzt={job:(job.data&&job.data[0])||null, ta:ta.count||0, an:an.count||0, fn:fn.count||0,
+      se:(roh.data&&roh.data[0]&&roh.data[0].anzahl_seiten)||0};
+  }catch(e){
+    /* Nicht stumm endlos wiederholen — nach drei Fehlversuchen sagen, was los ist. */
+    const n=(fehlversuche||0)+1;
+    if(n>=3){
+      melde("wa", `<b>Der Stand lässt sich gerade nicht abfragen.</b>
+        ${E(e&&e.message?e.message:e)}
+        <p style="margin:7px 0 0">Der Auftrag läuft davon unberührt weiter.
+        Tippe den Artikel später noch einmal an.</p>`,
+        "nach "+n+" Versuchen aufgegeben");
+      return;
+    }
+    merkeUndWarte(id,lauf,jobVorher,zahlenVorher,n); return;
+  }
+  if(lauf!==lageLauf || !sel || sel.id!==id) return;
+
+  const fertig=jetzt.job && !["offen","in_arbeit"].includes(jetzt.job.status);
+  const d=(a,b,w)=>b>a?`<li><b>+${b-a}</b> ${w} (${a} → ${b})</li>`:"";
+  const bilanz=d(zahlenVorher.se,jetzt.se,"Seiten gelesen")+d(zahlenVorher.ta,jetzt.ta,"Tarife")
+    +d(zahlenVorher.an,jetzt.an,"Angebote")+d(zahlenVorher.fn,jetzt.fn,"Funktionen");
+
+  if(fertig){
+    const gut=jetzt.job.status==="fertig";
+    melde(gut?"ok":"ba",
+      `<b>Auftrag „${E(jetzt.job.skill)}“ ist ${E(jetzt.job.status)}.</b>
+       ${bilanz?`<ul>${bilanz}</ul>`:"<p style='margin:6px 0 0'>An den Zahlen hat sich nichts geändert.</p>"}
+       ${jetzt.job.log?`<div style="margin-top:7px;font-size:12.5px;white-space:pre-wrap">${E(String(jetzt.job.log).slice(0,500))}</div>`:""}`,
+      "fertig um "+(jetzt.job.fertig_am?new Date(jetzt.job.fertig_am).toLocaleTimeString("de-DE"):"—"));
+    await laden();
+    return;
+  }
+  /* Läuft weiter — Zwischenstand zeigen und wieder nachsehen. */
+  melde("", `<span class="dreh"></span><b>Auftrag „${E(jobVorher.skill)}“ läuft noch.</b>
+    ${bilanz?`<ul>${bilanz}</ul>`:""}
+    <p style="margin:7px 0 0;color:var(--mu)">Die Seite sieht alle 15 Sekunden nach und meldet sich,
+    sobald er durch ist. Du kannst sie auch zumachen — der Auftrag läuft weiter.</p>`,
+    "zuletzt gezählt "+new Date().toLocaleTimeString("de-DE"));
+  merkeUndWarte(id, lauf, jobVorher, zahlenVorher, 0);
 }
 
 /* Den gelesenen Rohtext auswerten lassen: daraus entstehen Preise und Funktionen. */
